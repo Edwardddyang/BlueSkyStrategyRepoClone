@@ -9,7 +9,7 @@ function [average_power] = process_results(power, sun_position)
   sun_times_dt = [sun_times{:}];
   num_rows = size(sun_position_csv,1);
 
-  plot(power_csv, sun_times_dt);
+  plot(sun_times_dt, power_csv);
 
   time_difference = sun_times_dt - sun_times_dt(1);
 
