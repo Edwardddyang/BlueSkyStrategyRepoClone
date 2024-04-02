@@ -22,4 +22,5 @@ function [average_power] = process_results(power, sun_position)
 
   average_power = area_under_curve / difference_hours;
   disp(strcat("Average Power: ", num2str(average_power)));
+  disp(strcat("Max Power: ", num2str(max(power_csv))));
 end
