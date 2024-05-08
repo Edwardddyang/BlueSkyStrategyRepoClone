@@ -75,4 +75,12 @@ add_executable(TimeTest tests/TimeTest.cpp)
 target_link_libraries(TimeTest gtest gtest_main ${EXTERNAL_DEPS} ${PROJECT_NAME})
 add_test( TimeTest TimeTest )
 
+add_executable(LutsTest tests/LutsTest.cpp)
+target_link_libraries(LutsTest gtest gtest_main ${EXTERNAL_DEPS} ${PROJECT_NAME})
+add_test( LutsTest LutsTest )
+
+add_executable(v1CarTest tests/v1CarTest.cpp)
+target_link_libraries(v1CarTest gtest gtest_main ${EXTERNAL_DEPS} ${PROJECT_NAME})
+add_test( v1CarTest v1CarTest )
+
 install(TARGETS sim DESTINATION ${CMAKE_SOURCE_DIR})
