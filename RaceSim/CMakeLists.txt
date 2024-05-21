@@ -83,4 +83,5 @@ add_executable(v1CarTest tests/v1CarTest.cpp)
 target_link_libraries(v1CarTest gtest gtest_main ${EXTERNAL_DEPS} ${PROJECT_NAME})
 add_test( v1CarTest v1CarTest )
 
+install(TARGETS v1CarTest DESTINATION ${CMAKE_SOURCE_DIR})
 install(TARGETS sim DESTINATION ${CMAKE_SOURCE_DIR})
