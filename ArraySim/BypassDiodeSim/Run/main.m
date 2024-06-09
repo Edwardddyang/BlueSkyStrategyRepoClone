@@ -31,7 +31,7 @@ function [] = main(n_cores, irr_csv, num_folders, array_layout, base_folder)
     cd(dir_name);
 
     % Assign range of rows to the instance
-    end_row = start_row + step_size;
+    end_row = start_row + step_size - 1;
     if iDir == num_folders
       end_row = num_rows;
     end
