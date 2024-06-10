@@ -16,7 +16,7 @@ function [] = extract_results(outCsv, resultCsv, numFolders, numRows)
     aDir = fullfile(BasePath, "/", strcat("m", int2str(iDir)));
     disp(aDir);
     cd(aDir);
-    end_index = start_index+step_size;
+    end_index = start_index+step_size-1;
 
     if iDir == numFolders
         end_index = numRows;
