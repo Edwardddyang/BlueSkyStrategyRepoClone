@@ -1,9 +1,11 @@
-function [] = main(n_cores, irr_csv, num_folders, array_layout, base_folder, offset)
+function [] = main(n_cores, irr_csv, num_folders, array_layout, base_folder, offset, starting_row, ending_row)
 % Run a distributed simulink simulation
 % @param n_cores: Number of available cores to run on
 % @param irr_csv: Name of the n x num_cells csv generated from step 2
 % @param num_folders: Number of instances of matlab to run
 % @param offset: Offset row index to start from
+% @param starting_row: starting row of irr_csv to start from
+% @param ending_row: ending row of irr_csv to end from
 
 % @param array_layout: .json file describing the string layout of the array. 
 % See Borealis_Run/string_layout.json for an example
@@ -18,12 +20,11 @@ function [] = main(n_cores, irr_csv, num_folders, array_layout, base_folder, off
   BasePath = pwd;
 
   % Load in the irradiance csv
-  cellIrr = (load(irr_csv));
-  num_rows = size(cellIrr,1);
+  num_rows = ending_row-starting_row+1;
   step_size = round(num_rows / num_folders); % Number of rows to assign to each matlab instance
 
   % Start matlab instances and simulate
-  start_row = offset;
+  start_row = starting_row;
   for iDir = 1:num_folders
 
     % Create copy of base folder
@@ -34,7 +35,7 @@ function [] = main(n_cores, irr_csv, num_folders, array_layout, base_folder, off
     % Assign range of rows to the instance
     end_row = start_row + step_size - 1;
     if iDir == num_folders
-      end_row = num_rows;
+      end_row = ending_row;
     end
     
     % Start the matlab instance
