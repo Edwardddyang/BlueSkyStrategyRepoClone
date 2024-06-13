@@ -43,7 +43,7 @@ function [] = main(nCells, direction, bearing, outputName, canopyPath, arrayCell
     plotArrayCanopy(canopyPoints, arrayCellPoints, highlightCells, 0);
 
     % Find the largest coordinate value along any dimension
-    if (canopy ~= "none")
+    if (canopyPath ~= "none")
         largestCoordinate = max(cat(1, canopyPoints, arrayCellPoints{:}), [], "all");
     else
         largestCoordinate = max(vertcat(arrayCellPoints{:}), [], "all");
