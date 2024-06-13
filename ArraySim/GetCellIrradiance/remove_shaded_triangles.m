@@ -1,25 +1,27 @@
 function [newCell] = remove_shaded_triangles(canopyMesh, cellMeshes, cellVertices, rays, sources, idx)
 % Remove shaded triangles from an array cell
+
 % Parameters:
-% canopyMesh: opcode mesh of the canopy
-% cellMeshes: cell array of opcode meshes of each array cell
-% cellVertices: vertices of an array cell as an n x 3 matrix
-% rays: rays of each point extending from the point to the sun plane as an n x 3 matrix
-% sources: source vertices for each triangle of the cell being examined
+% canopyMesh:   Opcode mesh of the canopy. "none" for no canopy simulation
+% cellMeshes:   Cell array of opcode meshes of each array cell
+% cellVertices: Vertices of an array cell as an n x 3 matrix
+% rays:         An n x 3 matrix storing rays from the source to the sun plane
+% sources:      An n x 3 matrix storing centroids for each triangle making up the cell
 
 % Return:
-% newCell: same as cellVertices with removed rows for shaded triangles
+% newCell: Same as cellVertices with removed rows for shaded triangles
 
 numTriangles = size(rays, 1);
 numCells = size(cellMeshes, 2);
 
 % Query ray intersection with the canopy
-[hit,~,~,~,~] = canopyMesh.intersect(transpose(sources), transpose(rays));
-
-% Remove shaded triangles
-for i=1:numTriangles
-    if hit(i) == 1
-        cellVertices((i-1)*3 + 1: i*3,:) = NaN;
+if (canopyMesh ~= "none")
+    [hit,~,~,~,~] = canopyMesh.intersect(transpose(sources), transpose(rays));
+    % Remove shaded triangles
+    for i=1:numTriangles
+        if hit(i) == 1
+            cellVertices((i-1)*3 + 1: i*3,:) = NaN;
+        end
     end
 end
 

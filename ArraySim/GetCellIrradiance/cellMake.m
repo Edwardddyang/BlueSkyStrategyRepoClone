@@ -1,13 +1,15 @@
-function [orderedCellPoints, origCellPoints, origCellFaces] = cMake(numberOfCells, cellFilePrefix) 
-% This function reads all cell stls and returns data that describes the points 
-% of all array cells
+function [orderedCellPoints, origCellPoints, origCellFaces] = cellMake(numberOfCells, cellFilePrefix) 
+% CELLMAKE Read all cell stls and format them into matrices
+
 % Parameters:
-% numberOfCells: The total number of array cells
-% cellFilePrefix: The prefix to each stl file including the path
+% numberOfCells:    The total number of array cells
+% cellFilePrefix:   The prefix to each stl file including the path
 %
 % Returns:
-% orderedCellPoints: A cell array of n x 3 matrices describing points on each cell of the array with ordering
-% origCellPoints, origCellFaces: Cell arrays of n x 3 matrices that are the direct outputs of stlread2 before ordering
+% orderedCellPoints: An ordered cell array of n x 3 matrices describing 
+%                    the triangle makeup of each cell of the array
+% origCellPoints, origCellFaces: Cell arrays of n x 3 matrices that are the 
+%                    direct outputs of stlread2 before ordering
 
 % Initialize file names 
 fNames = cell(1,numberOfCells);

@@ -1,22 +1,34 @@
 function [] = main(nCells, direction, bearing, outputName, canopyPath, arrayCellsPath, positionsPath)
-    % Main function that computes the n x d csv containing the irradiances on
-    % each cell of the array at all azimuth/elevation combos described in the
-    % csv from step 1
+    % MAIN Create a csv containing the [W/m^2] effective irradiance on all
+    % array cells over the duration of a day
+
+    %   main(257, "-x", 180.0, "wscIrr.csv", "./ArraySTLs/canopy.stl", 
+    %       "./ArraySTLs/NA", "./sun_position.csv")
 
     % Parameters:
-    % nCells: Number of cells of the array
-    % direction: A string indicating the direction of the nose of the array. Can be one of "+x", "-x", "+y", "-y"
-    % Bearing: the angle of the nose of the car clockwise from true north.
-    % outputName: output name of the csv
-    % canopyPath: A string indicating the path to the canopy stl file
-    % arrayCellPath: A string indicating the path to the array stl files. Note
-    % that each stl file must be numbered in order and have the same prefix
-    % positionsPath: A string indicating the path to the 4 column csv generated in step 1
-
-    % Example: main(257, "-x", 180.0, "wscIrr.csv", "./ArraySTLs/canopy.stl", "./ArraySTLs/NA", "./sun_position.csv")
+    % nCells:        Number of cells of the array
+    % direction:     The direction of the nose of the array. Can be one of
+    %                "+x", "-x", "+y", "-y". Look at the CAD to get this.
+    % bearing:       The angle of the nose of the car clockwise from true 
+    %                north.
+    % outputName:    The path to the output csv
+    % canopyPath:    The path to the canopy stl file. "none" for no canopy
+    %                simulation
+    % arrayCellPath: The path to the array stl files. All stl files must be
+    %                monotonically numbered and have the same prefix. 
+    %                e.g. ./STLs/NA implies that all cells are named 
+    %                NA(<number>).stl within the STLs folder
+    % positionsPath: The path to the 4 column csv describing the path
+    %                of the sun. See dayAzElIrr.py for details
 
     % Output: 
-    % An n x d csv named outputName
+    % An n x d csv where n is the number of timestamps (rows) 
+    % in the positionsPath csv and d is the number of array cells.
+    % This csv is stored in the outputName path
+
+    % Note: The nose of the car must point in one of the 4 principal axes +x, -y, +y, -x.
+    % The top of the car MUST also be facing the +z direction. Verify this in the CAD 
+    % diagram
 
     wscAngles = readmatrix(positionsPath);
     N = size(wscAngles,1); 
@@ -31,12 +43,16 @@ function [] = main(nCells, direction, bearing, outputName, canopyPath, arrayCell
     plotArrayCanopy(canopyPoints, arrayCellPoints, highlightCells, 0);
 
     % Find the largest coordinate value along any dimension
-    largestCoordinate = max(cat(1, canopyPoints, arrayCellPoints{:}), [], "all");
+    if (canopy ~= "none")
+        largestCoordinate = max(cat(1, canopyPoints, arrayCellPoints{:}), [], "all");
+    else
+        largestCoordinate = max(vertcat(arrayCellPoints{:}), [], "all");
+    end
 
     % Loop over all sun positions described in wscAngles and find irradiance on each cell
     for i = 1:N
     
-        %Extract sun data 
+        % Extract sun data 
         Az = wscAngles(i,1);
         El = wscAngles(i,2);
         Irr = wscAngles(i,3);
@@ -44,7 +60,7 @@ function [] = main(nCells, direction, bearing, outputName, canopyPath, arrayCell
         % Create sun plane
         sunPlane = create_sun_plane(Az, El, direction, bearing, largestCoordinate);
 
-        %Loop over every cell and remove shaded triangles
+        % Loop over every cell and remove shaded triangles
         sCells = remShadCellStruc(sunPlane, canopyMesh, arrayCellMeshes, arrayCellPoints, i);
 
         % Find power output of each cell in W/m^2

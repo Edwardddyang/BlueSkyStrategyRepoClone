@@ -1,4 +1,4 @@
-function [] = main(n_cores, irr_csv, num_folders, array_layout, base_folder, offset, starting_row, ending_row)
+function [] = main(n_cores, irr_csv, num_folders, array_layout, base_folder, starting_row, ending_row)
 % Run a distributed simulink simulation
 % @param n_cores: Number of available cores to run on
 % @param irr_csv: Name of the n x num_cells csv generated from step 2
