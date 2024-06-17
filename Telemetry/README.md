@@ -23,6 +23,11 @@ Reads MQTT packets from Mosquitto and inserts relevant data into InfluxDB
 
 ### InfluxDB
 Stores data for longterm analysis.
+Token: K1h0Bk9xIbuJiihHAywIXFE_IKnpO_81NWaiRFLCokXC5PSUMDPwwIJQmR7-bnBKfCejTS_gCy-A8YfmIAyeHQ==
+Username: penguin
+Password: 12345678
+Installation: Download database from slack, install influxdb (should have influxd.exe and influx.exe). Replace the files in C:/users/<username>/.influxdbv2 with the downloaded database files
+Run: Launch ./influxd.exe to run the database. ./influx.exe to interact with it. Go to http://localhost:8086 to get the UI
 
 ### Grafana
 Renders the data.
