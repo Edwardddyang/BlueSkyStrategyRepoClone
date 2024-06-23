@@ -11,6 +11,7 @@
 #include <config.h>
 #include <Globals.h>
 #include <route.h>
+#include <string>
 
 /* Getters */
 uint32_t Route::get_num_segments() const { return num_segments; }
@@ -87,6 +88,14 @@ void Route::segment_route_uniform(double length) {
 	assert(route_points.size() > 0 && "Route not loaded yet");
 	size_t num_points = route_points.size();
 
+	//Make segment_lengths and segments empty
+	std::vector<double> seg_lengths;
+	seg_lengths.clear();
+	set_segment_lengths(seg_lengths);
+	std::vector<std::pair<uint32_t, uint32_t>> segs;
+	segs.clear();
+	set_segments(segs);
+
 	double current_segment_distance = 0.0;
 	double difference = 0.0;
 	double last_difference = std::numeric_limits<double>::max();
@@ -100,16 +109,30 @@ void Route::segment_route_uniform(double length) {
 		double distance = get_distance(coord_one, coord_two);
 		current_segment_distance += distance;
 
+		//std::cout << "cur_seg: " << current_segment_distance << " ";
+
 		difference = std::abs(length - current_segment_distance);
 
 		if (difference > last_difference) {
 			segment_indices.second = idx;
 			segments.push_back(segment_indices);
+			std::cout << current_segment_distance << " ";
 			segment_lengths.push_back(current_segment_distance);
 
 			segment_indices = {idx, idx+1};
 			current_segment_distance = distance;
 			difference = std::abs(length - current_segment_distance);
+			//std::cout << current_segment_distance << " ";
+		} else if(current_segment_distance > length){
+			segments.push_back(segment_indices);
+			//std::cout << current_segment_distance << " ";
+			segment_lengths.push_back(current_segment_distance);
+
+			//std::cout << idx << " index " << idx+1;
+			segment_indices = {idx, idx};
+			current_segment_distance = 0;
+			difference = std::abs(length - current_segment_distance);
+			//std::cout << current_segment_distance << " ";
 		}
 
 		last_difference = difference;
@@ -117,6 +140,7 @@ void Route::segment_route_uniform(double length) {
 
 	if (segment_indices.first != segment_indices.second) {
 		segments.push_back(segment_indices);
+		//std::cout << "   If statement: " << current_segment_distance << "   ";
 		segment_lengths.push_back(current_segment_distance);
 	}
 	
