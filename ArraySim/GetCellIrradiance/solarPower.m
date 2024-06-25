@@ -18,6 +18,10 @@ function [solarOutput] = solarPower(sunVector,vertices,Irr)
         A = vertices(i,:);
         B = vertices(i+1,:);
         C = vertices(i+2,:); 
+
+        if (isequal(A, B) || isequal(A,C) || isequal(B,C))
+            continue;
+        end
         
         %Define vectors
         AB = B - A;
