@@ -18,10 +18,10 @@ from shared.protocol_ids import Chase_Data_ID
 
 
 #SERIAL_PORT = '/dev/pts/3'
-SERIAL_PORT = '/dev/ttyUSB0'
+SERIAL_PORT = 'COM2'
 
 MQTT_HOST = "localhost"
-MQTT_PORT = 1883
+MQTT_PORT = 32200
 
 BMS = "BMS"
 MCMB = "MCMB"
@@ -67,6 +67,7 @@ class Parser:
         self.byte_buffer = byte_buffer
         self.client = mqtt.Client()
         self.client.connect(MQTT_HOST, MQTT_PORT, 60)
+        print(self.client)
         # Indicate the status of each byte in a packet
         self.escaped_received = False
         self.started_received = False

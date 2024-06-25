@@ -1,17 +1,23 @@
 function plotArrayCanopy(canopy,arrayCells, highlightCells, uiAxes)
-    % Plots the array and canopy given the triangles of the array cells and the mesh of the canopy
-    % @param canopy: canopy points as an n x 3 matrix
-    % @param arrayCells: Cell array of n x 3 matrices that describe points of each cell with ordering
-    % @param highlightCells: array of cell numbers to highlight
-    % @param uiAxes: The set of figure axes to plot on
+    % Plot the array and canopy on a set of axes
+
+    % Parameters:
+    % canopy:         Canopy points as an n x 3 matrix. "none" for no
+    %                 canopy simulation
+    % arrayCells:     Ordered cell array of n x 3 matrices that describe 
+    %                 triangle makeup of each cell
+    % highlightCells: Array of cell numbers to highlight
+    % uiAxes:         The set of figure axes to plot on
 
     % Plot the canopy
-    if (uiAxes ~= 0)
-        scatter3(uiAxes, canopy(:, 1), canopy(:, 2), canopy(:, 3), 50, 'filled', 'MarkerFaceColor', 'b');
-        hold(uiAxes,"on");
-    else
-        scatter3(canopy(:, 1), canopy(:, 2), canopy(:, 3), 50, 'filled', 'MarkerFaceColor', 'b');
-        hold on;
+    if (canopy ~= "none")
+        if (uiAxes ~= 0)
+            scatter3(uiAxes, canopy(:, 1), canopy(:, 2), canopy(:, 3), 50, 'filled', 'MarkerFaceColor', 'b');
+            hold(uiAxes,"on");
+        else
+            scatter3(canopy(:, 1), canopy(:, 2), canopy(:, 3), 50, 'filled', 'MarkerFaceColor', 'b');
+            hold on;
+        end
     end
 
     xlabel('X-axis');

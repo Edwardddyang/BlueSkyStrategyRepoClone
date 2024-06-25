@@ -8,3 +8,4 @@ Results
 *.dll
 *.dll.a
 *.exe
+.history/*

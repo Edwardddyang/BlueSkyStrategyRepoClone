@@ -1,22 +1,24 @@
 function [projectedPoints] = project_onto_sun_plane(sunPlane,pProject)
-% Project a matrix of points onto a plane
-% Parameters: 
-% sunPlane: a 2 member struct describing the plane of the sun
-% pProject: an n x 3 matrix with points to project onto the plane
+    % PROJECT_ONTO_SUN_PLANE Project a set of 3D points onto a plane
 
-% Return:
-% projectedPoints: an n x 3 matrix with the projected points
+    % Parameters: 
+    % sunPlane:     A 2 member struct describing the plane. See output of 
+    %               create_sun_plane() 
+    % pProject:     An n x 3 matrix with n points to project onto the plane
 
-numPoints = size(pProject,1); 
-projectedPoints = zeros(numPoints, 3);
-normalVector = sunPlane.normal;
-pointOnPlane = sunPlane.point;
+    % Return:
+    % projectedPoints: An n x 3 matrix with the projected points
 
-for i = 1:numPoints
-    pointToPlane = pProject(i,:) - pointOnPlane;
-    distance = dot(pointToPlane, normalVector);
-    projectedPoints(i,:) = pProject(i,:) - distance * normalVector;
+    numPoints = size(pProject,1); 
+    projectedPoints = zeros(numPoints, 3);
+    normalVector = sunPlane.normal;
+    pointOnPlane = sunPlane.point;
 
-end
+    for i = 1:numPoints
+        pointToPlane = pProject(i,:) - pointOnPlane;
+        distance = dot(pointToPlane, normalVector);
+        projectedPoints(i,:) = pProject(i,:) - distance * normalVector;
+
+    end
 
 end

@@ -1,34 +1,45 @@
 function [oCells, ogCells, v_C] = centerArrayAndCanopy(orderedCellV, canopy, origCells)
-% Centers all array cell points and the canopy point cloud around the origin
-% Parameters:
-% orderedCellV: A cell array of n x 3 matrices that describe points of each cell ordered by triangles
-% canopy: An n x 3 matrix that describe point cloud of the canopy
-% origCells: A cell array of n x 3 matrices that describe points of each cell without ordering
+    % CENTERARRAYANDCANOPY Center all array cell points and the canopy point 
+    % cloud around the origin
 
-% Output:
-% oCells: Same as orderedCellV with shifting
-% ogCells: Same as origCells with shifting
-% v_C: Same as canopy with shifting
+    % Parameters:
+    % orderedCellV: An ordered cell array of n x 3 matrices that store the 
+    %               triangle makeup of each cell
+    % canopy:       An n x 3 matrix that describes the canopy ordered into
+    %               triangles. "none" for no canopy simulation
+    % origCells:    An unordered cell array of n x 3 matrices that store the 
+    %               triangle makeup of each cell
 
-% Collect all points from the array and canopy
-allArrayAndCanopyPoints = cat(1, canopy, orderedCellV{:});
+    % Output:
+    % oCells:  Same as orderedCellV with shifting
+    % ogCells: Same as origCells with shifting
+    % v_C:     Same as canopy with shifting. "none" if no canopy simulation
 
-% Calculate the centroid by taking the mean along each axis
-centroid = mean(allArrayAndCanopyPoints);
+    % Collect all points from the array and canopy
+    if (canopy ~= "none")
+        allArrayAndCanopyPoints = cat(1, canopy, orderedCellV{:});
+    else
+        allArrayAndCanopyPoints = vertcat(orderedCellV{:});
+    end
 
-% Center the canopy
-canopy = bsxfun(@minus, canopy, centroid);
+    % Calculate the centroid by taking the mean along each axis
+    centroid = mean(allArrayAndCanopyPoints);
 
-% Center the array
-numCells = size(orderedCellV, 2);
-for i=1:numCells
-    orderedCellV{i} = bsxfun(@minus, orderedCellV{i}, centroid);
-    origCells{i} = bsxfun(@minus, origCells{i}, centroid);
-end
+    % Center the canopy
+    if (canopy ~= "none")
+        canopy = bsxfun(@minus, canopy, centroid);
+    end
 
-v_C = canopy;
-oCells = orderedCellV;
-ogCells = origCells;
+    % Center the array
+    numCells = size(orderedCellV, 2);
+    for i=1:numCells
+        orderedCellV{i} = bsxfun(@minus, orderedCellV{i}, centroid);
+        origCells{i} = bsxfun(@minus, origCells{i}, centroid);
+    end
+
+    v_C = canopy;
+    oCells = orderedCellV;
+    ogCells = origCells;
 
 end
 
