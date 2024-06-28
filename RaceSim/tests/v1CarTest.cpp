@@ -2,9 +2,22 @@
 #include "v1_car.h"
 #include "units.h"
 #include <base_car.h>
+#include "config.h"
+
+int main(int argc, char **argv) {
+    ::testing::InitGoogleTest(&argc, argv);
+
+    const char* strat_root = std::getenv("STRAT_ROOT");
+    if (strat_root == nullptr) {
+        spdlog::error("No STRAT_ROOT environment variable detected. Set it to the full path to gen12_strategy/RaceSim. Exiting.");
+        return 0;    
+    }
+
+    Config::initialize("data/config/wsc_config.yaml", std::string(strat_root));
+    return RUN_ALL_TESTS();
+}
 
 TEST(v1CarTest,  ElectricLossTest) {
-    CONFIG_FILE_PATH = "data/config/wsc_config.yaml";
 
     V1_Car TestCar = V1_Car();
     
@@ -27,7 +40,6 @@ TEST(v1CarTest,  ElectricLossTest) {
 }
 
 TEST(v1CarTest,  GravityLossTest) {
-    CONFIG_FILE_PATH = "data/config/wsc_config.yaml";
 
     V1_Car TestCar = V1_Car();
 
@@ -58,8 +70,6 @@ TEST(v1CarTest,  GravityLossTest) {
 
 TEST(v1CarTest,  AeroLossTest) {
 
-    CONFIG_FILE_PATH = "data/config/wsc_config.yaml";
-
     V1_Car TestCar = V1_Car();
 
     //cda = 0.16
@@ -89,7 +99,6 @@ TEST(v1CarTest,  AeroLossTest) {
 }
 
 TEST(v1CarTest,  RollingLossTest) {
-    CONFIG_FILE_PATH = "data/config/wsc_config.yaml";
 
     V1_Car TestCar = V1_Car();
 

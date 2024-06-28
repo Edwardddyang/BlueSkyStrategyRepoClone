@@ -11,16 +11,22 @@
 #include <utilities.h>
 #include <date.h>
 #include <config.h>
-#include <Globals.h>
+#include <filesystem>
 #include "spdlog/spdlog.h"
 
 template <typename T>
 Base_Lut<T>::Base_Lut(const std::string path) {
-	lut_path = path;
+	std::string strat_root = Config::get_strat_root();
+	if (strat_root == "") {
+		lut_path = path;
+	} else {
+		lut_path = (std::filesystem::path(strat_root) / path).string();
+	}
 }
 
 void Basic_Lut::load_LUT() {
 	std::fstream lut(this->lut_path);
+	assert(lut.is_open() && "File not found...");
 	std::string line;
 	std::string cell;
 

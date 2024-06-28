@@ -2,8 +2,22 @@
 #include "Luts.h"
 #include "units.h"
 
+int main(int argc, char **argv) {
+    ::testing::InitGoogleTest(&argc, argv);
+    
+    const char* strat_root = std::getenv("STRAT_ROOT");
+    if (strat_root == nullptr) {
+        spdlog::error("No STRAT_ROOT environment variable detected. Set it to the full path to gen12_strategy/RaceSim. Exiting.");
+        return 0;    
+    }
+
+    Config::initialize("data/config/wsc_config.yaml", std::string(strat_root));
+    return RUN_ALL_TESTS();
+}
+
+
 TEST(LutsTest, Basic_LutTest) {
-    Basic_Lut TestBaseLut = Basic_Lut("./../data/luts/wsc_2023/static/powerfactor.csv");
+    Basic_Lut TestBaseLut = Basic_Lut("data/luts/wsc_2023/static/powerfactor.csv");
 
     double value = TestBaseLut.get_value(1, 1);
     double true_val = 0.033922205865;
@@ -20,7 +34,7 @@ TEST(LutsTest, Basic_LutTest) {
 }
 
 TEST(LutsTest, Eff_LutTest) {
-    Eff_Lut TestEffLut = Eff_Lut("./../data/luts/wsc_2023/static/rr1.csv");
+    Eff_Lut TestEffLut = Eff_Lut("data/luts/wsc_2023/static/rr1.csv");
 
     double value = TestEffLut.get_value(5, 0);
     double true_val = 0.002574815;
@@ -34,7 +48,7 @@ TEST(LutsTest, Eff_LutTest) {
     true_val = 0.00252506;
     EXPECT_NEAR(value, true_val, 0.0001);
 
-    TestEffLut = Eff_Lut("./../data/luts/wsc_2023/static/rr2.csv");
+    TestEffLut = Eff_Lut("data/luts/wsc_2023/static/rr2.csv");
 
     value = TestEffLut.get_value(5, 0);
     true_val = 0.0000318442;
@@ -51,7 +65,7 @@ TEST(LutsTest, Eff_LutTest) {
 }
 
 TEST(LutsTest, Forecast_LutTest) {
-    Forecast_Lut TestForecastLut = Forecast_Lut("./../data/luts/wsc_2023/dynamic/dni.csv");
+    Forecast_Lut TestForecastLut = Forecast_Lut("data/luts/wsc_2023/dynamic/dni.csv");
     ForecastCoord testCoord = ForecastCoord(-12.46322, 130.84618);
     EXPECT_NEAR(testCoord.lat, -12.46322, 0.0001);
     
@@ -99,7 +113,7 @@ TEST(LutsTest, Forecast_LutTest) {
     EXPECT_NEAR(value, true_val, 0.0001);
 
     
-    TestForecastLut = Forecast_Lut("./../data/luts/wsc_2023/dynamic/dhi.csv");
+    TestForecastLut = Forecast_Lut("data/luts/wsc_2023/dynamic/dhi.csv");
     testCoord = ForecastCoord(-14.211745, 132.03927);
 
     //231021223000 - actual value from dhi table

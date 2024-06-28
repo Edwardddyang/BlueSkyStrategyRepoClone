@@ -2,12 +2,11 @@
 #include <opt_factory.h>
 #include <v1_opt.h>
 #include <base_opt.h>
-#include <Globals.h>
 
-std::unordered_map<std::string, optimizer> config_to_optimizer = {
+std::unordered_map<std::string, optimizer> Opt_Factory::config_to_optimizer = {
     {"Constant", optimizer::CONSTANT},
 };
-std::string DEFAULT_OPTIMIZER = "Constant";
+std::string Opt_Factory::DEFAULT_OPTIMIZER = "Constant";
 
 Optimizer* Opt_Factory::get_optimizer(std::string opt_type, Route route, Sim simulator) {
     optimizer opt;

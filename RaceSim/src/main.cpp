@@ -2,10 +2,10 @@
 
 #include "spdlog/spdlog.h"
 #include <stdlib.h>
+#include <cstdlib>
 #include <sim.h>
 #include <config.h>
 #include <string.h>
-#include <Globals.h>
 #include <stdio.h>
 #include <car_factory.h>
 #include <base_car.h>
@@ -18,10 +18,17 @@ int main(int argc, char* argv[]) {
     spdlog::set_level(spdlog::level::info);
     if (argc < 2) {
         spdlog::error("No config file supplied. Exiting");
+        return 0;
     }
 
-    /* Load the global configuration file */
-    CONFIG_FILE_PATH = argv[1];
+    const char* strat_root = std::getenv("STRAT_ROOT");
+    if (strat_root == nullptr) {
+        spdlog::error("No STRAT_ROOT environment variable detected. Set it to the full path to gen12_strategy/RaceSim. Exiting.");
+        return 0;    
+    }
+
+    std::string config_file_path = argv[1];
+    Config::initialize(config_file_path, std::string(strat_root));
 
     /* Create a model of the car */
     Car* car = Car_Factory::get_car(Config::get_instance()->get_model());

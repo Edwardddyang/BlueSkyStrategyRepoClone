@@ -20,19 +20,19 @@
   base_dir: /luts/wsc_2023 # Base directory for all luts relative to gen12_strategy/RaceSim/<base_dir>
 
   # All following luts are relative to gen12_strategy/RaceSim/luts/<base_dir>
-  base_route_path: ./data/luts/wsc_2023/static/baseroute.csv # 3 column csv --> latitude (degrees) | longitude (degrees) | altitude (km)
-  speed_limits_path: ./data/luts/wsc_2023/static/longDistanceSpeedLimit.csv # Unused
-  traffic_signals_path: ./data/luts/wsc_2023/static/longDistanceTrafficSignals.csv # Unused
-  power_factor_path: ./data/luts/wsc_2023/static/powerfactor.csv
-  roll_res_slope_path: ./data/luts/wsc_2023/static/rr2.csv
-  roll_res_yint_path: ./data/luts/wsc_2023/static/rr1.csv
+  base_route_path: data/luts/wsc_2023/static/baseroute.csv # 3 column csv --> latitude (degrees) | longitude (degrees) | altitude (km)
+  speed_limits_path: data/luts/wsc_2023/static/longDistanceSpeedLimit.csv # Unused
+  traffic_signals_path: data/luts/wsc_2023/static/longDistanceTrafficSignals.csv # Unused
+  power_factor_path: data/luts/wsc_2023/static/powerfactor.csv
+  roll_res_slope_path: data/luts/wsc_2023/static/rr2.csv
+  roll_res_yint_path: data/luts/wsc_2023/static/rr1.csv
   # driving_efficiency: /luts/wsc_2023/static/drivingeff.csv # Unused
   # regen_efficiency: /luts/wsc_2023/static/regeneff.csv # Unused
   # battery_efficiency: /luts/wsc_2023/static/batteff.csv # Unused
-  dni_path: ./data/luts/wsc_2023/dynamic/dni.csv
-  dhi_path: ./data/luts/wsc_2023/dynamic/dhi.csv
-  wind_direction_path: ./data/luts/wsc_2023/dynamic/wind_direction_10m.csv
-  wind_speed_path: ./data/luts/wsc_2023/dynamic/wind_speed_10m.csv
+  dni_path: data/luts/wsc_2023/dynamic/dni.csv
+  dhi_path: data/luts/wsc_2023/dynamic/dhi.csv
+  wind_direction_path: data/luts/wsc_2023/dynamic/wind_direction_10m.csv
+  wind_speed_path: data/luts/wsc_2023/dynamic/wind_speed_10m.csv
 
 \Route: # Route conditions
   control_stops: 2962,5559,9462,11421,14439,16990,20832,23202,25987 # Coordinate indices in the route csv 

@@ -10,7 +10,7 @@ Base class for optimization algorithms
 #include <sim.h>
 
 class Optimizer {
-protected: 
+protected:
     /* Route to optimize on */
     Sim sim;
     Route route;

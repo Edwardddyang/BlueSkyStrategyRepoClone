@@ -2,13 +2,12 @@
 
 #include <car_factory.h>
 #include <base_car.h>
-#include <Globals.h>
 #include <v1_car.h>
 
-std::unordered_map<std::string, cars> config_to_car_model = {
+std::unordered_map<std::string, cars> Car_Factory::config_to_car_model = {
     {"Gen 11.5", cars::V1_CAR},
 };
-std::string DEFAULT_CAR = "Gen 11.5";
+std::string Car_Factory::DEFAULT_CAR = "Gen 11.5";
 
 Car* Car_Factory::get_car(std::string car_type) {
     cars model;

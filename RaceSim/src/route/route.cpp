@@ -9,8 +9,8 @@
 #include <utilities.h>
 #include <limits>
 #include <config.h>
-#include <Globals.h>
 #include <route.h>
+#include <filesystem>
 #include <string>
 
 /* Getters */
@@ -31,7 +31,13 @@ void Route::set_route_points(std::vector<Coord> new_route_points) {route_points 
 /* Load the base route */
 Route::Route() {
 	Config* params = Config::get_instance();
-	std::string route_path = params->get_base_route_path();
+	std::string strat_root = Config::get_strat_root();
+	std::string route_path;
+	if (strat_root == "") {
+		route_path = params->get_base_route_path();
+	} else {
+		route_path = (std::filesystem::path(strat_root) / params->get_base_route_path()).string();
+	}
 	std::fstream base_route(route_path);
 	assert(base_route.is_open() && "File not found...");
 	route_length = 0.0;
