@@ -6,7 +6,6 @@
 #include <stdlib.h>
 #include <fstream>
 #include <sstream>
-#include <Globals.h>
 #include <date.h>
 
 bool isDouble(std::string str) {

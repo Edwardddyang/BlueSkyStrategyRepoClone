@@ -17,12 +17,18 @@ std::vector<uint32_t> V1_Opt::optimize() {
     int min_speed = Config::get_instance()->get_min_speed();
 
     bool save_csv = Config::get_instance()->get_save_csv();
-
+    std::filesystem::path results_folder;
     for (int i=min_speed; i<=max_speed; i++) {
         speed_profile_kph[0] = i;
 
         if (save_csv) {
-            std::filesystem::create_directory("Results/");
+            const char* strat_root = std::getenv("STRAT_ROOT");
+            if (strat_root == nullptr) {
+                spdlog::error("No STRAT_ROOT environment variable detected. Set it to the full path to gen12_strategy/RaceSim. Exiting.");
+                exit(0);  
+            }
+            results_folder = std::filesystem::path(strat_root) / "Results";
+            std::filesystem::create_directory(results_folder);
         }
 
         /* Run the simulation */
@@ -30,7 +36,7 @@ std::vector<uint32_t> V1_Opt::optimize() {
 
         /* Log the simulation */
         if (save_csv) {
-            sim.write_result("Results/" + std::to_string(speed_profile_kph[0]) + ".csv");
+            sim.write_result((results_folder / (std::to_string(speed_profile_kph[0]) + ".csv")).string());
         }
 
         if (current_speed_viability) {

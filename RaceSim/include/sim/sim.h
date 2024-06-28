@@ -13,6 +13,8 @@ Class to run the a full scale simulation on a designated route
 #include <config.h>
 #include <string.h>
 
+const double OVERNIGHT_STEP_SIZE (30.0);
+
 class Sim {
 private:
    /* Weather forecasting LUTs */

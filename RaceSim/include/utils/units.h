@@ -5,7 +5,6 @@ Definitions and functions for scientific units, custom objects, conversion funct
 #ifndef UNITS_H
 #define UNITS_H
 
-#include <Globals.h>
 #include <vector>
 #include <string>
 #include <ctime>
@@ -13,6 +12,17 @@ Definitions and functions for scientific units, custom objects, conversion funct
 #include <chrono>
 #include <date.h>
 #include "time.h"
+
+/* Constants */
+#define PI (3.14159265358979323846264338327950288)
+#define DEGREES_IN_PI (180)
+#define HOURS_TO_SECONDS (3.6e3)
+#define MINUTES_TO_SECONDS 60.0
+#define HOURS_TO_MINUTES 60.0
+#define JOULES_TO_KWH (3.6e6)
+#define MPS_TO_KPH (3.6)
+#define GRAVITY_ACCELERATION (9.81)
+#define KM_TO_M (1000.0)
 
 /* Custom units */
 

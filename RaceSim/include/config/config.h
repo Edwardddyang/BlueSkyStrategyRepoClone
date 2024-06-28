@@ -8,7 +8,6 @@
 #include <units.h>
 #include <Luts.h>
 #include <unordered_set>
-#include <Globals.h>
 #include <custom_time.h>
 #include <unordered_map>
 #include <config_param.h>
@@ -61,17 +60,19 @@
 
 class Config {
 private:
-	/* Path to the config file */
-	std::string file_path;
-
 	/* Parsed config */
 	static YAML::Node config;
 
 	/* Map with all parsed key-value pairs from the yaml config file */
 	static std::unordered_map<std::string, YAML::Node> key_values;
 
-	/* Singleton pointer */
 	static Config* instance_ptr;
+	static bool initialized;
+	static std::string config_file_path;
+	static std::string STRAT_ROOT;
+
+	// Dummy variable to satisfy macro syntax
+	int b;
 
 	/* Declare all parameters */
 	#define PARAM(name, type, default_value) \
@@ -86,7 +87,7 @@ private:
 		name(Config_Param<type>(#name, default_value, key_values)),
 
 	/* Load all parameters from yaml file. Should only be called from get_instance() */
-	Config(std::string config_file_path) : CONFIG_PARAMETERS file_path(config_file_path){}
+	Config() : CONFIG_PARAMETERS b(45) {}
 
 	#undef PARAM
 
@@ -98,6 +99,12 @@ public:
 	/* Public singleton constructor */
 	static Config* get_instance();
 
+	/** Set the config file. Can only be called once in an executable's life cycle
+	 * @param file_path path to the config file relative to executable
+	 * @param strat_root_path full path to gen12_strategy/RaceSim
+	 */
+	static void initialize(std::string file_path, std::string strat_root_path);
+	
 	~Config();
 
 	/* Getters */
@@ -106,6 +113,7 @@ public:
 
 	CONFIG_PARAMETERS
 	#undef PARAM
+	static std::string get_strat_root() {return STRAT_ROOT;}
 
 	/* No setters since config parameters should never change after initialization */
 };
