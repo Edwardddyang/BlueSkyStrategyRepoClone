@@ -1,11 +1,19 @@
+# vscode
 .vscode
+.history/*
+
+# Cmake
 build
+
+# ArraySim
 *.stl
 *.scdocx
 slprj/
 .slxc
+
+# RaceSim
 Results
 *.dll
 *.dll.a
 *.exe
-.history/*
+install/
