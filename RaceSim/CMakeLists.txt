@@ -8,40 +8,23 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # -------------- Link in 3rd party libraries --------------
-Include(FetchContent)
+set(EXTERNAL_DIR ${CMAKE_SOURCE_DIR}/libs)
 
 # spdlog
-FetchContent_Declare(
-    spdlog
-    GIT_REPOSITORY https://github.com/gabime/spdlog.git
-    GIT_TAG v1.13.0
-    DOWNLOAD_EXTRACT_TIMESTAMP true
-)
-FetchContent_MakeAvailable(spdlog)
+add_subdirectory(${EXTERNAL_DIR}/spdlog)
+list(APPEND EXTERNAL_DEPS spdlog::spdlog)
 
 # GoogleTest
-FetchContent_Declare(
-  googletest
-  URL https://github.com/google/googletest/archive/03597a01ee50ed33e9dfd640b249b4be3799d395.zip
-  DOWNLOAD_EXTRACT_TIMESTAMP true
-)
-# For Windows: Prevent overriding the parent project's compiler/linker settings
-set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
-set(INSTALL_GTEST OFF CACHE BOOL "Enable installation of googletest. (Projects embedding googletest may want to turn this OFF.)" FORCE)
-FetchContent_MakeAvailable(googletest)
+set(INSTALL_GTEST OFF)
+add_subdirectory(${EXTERNAL_DIR}/googletest)
+list(APPEND EXTERNAL_DEPS gtest gtest_main)
 
-# Yaml-cpp
-FetchContent_Declare(
-    yaml-cpp
-    GIT_REPOSITORY https://github.com/jbeder/yaml-cpp.git
-    GIT_TAG 0.8.0
-    DOWNLOAD_EXTRACT_TIMESTAMP true
-)
-set(YAML_CPP_BUILD_TESTS OFF CACHE BOOL "Enable testing in yaml-cpp")
-set(YAML_CPP_BUILD_TOOLS OFF CACHE BOOL "Build yaml-cpp tools")
-set(YAML_CPP_BUILD_CONTRIB OFF CACHE BOOL "Build yaml-cpp contrib")
-FetchContent_MakeAvailable(yaml-cpp)
-set(EXTERNAL_DEPS spdlog::spdlog yaml-cpp)
+# yaml-cpp
+set(YAML_CPP_BUILD_TESTS OFF CACHE BOOL "Enable testing in yaml-cpp" FORCE)
+set(YAML_CPP_BUILD_TOOLS OFF CACHE BOOL "Build yaml-cpp tools" FORCE)
+set(YAML_CPP_BUILD_CONTRIB OFF CACHE BOOL "Build yaml-cpp contrib" FORCE)
+add_subdirectory(${EXTERNAL_DIR}/yaml-cpp)
+list(APPEND EXTERNAL_DEPS yaml-cpp)
 # ---------------------------------------------------------
 
 # ---------------- RaceSim dynamic library ----------------

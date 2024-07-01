@@ -56,6 +56,8 @@ From Gen12_Strategy/RaceSim/
 ```
 Note that you will have to set STRAT_ROOT (step 5) every time you open your shell. If you're on linux, you can add it to your .bashrc in order to persist it.
 
+Dependencies: yaml-cpp (0.8.0), spdlog (1.14.1), googletest (1.14.0)
+
 ## Config File
 
 The .yaml configuration file specifies parameters about your car and race route. A sample configuration is given in data/config/wsc_config.yaml. Note that all LUT paths are relative to gen12_strategy/RaceSim
