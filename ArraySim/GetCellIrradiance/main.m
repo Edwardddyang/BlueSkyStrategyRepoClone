@@ -40,7 +40,7 @@ function [] = main(nCells, direction, bearing, outputName, canopyPath, arrayCell
 
     % Plot the array and canopy - testing purposes
     highlightCells = [103, 104];
-    plotArrayCanopy(canopyPoints, arrayCellPoints, highlightCells, 0);
+   % plotArrayCanopy(canopyPoints, arrayCellPoints, highlightCells, 0);
 
     % Find the largest coordinate value along any dimension
     if (canopyPath ~= "none")
