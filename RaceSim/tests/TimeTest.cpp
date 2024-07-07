@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 #include "custom_time.h"
 #include "units.h"
-
+#include <stdlib.h>
 
 TEST(TimeTest, GetLocalReadableTime) {
     Time m_time = Time("2024-03-21 10:30:00", -9.5);

@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 #include "Luts.h"
 #include "units.h"
+#include <stdlib.h>
 
 int main(int argc, char **argv) {
     ::testing::InitGoogleTest(&argc, argv);

@@ -3,6 +3,7 @@
 #include "units.h"
 #include <base_car.h>
 #include "config.h"
+#include <stdlib.h>
 
 int main(int argc, char **argv) {
     ::testing::InitGoogleTest(&argc, argv);

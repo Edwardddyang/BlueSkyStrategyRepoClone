@@ -6,7 +6,7 @@ cmake_minimum_required(VERSION 3.12)
 project(RaceSim VERSION 1.0 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
 # -------------- Link in 3rd party libraries --------------
 set(EXTERNAL_DIR ${CMAKE_SOURCE_DIR}/libs)
 
@@ -63,6 +63,7 @@ set(RACESIM_SOURCES
     ${UTILS_SOURCES}
 )
 add_library(RaceSim SHARED ${RACESIM_SOURCES})
+# Don't need include directories for yaml-cpp, googletest,spdlog - they set up those with INTERFACE
 target_include_directories(RaceSim PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${CMAKE_CURRENT_SOURCE_DIR}/include/config
@@ -139,12 +140,10 @@ add_test(RouteTest RouteTest)
 
 # ---------------------- Installation ---------------------
 install(TARGETS RaceSim
-        RUNTIME DESTINATION ${CMAKE_SOURCE_DIR}/install/lib)
+        RUNTIME DESTINATION ${CMAKE_SOURCE_DIR}/install/lib
+        LIBRARY DESTINATION ${CMAKE_SOURCE_DIR}/install/lib)
 install(TARGETS opt
         RUNTIME DESTINATION ${CMAKE_SOURCE_DIR}/install/bin)
 install(TARGETS GeographyTest TimeTest LutsTest v1CarTest RouteTest
         RUNTIME DESTINATION ${CMAKE_SOURCE_DIR}/install/tests/bin)
-# ---------------------------------------------------------
-
-# ------------------------- Clean -------------------------
 # ---------------------------------------------------------
