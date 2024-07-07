@@ -56,6 +56,10 @@ From Gen12_Strategy/RaceSim/
 ```
 Note that you will have to set STRAT_ROOT (step 5) every time you open your shell. If you're on linux, you can add it to your .bashrc in order to persist it.
 
+This has been tested on:
+- Windows machine with make (GNU 3.81) with gcc (8.3), CMake (3.30)
+- Ubuntu 20.04 with make (GNU 4.2) with gcc (9.4), CMake (3.16.3)
+
 Dependencies: yaml-cpp (0.8.0), spdlog (1.14.1), googletest (1.14.0)
 
 ## Config File
