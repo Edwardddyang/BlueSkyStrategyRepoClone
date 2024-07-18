@@ -1,4 +1,8 @@
 #include "gui.hpp"
+#include <cstdlib>
+#include "imgui_stdlib.h"
+#include <sstream>
+#include <iomanip>  // for std::setprecision
 
 /* Static declarations */
 std::shared_ptr<GUI> GUI::instance = nullptr;
@@ -90,6 +94,7 @@ void GUI::initialize() {
 }
 
 void GUI::render() {
+    // Main render loop
     while (!glfwWindowShouldClose(window))
     {
         initialize_new_frame();
@@ -100,54 +105,24 @@ void GUI::render() {
         /* Simulation configuration pane */
         render_simulation_configuration_pane();
 
-        // Rendering
-        ImGui::End();
-        ImGui::Render();
-        int display_w, display_h;
-        glfwGetFramebufferSize(window, &display_w, &display_h);
-        glViewport(0, 0, display_w, display_h);
-        glClearColor(clear_color.x * clear_color.w, clear_color.y * clear_color.w, clear_color.z * clear_color.w, clear_color.w);
-        glClear(GL_COLOR_BUFFER_BIT);
-        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-        glfwSwapBuffers(window);
+        /* Render the frame */
+        render_frame();
     }
 }
 
 void GUI::render_step_selection_pane() {
-    ImGui::SetNextWindowPos(top_left_position);
-    ImGui::SetNextWindowSize(ImVec2(
-                            window_width*step_selection_width_fraction, window_height*step_selection_height_fraction
-                            ), ImGuiCond_Always);
+    set_window_size_position_on_resize(step_selection_size, step_selection_position);
 
     ImGui::Begin("Steps");
 
-    ImGui::RadioButton("Step 1", &selected_step, 0);
-    ImGui::SameLine();
-    ImGui::TextDisabled("(?)");
-    if (ImGui::IsItemHovered())
-    {
-        ImGui::BeginTooltip();
-        ImGui::Text("Create a timestamp CSV");
-        ImGui::EndTooltip();
-    }
-    ImGui::RadioButton("Step 2", &selected_step, 1);
-    ImGui::SameLine();
-    ImGui::TextDisabled("(?)");
-    if (ImGui::IsItemHovered())
-    {
-        ImGui::BeginTooltip();
-        ImGui::Text("Create effective irradiance csv");
-        ImGui::EndTooltip();
-    }
-    ImGui::RadioButton("Visualization", &selected_step, 2);
-    ImGui::SameLine();
-    ImGui::TextDisabled("(?)");
-    if (ImGui::IsItemHovered())
-    {
-        ImGui::BeginTooltip();
-        ImGui::Text("Visualizations of the sun path csv (step 1) or the array heat map (step 2)");
-        ImGui::EndTooltip();
-    }
+    ImGui::RadioButton("Step 1", &selected_step, static_cast<int>(steps::STEP_1));
+    insert_tooltip("Create a sun position CSV");
+
+    ImGui::RadioButton("Step 2", &selected_step, static_cast<int>(steps::STEP_2));
+    insert_tooltip("Create effective irradiance csv");
+
+    ImGui::RadioButton("Visualization", &selected_step, static_cast<int>(steps::STEP_3));
+    insert_tooltip("Visualizations of the sun path csv (step 1) or the array heat map (step 2)");
 
     // Help popup
     if (ImGui::Button("Help")) {
@@ -156,14 +131,7 @@ void GUI::render_step_selection_pane() {
     }
 
     if (is_help_popup_open) {
-        float x_window_size = window_width * help_popup_width_fraction;
-        float y_window_size = window_height * help_popup_height_fraction;
-        ImGui::SetNextWindowSize(ImVec2(x_window_size,y_window_size), ImGuiCond_Always);
-        ImVec2 center_position = ImVec2(
-            window_width * 0.5f - x_window_size * 0.5f,
-            window_height * 0.5f - y_window_size * 0.5f
-        );
-        ImGui::SetNextWindowPos(center_position, ImGuiCond_Always);
+        set_window_size_position_on_resize(help_popup_size, help_popup_position);
     }
 
     if (ImGui::BeginPopupModal("Guide", NULL, ImGuiWindowFlags_AlwaysAutoResize))
@@ -192,20 +160,145 @@ void GUI::render_step_selection_pane() {
 }
 
 void GUI::render_simulation_configuration_pane() {
-    if (selected_step == static_cast<int>(steps::STEP_1)) {
-        ImGui::Begin("Step 1 - Generate Simulation CSV");
-        ImGui::End();
+    if (window_resized || last_selected_step != selected_step) {
+        set_window_size_position(sim_config_size, sim_config_position);
     }
+
+    if (selected_step == static_cast<int>(steps::STEP_1)) {
+        render_step_one_layout();
+    } else if (selected_step == static_cast<int>(steps::STEP_2)) {
+        ImGui::Begin("Step 2 - Effective Irradiance CSV");
+    } else if (selected_step == static_cast<int>(steps::STEP_3)) {
+        ImGui::Begin("Visualize");
+    }
+    ImGui::End();
 }
 
+void GUI::render_step_one_layout() {
+    ImGui::Begin("Step 1 - Generate Sun Path CSV");
+    ImGui::SetNextItemWidth(num_timesteps_width);
+    ImGui::InputInt("No. Timesteps", &num_timesteps);
+    insert_tooltip("Number of sun positions to generate from the Start Time [inclusive] to the End Time");
+
+    ImGui::SetNextItemWidth(location_width);
+    ImGui::InputFloat2("Latitude / Longitude", location, "%.3f");
+    insert_tooltip("Static location on earth where the sun position will be generated");
+
+    ImGui::NewLine();
+    ImGui::SetNextItemWidth(text_field_width);
+    ImGui::InputText("Start Time", &start_time);
+    insert_tooltip("Start time of the simulation day in 24 hour local time with format: YYYY-MM-DD HH:MM:SS");
+
+    ImGui::NewLine();
+    ImGui::SetNextItemWidth(text_field_width);
+    ImGui::InputText("End Time", &end_time);
+    insert_tooltip("End time of the simulation day in 24 hour local time with format: YYYY-MM-DD HH:MM:SS");
+
+    ImGui::NewLine();
+    ImGui::Text("UTC Adjustment");
+    insert_tooltip("Adjustment from local time to UTC time in HH:MM:SS format. Forwards implies (+) adjustment, Backward implies (-) adjustment.\n"
+                   "E.g. 9:30:00 local time with a UTC adjustment of 4:30:00 hours forward implies 14:00:00 UTC time");
+    ImGui::RadioButton("Forward", &adjustment, FORWARD_ADJUSTMENT);
+    ImGui::SameLine();
+    ImGui::RadioButton("Backward", &adjustment, BACKWARD_ADJUSTMENT);
+    ImGui::SetNextItemWidth(text_field_width);
+    ImGui::InputText("Adjustment", &utc_adjustment);
+
+    ImGui::NewLine();
+    ImGui::SetNextItemWidth(text_field_width);
+    ImGui::InputText("Output File Name", &output_file_buffer);
+    if (ImGui::Button("Create")) {
+        std::string sign = adjustment == FORWARD_ADJUSTMENT ? "+" : "-";
+        std::ostringstream oss;
+        oss << "python dayAzElIrr.py " << "--lat " << std::fixed << std::setprecision(6) << location[0]
+                                       << " --lon " << std::fixed << std::setprecision(6) << location[1]
+                                       << " --start_time \"" << start_time << "\""
+                                       << " --end_time \"" << end_time << "\""
+                                       << " --utc_adjustment " << sign << utc_adjustment
+                                       << " --num_timesteps " << num_timesteps;
+        if (output_file_buffer != "") {
+            oss << " --out_csv " << output_file_buffer;
+        }
+        std::cout << oss.str() << std::endl;
+        
+        system(oss.str().c_str());
+    }
+}
 void GUI::initialize_new_frame() {
     glfwPollEvents();
     ImGui_ImplOpenGL3_NewFrame();
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
     ImGuiIO& io = ImGui::GetIO();
+
+    // Window component size and positions
     window_width = io.DisplaySize.x;
     window_height = io.DisplaySize.y;
+
+    if (window_width != prev_window_width || window_height != prev_window_height) {
+        window_resized = true;
+        step_selection_size = ImVec2(
+            window_width*step_selection_width_fraction, window_height*step_selection_height_fraction
+        );
+        help_popup_size = ImVec2(
+            window_width*help_popup_width_fraction, window_height*help_popup_height_fraction
+        );
+        help_popup_position = ImVec2( // Center of the screen
+            window_width * 0.5f - help_popup_size[WIDTH_INDEX] * 0.5f,
+            window_height * 0.5f - help_popup_size[HEIGHT_INDEX] * 0.5f
+        );
+        sim_config_size = ImVec2(
+            window_width*sim_config_width_fraction, window_height*sim_config_height_fraction
+        );
+        // Put it under the step selection window
+        sim_config_position = ImVec2(
+            0.0f, window_height*step_selection_height_fraction
+        );
+        num_timesteps_width = sim_config_size[WIDTH_INDEX] * num_timesteps_width_fraction;
+        location_width = sim_config_size[WIDTH_INDEX] * location_width_fraction;
+        time_field_width = sim_config_size[WIDTH_INDEX] * time_field_width_fraction;
+        text_field_width = sim_config_size[WIDTH_INDEX] * text_field_width_fraction;
+    } else {
+        window_resized = false;
+    }
+}
+
+void GUI::set_window_size_position(const ImVec2 size, const ImVec2 position) const {
+    ImGui::SetNextWindowSize(size, ImGuiCond_Always);
+    ImGui::SetNextWindowPos(position, ImGuiCond_Always);
+}
+
+void GUI::set_window_size_position_on_resize(const ImVec2 size, const ImVec2 position) const {
+    if (window_resized) {
+        ImGui::SetNextWindowSize(size, ImGuiCond_Always);
+        ImGui::SetNextWindowPos(position, ImGuiCond_Always);
+    }
+}
+
+void GUI::insert_tooltip(const char* tip) const {
+    ImGui::SameLine();
+    ImGui::TextDisabled("(?)");
+    if (ImGui::IsItemHovered())
+    {
+        ImGui::BeginTooltip();
+        ImGui::Text(tip);
+        ImGui::EndTooltip();
+    }
+}
+
+void GUI::render_frame() {
+    ImGui::End();
+    ImGui::Render();
+    int display_w, display_h;
+    glfwGetFramebufferSize(window, &display_w, &display_h);
+    glViewport(0, 0, display_w, display_h);
+    glClearColor(clear_color.x * clear_color.w, clear_color.y * clear_color.w, clear_color.z * clear_color.w, clear_color.w);
+    glClear(GL_COLOR_BUFFER_BIT);
+    ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+    glfwSwapBuffers(window);
+    prev_window_height = window_height;
+    prev_window_width = window_width;
+    last_selected_step = selected_step;
 }
 void GUI::cleanup() {
     // Cleanup
