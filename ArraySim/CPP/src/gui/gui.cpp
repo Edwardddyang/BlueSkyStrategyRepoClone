@@ -3,6 +3,7 @@
 #include "imgui_stdlib.h"
 #include <sstream>
 #include <iomanip>  // for std::setprecision
+#include "ImGuiFileDialog.h"
 
 /* Static declarations */
 std::shared_ptr<GUI> GUI::instance = nullptr;
@@ -167,7 +168,7 @@ void GUI::render_simulation_configuration_pane() {
     if (selected_step == static_cast<int>(steps::STEP_1)) {
         render_step_one_layout();
     } else if (selected_step == static_cast<int>(steps::STEP_2)) {
-        ImGui::Begin("Step 2 - Effective Irradiance CSV");
+        render_step_two_layout();
     } else if (selected_step == static_cast<int>(steps::STEP_3)) {
         ImGui::Begin("Visualize");
     }
@@ -224,6 +225,26 @@ void GUI::render_step_one_layout() {
         system(oss.str().c_str());
     }
 }
+
+void GUI::render_step_two_layout() {    
+    ImGui::Begin("Step 2 - Effective Irradiance CSV");
+    if (ImGui::Button("Array Cell STLs")) {
+        IGFD::FileDialogConfig config;
+        config.path = ".";
+        ImGuiFileDialog::Instance()->OpenDialog("Choose STL", "Choose File", ".stl", config);
+    }
+
+    // display
+    if (ImGuiFileDialog::Instance()->Display("Choose STL")) {
+        if (ImGuiFileDialog::Instance()->IsOk()) { // action if OK
+            std::string filePathName = ImGuiFileDialog::Instance()->GetFilePathName();
+            std::string filePath = ImGuiFileDialog::Instance()->GetCurrentPath();
+            // action
+        }
+        ImGuiFileDialog::Instance()->Close();
+    }
+}
+
 void GUI::initialize_new_frame() {
     glfwPollEvents();
     ImGui_ImplOpenGL3_NewFrame();

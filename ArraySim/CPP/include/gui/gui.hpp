@@ -105,6 +105,7 @@ private:
     void initialize_new_frame();
     void render_frame();
     void render_step_one_layout();
+    void render_step_two_layout();
 
     // Utility functions
 

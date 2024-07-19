@@ -3,9 +3,11 @@ project(ArraySim VERSION 1.0 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Build ImGUI with glfw and opengl as backends
+# Build GLFW and OpenGL backends
 add_subdirectory(${CMAKE_SOURCE_DIR}/libs/GLFW) # glfw3
-find_package(OpenGL REQUIRED) # OpenGL
+find_package(OpenGL REQUIRED) # OpenGL provided by Windows
+
+# Build ImGUI
 set(IMGUI_DIR ${CMAKE_SOURCE_DIR}/libs/imgui)
 set(IMGUI_HEADERS
     ${IMGUI_DIR}/
@@ -30,7 +32,17 @@ target_include_directories(imgui PUBLIC
     ${IMGUI_HEADERS}
 )
 
-add_executable(arraySim ./src/main.cpp ./src/gui/gui.cpp)
-target_include_directories(arraySim PRIVATE ${CMAKE_SOURCE_DIR}/include/gui)
+# Build project
+set (PROJECT_SOURCES
+    ${CMAKE_SOURCE_DIR}/src/main.cpp
+    ${CMAKE_SOURCE_DIR}/src/gui/gui.cpp
+    ${CMAKE_SOURCE_DIR}/libs/ImGuiFileDialog/ImGuiFileDialog.cpp # For file dialog
+)
+
+add_executable(arraySim ${PROJECT_SOURCES})
+target_include_directories(arraySim PRIVATE
+    ${CMAKE_SOURCE_DIR}/include/gui
+    ${CMAKE_SOURCE_DIR}/libs/ImGuiFileDialog/
+)
 target_link_libraries(arraySim PRIVATE imgui)
 target_compile_features(arraySim PRIVATE cxx_std_17)
