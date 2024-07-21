@@ -74,6 +74,12 @@ private:
     ImVec2 sim_config_position;
     ImVec2 sim_config_size;
 
+    // File dialog
+    const float file_dialog_width_fraction = 0.5;
+    const float file_dialog_height_fraction = 0.5;
+    ImVec2 file_dialog_size;
+    ImVec2 file_dialog_position;
+
     // Step 1
     const float num_timesteps_width_fraction = 0.4;
     const float location_width_fraction = 0.4;
@@ -84,12 +90,17 @@ private:
     float time_field_width;
     float text_field_width;
 
+    // Step 2
+    const float button_width_fraction = 0.8;
+    const float button_height = 0.0; // auto
+    ImVec2 button_size;
+
     /* ----- Internal State ----- */
     bool window_resized = true;
     // Help popup
     bool is_help_popup_open = false;
     // Step selection
-    int selected_step = 0;
+    int selected_step = static_cast<int>(steps::STEP_1);
     int last_selected_step;
     // Step 1
     int num_timesteps = 180;
@@ -99,6 +110,10 @@ private:
     std::string utc_adjustment;
     int adjustment = FORWARD_ADJUSTMENT;
     std::string output_file_buffer;
+    // Step 2
+    std::string cell_stl_folder_path;
+    std::string canopy_stl_file_path;
+    std::string direction;
 
     void render_step_selection_pane();
     void render_simulation_configuration_pane();
@@ -118,6 +133,20 @@ private:
 
     // Inserts a tooltip with icon (?) on the same line as the previous element
     void insert_tooltip(const char* tip) const;
+
+    /** Add a dialog file button
+     * @param button_name: The name that appears on the button
+     * @param key: A unique string indicating the file dialog
+     * @param window_title: The name that appears as the title of the file dialog window
+     * @param filter: The filter for types of files to select e.g. nullptr, .stl, .cpp
+     */
+    void insert_file_dialog_button(const char* button_name, 
+                                   ImVec2* button_size,
+                                   const std::string key, 
+                                   const std::string window_title,
+                                   const char* filter,
+                                   std::string& file_path,
+                                   std::string& folder_path);
 
 public:
     static std::shared_ptr<GUI> get_instance();

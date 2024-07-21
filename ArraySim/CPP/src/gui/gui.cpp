@@ -125,6 +125,26 @@ void GUI::render_step_selection_pane() {
     ImGui::RadioButton("Visualization", &selected_step, static_cast<int>(steps::STEP_3));
     insert_tooltip("Visualizations of the sun path csv (step 1) or the array heat map (step 2)");
 
+    // Recalculate the simulation configuration window component size/positions
+    // when the application resizes or when the selected step changes
+    if (window_resized || selected_step != last_selected_step) {
+        if (selected_step == static_cast<int>(steps::STEP_1)) {
+            help_popup_size = ImVec2(
+                window_width*help_popup_width_fraction, window_height*help_popup_height_fraction
+            );
+            help_popup_position = ImVec2( // Center of the screen
+                window_width * 0.5f - help_popup_size[WIDTH_INDEX] * 0.5f,
+                window_height * 0.5f - help_popup_size[HEIGHT_INDEX] * 0.5f
+            );
+            num_timesteps_width = sim_config_size[WIDTH_INDEX] * num_timesteps_width_fraction;
+            location_width = sim_config_size[WIDTH_INDEX] * location_width_fraction;
+            time_field_width = sim_config_size[WIDTH_INDEX] * time_field_width_fraction;
+            text_field_width = sim_config_size[WIDTH_INDEX] * text_field_width_fraction;
+        } else if (selected_step == static_cast<int>(steps::STEP_2)) {
+            button_size = ImVec2(button_width_fraction*sim_config_size[WIDTH_INDEX], button_height);
+        }
+    }
+
     // Help popup
     if (ImGui::Button("Help")) {
         ImGui::OpenPopup("Guide");
@@ -228,18 +248,45 @@ void GUI::render_step_one_layout() {
 
 void GUI::render_step_two_layout() {    
     ImGui::Begin("Step 2 - Effective Irradiance CSV");
-    if (ImGui::Button("Array Cell STLs")) {
+    std::string path; // Unused
+    insert_file_dialog_button("Array Cell STL Directory", &button_size,"arraySTLDir", "Choose Directory", nullptr, path, cell_stl_folder_path);
+    insert_file_dialog_button("Canopy STL File", &button_size, "canopySTLFile", "Choose File", ".stl", canopy_stl_file_path, path);
+
+    // ImGui::SetNextItemWidth(text_field_width);
+    // ImGui::InputText("Direction", &direction);
+    // insert_tooltip("Direction of the nose of the car. Usually \"-x\". Confirm with the CAD of the car");
+
+    // If we have both a canopy STL and the array cell stl folder, render them
+    if (ImGui::Button("Visualize")) {
+        
+    }
+}
+
+void GUI::insert_file_dialog_button(const char* button_name, 
+                                   ImVec2* button_size,
+                                   const std::string key, 
+                                   const std::string window_title,
+                                   const char* filter,
+                                   std::string& file_path,
+                                   std::string& folder_path) {
+    ImVec2 size;
+    if (button_size == nullptr) {
+        size = ImVec2(0,0);
+    } else {
+        size = *button_size;
+    }
+    if (ImGui::Button(button_name, size)) {
+        ImGui::SetNextWindowPos(file_dialog_position);
+        ImGui::SetNextWindowSize(file_dialog_size);
         IGFD::FileDialogConfig config;
         config.path = ".";
-        ImGuiFileDialog::Instance()->OpenDialog("Choose STL", "Choose File", ".stl", config);
+        ImGuiFileDialog::Instance()->OpenDialog(key, window_title, filter, config);
     }
 
-    // display
-    if (ImGuiFileDialog::Instance()->Display("Choose STL")) {
-        if (ImGuiFileDialog::Instance()->IsOk()) { // action if OK
-            std::string filePathName = ImGuiFileDialog::Instance()->GetFilePathName();
-            std::string filePath = ImGuiFileDialog::Instance()->GetCurrentPath();
-            // action
+    if (ImGuiFileDialog::Instance()->Display(key)) {
+        if (ImGuiFileDialog::Instance()->IsOk()) {
+            folder_path = ImGuiFileDialog::Instance()->GetCurrentPath();
+            file_path = ImGuiFileDialog::Instance()->GetCurrentFileName();
         }
         ImGuiFileDialog::Instance()->Close();
     }
@@ -256,29 +303,29 @@ void GUI::initialize_new_frame() {
     window_width = io.DisplaySize.x;
     window_height = io.DisplaySize.y;
 
+    // File dialog popup dimensions and position
+    file_dialog_size = ImVec2(
+        window_width*file_dialog_width_fraction, window_height*file_dialog_height_fraction
+    );
+    file_dialog_position = ImVec2(
+        window_width * 0.5f - file_dialog_size[WIDTH_INDEX] * 0.5f,
+        window_height * 0.5f - file_dialog_size[HEIGHT_INDEX] * 0.5f
+    );
+
+    // Recompute the window sizes upon the application resizing
     if (window_width != prev_window_width || window_height != prev_window_height) {
         window_resized = true;
-        step_selection_size = ImVec2(
-            window_width*step_selection_width_fraction, window_height*step_selection_height_fraction
-        );
-        help_popup_size = ImVec2(
-            window_width*help_popup_width_fraction, window_height*help_popup_height_fraction
-        );
-        help_popup_position = ImVec2( // Center of the screen
-            window_width * 0.5f - help_popup_size[WIDTH_INDEX] * 0.5f,
-            window_height * 0.5f - help_popup_size[HEIGHT_INDEX] * 0.5f
-        );
+        // Simulation configuration window
         sim_config_size = ImVec2(
             window_width*sim_config_width_fraction, window_height*sim_config_height_fraction
         );
-        // Put it under the step selection window
         sim_config_position = ImVec2(
             0.0f, window_height*step_selection_height_fraction
         );
-        num_timesteps_width = sim_config_size[WIDTH_INDEX] * num_timesteps_width_fraction;
-        location_width = sim_config_size[WIDTH_INDEX] * location_width_fraction;
-        time_field_width = sim_config_size[WIDTH_INDEX] * time_field_width_fraction;
-        text_field_width = sim_config_size[WIDTH_INDEX] * text_field_width_fraction;
+        // Step selection window
+        step_selection_size = ImVec2(
+            window_width*step_selection_width_fraction, window_height*step_selection_height_fraction
+        );
     } else {
         window_resized = false;
     }
