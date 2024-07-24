@@ -10,6 +10,7 @@ build
 *.scdocx
 slprj/
 .slxc
+assimp/
 
 # RaceSim
 Results

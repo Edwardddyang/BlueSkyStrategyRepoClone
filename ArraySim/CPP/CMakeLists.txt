@@ -5,6 +5,9 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Build GLFW and OpenGL backends
 add_subdirectory(${CMAKE_SOURCE_DIR}/libs/GLFW) # glfw3
+add_subdirectory(${CMAKE_SOURCE_DIR}/libs/glm) # glm
+add_subdirectory(${CMAKE_SOURCE_DIR}/libs/glad) # glad
+set(ASSIMP_ROOT ${CMAKE_SOURCE_DIR}/libs/assimp)
 find_package(OpenGL REQUIRED) # OpenGL provided by Windows
 
 # Build ImGUI
@@ -37,12 +40,19 @@ set (PROJECT_SOURCES
     ${CMAKE_SOURCE_DIR}/src/main.cpp
     ${CMAKE_SOURCE_DIR}/src/gui/gui.cpp
     ${CMAKE_SOURCE_DIR}/libs/ImGuiFileDialog/ImGuiFileDialog.cpp # For file dialog
+    ${CMAKE_SOURCE_DIR}/src/mesh/mesh.cpp
+    ${CMAKE_SOURCE_DIR}/src/mesh/Shader.cpp
+    ${CMAKE_SOURCE_DIR}/src/mesh/model.cpp
 )
 
 add_executable(arraySim ${PROJECT_SOURCES})
 target_include_directories(arraySim PRIVATE
     ${CMAKE_SOURCE_DIR}/include/gui
+    ${CMAKE_SOURCE_DIR}/include/mesh
     ${CMAKE_SOURCE_DIR}/libs/ImGuiFileDialog/
+    ${CMAKE_SOURCE_DIR}/libs/glm/glm
+    ${CMAKE_SOURCE_DIR}/libs/glad/include
+    ${ASSIMP_ROOT}/include/
 )
-target_link_libraries(arraySim PRIVATE imgui)
+target_link_libraries(arraySim PRIVATE imgui glm glad ${ASSIMP_ROOT}/lib/libassimp.dll.a)
 target_compile_features(arraySim PRIVATE cxx_std_17)
