@@ -7,7 +7,6 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 add_subdirectory(${CMAKE_SOURCE_DIR}/libs/GLFW) # glfw3
 add_subdirectory(${CMAKE_SOURCE_DIR}/libs/glm) # glm
 add_subdirectory(${CMAKE_SOURCE_DIR}/libs/glad) # glad
-set(ASSIMP_ROOT ${CMAKE_SOURCE_DIR}/libs/assimp)
 find_package(OpenGL REQUIRED) # OpenGL provided by Windows
 
 # Build ImGUI
@@ -40,19 +39,47 @@ set (PROJECT_SOURCES
     ${CMAKE_SOURCE_DIR}/src/main.cpp
     ${CMAKE_SOURCE_DIR}/src/gui/gui.cpp
     ${CMAKE_SOURCE_DIR}/libs/ImGuiFileDialog/ImGuiFileDialog.cpp # For file dialog
-    ${CMAKE_SOURCE_DIR}/src/mesh/mesh.cpp
-    ${CMAKE_SOURCE_DIR}/src/mesh/Shader.cpp
-    ${CMAKE_SOURCE_DIR}/src/mesh/model.cpp
+    ${CMAKE_SOURCE_DIR}/src/model/mesh.cpp
+    ${CMAKE_SOURCE_DIR}/src/shader/Shader.cpp
+    ${CMAKE_SOURCE_DIR}/src/model/model.cpp
+    ${CMAKE_SOURCE_DIR}/src/camera/camera.cpp
 )
 
 add_executable(arraySim ${PROJECT_SOURCES})
 target_include_directories(arraySim PRIVATE
     ${CMAKE_SOURCE_DIR}/include/gui
-    ${CMAKE_SOURCE_DIR}/include/mesh
+    ${CMAKE_SOURCE_DIR}/include/model
+    ${CMAKE_SOURCE_DIR}/include/shader
+    ${CMAKE_SOURCE_DIR}/include/camera
     ${CMAKE_SOURCE_DIR}/libs/ImGuiFileDialog/
     ${CMAKE_SOURCE_DIR}/libs/glm/glm
     ${CMAKE_SOURCE_DIR}/libs/glad/include
-    ${ASSIMP_ROOT}/include/
+    ${CMAKE_SOURCE_DIR}/include/
 )
-target_link_libraries(arraySim PRIVATE imgui glm glad ${ASSIMP_ROOT}/lib/libassimp.dll.a)
+
+# Filesystem requires C++17 standard which might not be available on all compilers
+include(CheckCXXCompilerFlag)
+check_cxx_compiler_flag("-std=c++17" COMPILER_SUPPORTS_CXX17)
+if (COMPILER_SUPPORTS_CXX17)
+    message(STATUS "Compiler supports C++17")
+    set(CMAKE_CXX_STANDARD 17)
+    set(CMAKE_CXX_STANDARD_REQUIRED ON)
+else()
+    message(FATAL_ERROR "Compiler does not support C++17")
+endif()
+
+# Manually link against filesystem library for older compilers
+if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    if (CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9.0)
+        message(STATUS "Using GCC version ${CMAKE_CXX_COMPILER_VERSION}. Manually linking against stdc++fs.")
+        target_link_libraries(arraySim PRIVATE stdc++fs)
+    endif()
+elseif (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+    if (CMAKE_CXX_COMPILER_VERSION VERSION_LESS 7.0)
+        message(STATUS "Using Clang version ${CMAKE_CXX_COMPILER_VERSION}. Manually linking against stdc++fs")
+        target_link_libraries(arraySim PRIVATE c++fs)
+    endif()
+endif()
+
+target_link_libraries(arraySim PRIVATE imgui glm glad)
 target_compile_features(arraySim PRIVATE cxx_std_17)

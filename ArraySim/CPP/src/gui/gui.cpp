@@ -4,6 +4,8 @@
 #include <sstream>
 #include <iomanip>  // for std::setprecision
 #include "ImGuiFileDialog.h"
+#include "Shader.hpp"
+#include "stl_reader.h"
 
 /* Static declarations */
 std::shared_ptr<GUI> GUI::instance = nullptr;
@@ -20,7 +22,7 @@ void GUI::glfw_error_callback(int error, const char* description)
     fprintf(stderr, "GLFW Error %d: %s\n", error, description);
 }
 
-// NOTE: This code was almost entirely copied from ImGUI's opengl3 example
+// NOTE: This function's code was almost entirely copied from ImGUI's opengl3 example
 void GUI::initialize() {
     glfwSetErrorCallback(glfw_error_callback);
     if (!glfwInit())
@@ -50,13 +52,35 @@ void GUI::initialize() {
 #endif
 
     // Create window with graphics context
-    window = glfwCreateWindow(1280, 720, app_name, nullptr, nullptr);
+    window = glfwCreateWindow(window_width, window_height, APP_NAME, nullptr, nullptr);
     if (window == nullptr) {
         std::cout << "Could not initialize glfw window" << std::endl;
+        glfwTerminate();
         return;
     }
     glfwMakeContextCurrent(window);
     glfwSwapInterval(1); // Enable vsync
+
+    // Setup GLAD
+    if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
+    {
+        std::cout << "Failed to initialize GLAD" << std::endl;
+        return;
+    }
+    // Render pixels based on depth ordering
+    glEnable(GL_DEPTH_TEST);
+
+    // Build and compile shaders
+    shaders = Shader("../data/shaders/model.vs", "../data/shaders/model.fs");
+
+    glfwSetWindowUserPointer(window, this);
+
+    /* Set window callbacks */
+    glfwSetCursorPosCallback(window, mouse_callback_bridge); 
+    glfwSetScrollCallback(window, scroll_callback_bridge);
+
+    /* Set mouse capture */
+    // glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
     // Setup Dear ImGui context
     IMGUI_CHECKVERSION();
@@ -99,7 +123,7 @@ void GUI::render() {
     while (!glfwWindowShouldClose(window))
     {
         initialize_new_frame();
-
+        // continue;
         /* Step selection window pane */
         render_step_selection_pane();
 
@@ -248,7 +272,7 @@ void GUI::render_step_one_layout() {
 
 void GUI::render_step_two_layout() {    
     ImGui::Begin("Step 2 - Effective Irradiance CSV");
-    std::string path; // Unused
+    std::filesystem::path path; // Dummy variable
     insert_file_dialog_button("Array Cell STL Directory", &button_size,"arraySTLDir", "Choose Directory", nullptr, path, cell_stl_folder_path);
     insert_file_dialog_button("Canopy STL File", &button_size, "canopySTLFile", "Choose File", ".stl", canopy_stl_file_path, path);
 
@@ -258,7 +282,28 @@ void GUI::render_step_two_layout() {
 
     // If we have both a canopy STL and the array cell stl folder, render them
     if (ImGui::Button("Visualize")) {
+        std::cout << "Rendering car" << std::endl;
+        // Reset visualization variables
+        car_visualized = true;
+        first_mouse_movement = true;
+        delta_time = 0.0f;
+        last_frame = 0.0f;
+        glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
         
+        car_model = std::make_shared<Model>();
+        car_model->loadCanopy(canopy_stl_file_path.string());
+        car_model->init_camera();
+        std::cout << "Finished renderin car" << std::endl;
+    }
+
+    if (car_visualized) {
+        // Get keyboard/mouse input and update the camera
+        // Draw the meshes
+        float current_frame = glfwGetTime();
+        delta_time = current_frame - last_frame;
+        last_frame = current_frame;
+        process_input(window);
+        car_model->Draw(shaders, window_width, window_height, camera);
     }
 }
 
@@ -267,8 +312,8 @@ void GUI::insert_file_dialog_button(const char* button_name,
                                    const std::string key, 
                                    const std::string window_title,
                                    const char* filter,
-                                   std::string& file_path,
-                                   std::string& folder_path) {
+                                   std::filesystem::path& file_path,
+                                   std::filesystem::path& folder_path) {
     ImVec2 size;
     if (button_size == nullptr) {
         size = ImVec2(0,0);
@@ -286,18 +331,14 @@ void GUI::insert_file_dialog_button(const char* button_name,
     if (ImGuiFileDialog::Instance()->Display(key)) {
         if (ImGuiFileDialog::Instance()->IsOk()) {
             folder_path = ImGuiFileDialog::Instance()->GetCurrentPath();
-            file_path = ImGuiFileDialog::Instance()->GetCurrentFileName();
+            file_path = folder_path / ImGuiFileDialog::Instance()->GetCurrentFileName();
         }
         ImGuiFileDialog::Instance()->Close();
     }
 }
 
 void GUI::initialize_new_frame() {
-    glfwPollEvents();
-    ImGui_ImplOpenGL3_NewFrame();
-    ImGui_ImplGlfw_NewFrame();
-    ImGui::NewFrame();
-    ImGuiIO& io = ImGui::GetIO();
+    io = ImGui::GetIO();
 
     // Window component size and positions
     window_width = io.DisplaySize.x;
@@ -329,6 +370,28 @@ void GUI::initialize_new_frame() {
     } else {
         window_resized = false;
     }
+    glClearColor(clear_color.x * clear_color.w, clear_color.y * clear_color.w, clear_color.z * clear_color.w, clear_color.w);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    // if (car_visualized) {
+    //     // Get keyboard/mouse input and update the camera
+    //     // Draw the meshes
+    //     float current_frame = glfwGetTime();
+    //     delta_time = current_frame - last_frame;
+    //     last_frame = current_frame;
+    //     process_input(window);
+    //     car_model.Draw(shaders, window_width, window_height, camera);
+    // } else {
+    //     car_visualized = true;
+    //     first_mouse_movement = true;
+    //     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    //     car_model.loadModel("C:/Users/kevin/Downloads/ArraySim/Cube_3d_printing_sample.stl", false);
+    // }
+    //     glfwSwapBuffers(window);
+    //     glfwPollEvents();
+    //     return;
+    ImGui_ImplOpenGL3_NewFrame();
+    ImGui_ImplGlfw_NewFrame();
+    ImGui::NewFrame();
 }
 
 void GUI::set_window_size_position(const ImVec2 size, const ImVec2 position) const {
@@ -360,14 +423,16 @@ void GUI::render_frame() {
     int display_w, display_h;
     glfwGetFramebufferSize(window, &display_w, &display_h);
     glViewport(0, 0, display_w, display_h);
-    glClearColor(clear_color.x * clear_color.w, clear_color.y * clear_color.w, clear_color.z * clear_color.w, clear_color.w);
-    glClear(GL_COLOR_BUFFER_BIT);
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
     glfwSwapBuffers(window);
+    glfwPollEvents();  // Mouse + keyboard input
+
+    // Save current frame information
     prev_window_height = window_height;
     prev_window_width = window_width;
     last_selected_step = selected_step;
 }
+
 void GUI::cleanup() {
     // Cleanup
     ImGui_ImplOpenGL3_Shutdown();
@@ -376,4 +441,47 @@ void GUI::cleanup() {
 
     glfwDestroyWindow(window);
     glfwTerminate();
+}
+
+void GUI::mouse_callback_bridge(GLFWwindow* window, double xpos, double ypos) {
+    instance->mouse_callback(xpos, ypos);
+}
+
+void GUI::mouse_callback(double xpos, double ypos) {
+    if (first_mouse_movement)
+    {
+        last_x = xpos;
+        last_y = ypos;
+        first_mouse_movement = false;
+    }
+  
+    float xoffset = xpos - last_x;
+    float yoffset = last_y - ypos; 
+    last_x = xpos;
+    last_y = ypos;
+
+    camera.ProcessMouseMovement(xoffset, yoffset);
+}
+
+void GUI::process_input(GLFWwindow *window)
+{
+    if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
+        glfwSetWindowShouldClose(window, true);
+
+    if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
+        camera.ProcessKeyboard(Camera_Movement::FORWARD, delta_time);
+    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
+        camera.ProcessKeyboard(Camera_Movement::BACKWARD, delta_time);
+    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
+        camera.ProcessKeyboard(Camera_Movement::LEFT, delta_time);
+    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
+        camera.ProcessKeyboard(Camera_Movement::RIGHT, delta_time);
+}
+
+void GUI::scroll_callback_bridge(GLFWwindow* window, double xpos, double ypos) {
+    instance->scroll_callback(xpos, ypos);
+}
+
+void GUI::scroll_callback(double xpos, double ypos) {
+    camera.ProcessMouseScroll(static_cast<float>(ypos));
 }

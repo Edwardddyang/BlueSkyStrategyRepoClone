@@ -9,10 +9,15 @@
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
 #include <stdio.h>
+#include "model.hpp"
+#include "Shader.hpp"
+#include "camera.hpp"
+#include <filesystem>
 #define GL_SILENCE_DEPRECATION
 #if defined(IMGUI_IMPL_OPENGL_ES2)
 #include <GLES2/gl2.h>
 #endif
+#include "glad/glad.h"
 #include <GLFW/glfw3.h> // Will drag system OpenGL headers
 // [Win32] Our example includes a copy of glfw3.lib pre-compiled with VS2010 to maximize ease of testing and compatibility with old VS compilers.
 // To link with VS2010-era libraries, VS2015+ requires linking with legacy_stdio_definitions.lib, which we do using this pragma.
@@ -42,16 +47,22 @@ private:
     static GLFWwindow* window;
 
     // Background colour
-    const ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
+    const ImVec4 clear_color = ImVec4(0.0f, 0.0f, 0.0f, 1.00f);
 
     // Application name that appears in the toolbar
-    const char* app_name = "Gen 12 Array Simulation";
+    const char* APP_NAME = "Gen 12 Array Simulation";
 
     // Window variables
-    float window_width;
-    float window_height;
+    float window_width = 1280;
+    float window_height = 720;
     float prev_window_width;  // From last frame
     float prev_window_height;  // From last frame
+
+    // Keyboard and mouse I/O
+    ImGuiIO io;
+
+    // Array vertex data structures
+    unsigned int VBO, VAO;
 
     /* ----- Window Component Size + Locations ----- */
     // All window width and height fractions are relative to the entire window size
@@ -95,6 +106,14 @@ private:
     const float button_height = 0.0; // auto
     ImVec2 button_size;
 
+    // Visualizations
+    std::shared_ptr<Model> car_model;
+    Shader shaders;
+    Camera camera;  // All default values. See camera.hpp constructor
+    bool first_mouse_movement;
+    glm::vec3 sun_position = glm::vec3(1.2f, 1.0f, 2.0f);
+    glm::vec3 sun_diffuse = glm::vec3(0.5f, 0.5f, 0.5f); // Gray-ish
+
     /* ----- Internal State ----- */
     bool window_resized = true;
     // Help popup
@@ -111,10 +130,17 @@ private:
     int adjustment = FORWARD_ADJUSTMENT;
     std::string output_file_buffer;
     // Step 2
-    std::string cell_stl_folder_path;
-    std::string canopy_stl_file_path;
+    std::filesystem::path cell_stl_folder_path;
+    std::filesystem::path canopy_stl_file_path;
     std::string direction;
+    // Visualization
+    bool car_visualized = false;
+    float delta_time = 0.0f;	// Time between current frame and last frame
+    float last_frame = 0.0f; // Time of last frame
+    double last_x;
+    double last_y;
 
+    // Frame render functions
     void render_step_selection_pane();
     void render_simulation_configuration_pane();
     void initialize_new_frame();
@@ -122,6 +148,14 @@ private:
     void render_step_one_layout();
     void render_step_two_layout();
 
+    // Mouse and keyboard capture functions
+    void mouse_callback(double xpos, double ypos);
+    static void mouse_callback_bridge(GLFWwindow* window, double xpos, double ypos);
+
+    void scroll_callback(double xoffset, double yoffset);
+    static void scroll_callback_bridge(GLFWwindow* window, double xoffset, double yoffset);
+
+    void process_input(GLFWwindow* window);
     // Utility functions
 
     // Set the size and position of the next ImGui::Begin() window
@@ -139,14 +173,16 @@ private:
      * @param key: A unique string indicating the file dialog
      * @param window_title: The name that appears as the title of the file dialog window
      * @param filter: The filter for types of files to select e.g. nullptr, .stl, .cpp
+     * @param file_path: The selected file
+     * @param folder_path: Parent folder of the selected file
      */
     void insert_file_dialog_button(const char* button_name, 
-                                   ImVec2* button_size,
-                                   const std::string key, 
-                                   const std::string window_title,
-                                   const char* filter,
-                                   std::string& file_path,
-                                   std::string& folder_path);
+                                    ImVec2* button_size,
+                                    const std::string key, 
+                                    const std::string window_title,
+                                    const char* filter,
+                                    std::filesystem::path& file_path,
+                                    std::filesystem::path& folder_path);
 
 public:
     static std::shared_ptr<GUI> get_instance();
