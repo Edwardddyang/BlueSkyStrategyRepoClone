@@ -109,8 +109,6 @@ private:
     // Visualizations
     std::shared_ptr<Model> car_model;
     Shader shaders;
-    Camera camera;  // All default values. See camera.hpp constructor
-    bool first_mouse_movement;
     glm::vec3 sun_position = glm::vec3(1.2f, 1.0f, 2.0f);
     glm::vec3 sun_diffuse = glm::vec3(0.5f, 0.5f, 0.5f); // Gray-ish
 
@@ -139,6 +137,8 @@ private:
     float last_frame = 0.0f; // Time of last frame
     double last_x;
     double last_y;
+    bool first_mouse_movement;
+    bool is_left_click_held;
 
     // Frame render functions
     void render_step_selection_pane();
@@ -149,11 +149,14 @@ private:
     void render_step_two_layout();
 
     // Mouse and keyboard capture functions
-    void mouse_callback(double xpos, double ypos);
-    static void mouse_callback_bridge(GLFWwindow* window, double xpos, double ypos);
+    void cursor_callback(double xpos, double ypos);
+    static void cursor_callback_bridge(GLFWwindow* window, double xpos, double ypos);
 
     void scroll_callback(double xoffset, double yoffset);
     static void scroll_callback_bridge(GLFWwindow* window, double xoffset, double yoffset);
+
+    void mouse_button_callback(int button, int action, int mods);
+    static void mouse_button_callback_bridge(GLFWwindow* window, int button, int action, int mods);
 
     void process_input(GLFWwindow* window);
     // Utility functions

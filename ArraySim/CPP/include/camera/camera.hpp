@@ -26,6 +26,8 @@ public:
     static const float DEFAULT_SPEED;
     static const float DEFAULT_SENSITIVITY;
     static const float DEFAULT_FOV;  // Ranges from 1.0 to 45.0 degrees
+    static const float DEFAULT_PHI;
+    static const float DEFAULT_THETA;
 
     static const glm::vec3 DEFAULT_POSITION;
     static const glm::vec3 DEFAULT_UP;
@@ -37,32 +39,39 @@ public:
     glm::vec3 Up; // Up vector of the camera
     glm::vec3 Right;
     glm::vec3 WorldUp;
-    // euler Angles
-    float Yaw;
-    float Pitch;
+    float Radius; // Distance of the camera from the model's bounding box center
+    glm::vec3 center; // Center of the model
+    // rotation angles
+    float Phi;
+    float Theta;
     // camera options
     float MovementSpeed;
     float MouseSensitivity;
     float Zoom;
 
-    // constructor with vectors
     Camera(glm::vec3 position = DEFAULT_POSITION, glm::vec3 camera_front = DEFAULT_FRONT, glm::vec3 up = DEFAULT_UP,
-        float yaw = DEFAULT_YAW, float pitch = DEFAULT_PITCH) : Front(camera_front),
-        MovementSpeed(DEFAULT_SPEED), MouseSensitivity(DEFAULT_SENSITIVITY), Zoom(DEFAULT_FOV)
+        float phi = DEFAULT_PHI, float theta = DEFAULT_THETA, float camera_speed = DEFAULT_SPEED,
+        float mouse_sensitivity = DEFAULT_SENSITIVITY, float fov = DEFAULT_FOV, float camera_distance = 5.0f,
+        glm::vec3 model_center = glm::vec3(0.0f,0.0f,0.0f)) : Front(camera_front), MovementSpeed(camera_speed),
+        MouseSensitivity(mouse_sensitivity), Zoom(fov), Position(position), WorldUp(up), Theta(theta), Phi(phi),
+        center(model_center), Radius(camera_distance)
     {
-        Position = position;
-        WorldUp = up;
-        Yaw = yaw;
-        Pitch = pitch;
-
         updateCameraVectors();
     }
 
     // returns the view matrix calculated using Euler Angles and the LookAt Matrix
     glm::mat4 GetViewMatrix()
-    {   
+    {
+        float theta_rad = glm::radians(Theta);
+        float phi_rad = glm::radians(Phi);
+
+        float x = Radius * cos(phi_rad) * sin(theta_rad);
+        float y = Radius * sin(phi_rad);
+        float z = Radius * cos(phi_rad) * cos(theta_rad);
+
+        Position = glm::vec3(x, y, z) + center;
         // API: (camera position, the point that the camera is looking at, world up)
-        return glm::lookAt(Position, Position + Front, Up);
+        return glm::lookAt(Position, center, Up);
     }
 
     // processes input received from any keyboard-like input system. Accepts input parameter in the form of camera defined ENUM (to abstract it from windowing systems)
@@ -79,22 +88,18 @@ public:
             Position += Right * velocity;
     }
 
-    // processes input received from a mouse input system. Expects the offset value in both the x and y direction.
+    // Process orbiting movement
     void ProcessMouseMovement(float xoffset, float yoffset, GLboolean constrainPitch = true)
     {
         xoffset *= MouseSensitivity;
         yoffset *= MouseSensitivity;
 
-        Yaw   += xoffset;
-        Pitch += yoffset;
+        Theta -= xoffset;
+        Phi -= yoffset;
 
-        // make sure that when pitch is out of bounds, screen doesn't get flipped
-        if (constrainPitch)
-        {
-            if (Pitch > 89.0f)
-                Pitch = 89.0f;
-            if (Pitch < -89.0f)
-                Pitch = -89.0f;
+        if (constrainPitch) {
+            if (Phi > 89.0f) Phi = 89.0f;
+            if (Phi < -89.0f) Phi = -89.0f;
         }
 
         // update Front, Right and Up Vectors using the updated Euler angles
@@ -116,11 +121,7 @@ private:
     void updateCameraVectors()
     {
         // calculate the new Front vector
-        glm::vec3 front;
-        front.x = cos(glm::radians(Yaw)) * cos(glm::radians(Pitch));
-        front.y = sin(glm::radians(Pitch));
-        front.z = sin(glm::radians(Yaw)) * cos(glm::radians(Pitch));
-        Front = glm::normalize(front);
+        Front = glm::normalize(center - Position);
         // also re-calculate the Right and Up vector
         Right = glm::normalize(glm::cross(Front, WorldUp));  // normalize the vectors, because their length gets closer to 0 the more you look up or down which results in slower movement.
         Up    = glm::normalize(glm::cross(Right, Front));

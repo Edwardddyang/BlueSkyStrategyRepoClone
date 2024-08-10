@@ -25,15 +25,17 @@ void printMat3(const glm::mat3& mat) {
     }
 }
 
-void Model::Draw(Shader &shader, double window_width, double window_height, Camera camera)
+void Model::Draw(Shader &shader, double window_width, double window_height)
 {
     shader.use();
     
     // Create projection, view, model matrices
     float near_plane = bsphere_radius / 10.0f;
-    float far_plane = camera_distance + bsphere_radius;
-    glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)window_width / (float)window_height, near_plane, far_plane);
-    glm::mat4 view = camera.GetViewMatrix();
+    float far_plane = (camera_distance + bsphere_radius) * 1.2f;
+    glm::mat4 projection = glm::perspective(glm::radians(camera->Zoom),
+                                            (float)window_width / (float)window_height,
+                                            near_plane, far_plane);
+    glm::mat4 view = camera->GetViewMatrix();
     glm::mat4 model = glm::mat4(1.0f); // Identity model matrix (no change from local to world coordinates)
     
     // Set the uniform matrices
@@ -93,7 +95,11 @@ void Model::init_camera() {
     camera_position = center + glm::vec3(0.0f, 0.0f, camera_distance);
     camera_direction = glm::normalize(center - camera_position);
 
-    camera = Camera(camera_position, camera_direction, Camera::DEFAULT_UP, Camera::DEFAULT_YAW, Camera::DEFAULT_PITCH);
+    camera = std::make_shared<Camera>(camera_position, camera_direction,
+                                      Camera::DEFAULT_UP, Camera::DEFAULT_PHI,
+                                      Camera::DEFAULT_THETA, Camera::DEFAULT_SPEED,
+                                      Camera::DEFAULT_SENSITIVITY, Camera::DEFAULT_FOV,
+                                      camera_distance, center);
 }
 
 void Model::update_max_min_values(const std::shared_ptr<Mesh>& mesh) {

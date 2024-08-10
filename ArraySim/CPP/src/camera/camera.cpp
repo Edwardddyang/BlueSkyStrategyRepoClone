@@ -2,9 +2,11 @@
 
 const float Camera::DEFAULT_YAW = -90.0f;
 const float Camera::DEFAULT_PITCH = 0.0f;
-const float Camera::DEFAULT_SPEED = 25.0f;
+const float Camera::DEFAULT_SPEED = 200.0f;
 const float Camera::DEFAULT_SENSITIVITY = 0.1f;
 const float Camera::DEFAULT_FOV = 45.0f;
+const float Camera::DEFAULT_PHI = 0.0;
+const float Camera::DEFAULT_THETA = 0.0;
 
 // Camera placed on the +z axis
 const glm::vec3 Camera::DEFAULT_POSITION(0.0f, 0.0f, 3.0f);

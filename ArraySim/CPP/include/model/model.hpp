@@ -24,7 +24,7 @@ public:
     // Initialize the camera
     void init_camera();
 
-    void Draw(Shader &shader, double window_width, double window_height, Camera camera);
+    void Draw(Shader &shader, double window_width, double window_height);
 
     glm::vec3 get_max_values() const {return max_values;}
     glm::vec3 get_min_values() const {return min_values;}
@@ -32,6 +32,10 @@ public:
     float get_bbox_length() const {return bbox_length;}
     float get_bsphere_radius() const {return bsphere_radius;}
     float get_camera_distance() const {return camera_distance;}
+
+    // For viewing and navigating the scene
+    std::shared_ptr<Camera> camera;
+
 private:
     // A model is composed of many meshes
     std::vector<std::shared_ptr<Mesh>> meshes;
@@ -52,10 +56,6 @@ private:
     glm::vec3 camera_position;
     // Direction that the camera is pointing in
     glm::vec3 camera_direction;
-
-    // For viewing and navigating the scene
-    Camera camera;
-
     void update_max_min_values(const std::shared_ptr<Mesh>& mesh);
 };
 

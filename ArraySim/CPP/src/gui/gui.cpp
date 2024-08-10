@@ -75,13 +75,12 @@ void GUI::initialize() {
 
     glfwSetWindowUserPointer(window, this);
 
-    /* Set window callbacks */
-    glfwSetCursorPosCallback(window, mouse_callback_bridge); 
-    glfwSetScrollCallback(window, scroll_callback_bridge);
-
     /* Set mouse capture */
     // glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-
+    /* Set window callbacks */
+    glfwSetCursorPosCallback(window, cursor_callback_bridge); 
+    glfwSetScrollCallback(window, scroll_callback_bridge);
+    glfwSetMouseButtonCallback(window, mouse_button_callback_bridge);
     // Setup Dear ImGui context
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
@@ -286,24 +285,24 @@ void GUI::render_step_two_layout() {
         // Reset visualization variables
         car_visualized = true;
         first_mouse_movement = true;
+        is_left_click_held = false;
         delta_time = 0.0f;
         last_frame = 0.0f;
         glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-        
         car_model = std::make_shared<Model>();
         car_model->loadCanopy(canopy_stl_file_path.string());
+        car_model->loadArray(cell_stl_folder_path.string());
         car_model->init_camera();
-        std::cout << "Finished renderin car" << std::endl;
+        std::cout << "Finished rendering car" << std::endl;
     }
 
     if (car_visualized) {
-        // Get keyboard/mouse input and update the camera
         // Draw the meshes
         float current_frame = glfwGetTime();
         delta_time = current_frame - last_frame;
         last_frame = current_frame;
         process_input(window);
-        car_model->Draw(shaders, window_width, window_height, camera);
+        car_model->Draw(shaders, window_width, window_height);
     }
 }
 
@@ -372,23 +371,6 @@ void GUI::initialize_new_frame() {
     }
     glClearColor(clear_color.x * clear_color.w, clear_color.y * clear_color.w, clear_color.z * clear_color.w, clear_color.w);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    // if (car_visualized) {
-    //     // Get keyboard/mouse input and update the camera
-    //     // Draw the meshes
-    //     float current_frame = glfwGetTime();
-    //     delta_time = current_frame - last_frame;
-    //     last_frame = current_frame;
-    //     process_input(window);
-    //     car_model.Draw(shaders, window_width, window_height, camera);
-    // } else {
-    //     car_visualized = true;
-    //     first_mouse_movement = true;
-    //     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-    //     car_model.loadModel("C:/Users/kevin/Downloads/ArraySim/Cube_3d_printing_sample.stl", false);
-    // }
-    //     glfwSwapBuffers(window);
-    //     glfwPollEvents();
-    //     return;
     ImGui_ImplOpenGL3_NewFrame();
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
@@ -443,39 +425,53 @@ void GUI::cleanup() {
     glfwTerminate();
 }
 
-void GUI::mouse_callback_bridge(GLFWwindow* window, double xpos, double ypos) {
-    instance->mouse_callback(xpos, ypos);
+void GUI::cursor_callback_bridge(GLFWwindow* window, double xpos, double ypos) {
+    instance->cursor_callback(xpos, ypos);
 }
 
-void GUI::mouse_callback(double xpos, double ypos) {
-    if (first_mouse_movement)
-    {
+void GUI::cursor_callback(double xpos, double ypos) {
+    if (car_model == nullptr || car_model->camera == nullptr) {
+        return;
+    }
+
+    //if (is_left_click_held) {
+        if (first_mouse_movement)
+        {
+            last_x = xpos;
+            last_y = ypos;
+            first_mouse_movement = false;
+        }
+    
+        float xoffset = xpos - last_x;
+        float yoffset = last_y - ypos; 
         last_x = xpos;
         last_y = ypos;
-        first_mouse_movement = false;
-    }
-  
-    float xoffset = xpos - last_x;
-    float yoffset = last_y - ypos; 
-    last_x = xpos;
-    last_y = ypos;
 
-    camera.ProcessMouseMovement(xoffset, yoffset);
+        car_model->camera->ProcessMouseMovement(xoffset, yoffset);
+    //}
 }
 
 void GUI::process_input(GLFWwindow *window)
 {
+    if (car_model == nullptr || car_model->camera == nullptr) {
+        return;
+    }
+
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
         glfwSetWindowShouldClose(window, true);
 
+    // if (is_left_click_held) {
+    //     return;
+    // }
+
     if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
-        camera.ProcessKeyboard(Camera_Movement::FORWARD, delta_time);
+        car_model->camera->ProcessKeyboard(Camera_Movement::FORWARD, delta_time);
     if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
-        camera.ProcessKeyboard(Camera_Movement::BACKWARD, delta_time);
+        car_model->camera->ProcessKeyboard(Camera_Movement::BACKWARD, delta_time);
     if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
-        camera.ProcessKeyboard(Camera_Movement::LEFT, delta_time);
+        car_model->camera->ProcessKeyboard(Camera_Movement::LEFT, delta_time);
     if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
-        camera.ProcessKeyboard(Camera_Movement::RIGHT, delta_time);
+        car_model->camera->ProcessKeyboard(Camera_Movement::RIGHT, delta_time);
 }
 
 void GUI::scroll_callback_bridge(GLFWwindow* window, double xpos, double ypos) {
@@ -483,5 +479,22 @@ void GUI::scroll_callback_bridge(GLFWwindow* window, double xpos, double ypos) {
 }
 
 void GUI::scroll_callback(double xpos, double ypos) {
-    camera.ProcessMouseScroll(static_cast<float>(ypos));
+    if (car_model == nullptr || car_model->camera == nullptr) {
+        return;
+    }
+
+    car_model->camera->ProcessMouseScroll(static_cast<float>(ypos));
+}
+
+void GUI::mouse_button_callback_bridge(GLFWwindow* window, int button, int action, int mods) {
+    instance->mouse_button_callback(button, action, mods);
+}
+
+void GUI::mouse_button_callback(int button, int action, int mods) {
+    if (button == GLFW_MOUSE_BUTTON_LEFT) {
+        if (action == GLFW_PRESS)
+            is_left_click_held = true;
+        else if (action == GLFW_RELEASE)
+            is_left_click_held = false;
+    }
 }
