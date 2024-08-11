@@ -6,10 +6,29 @@
 #include "ImGuiFileDialog.h"
 #include "Shader.hpp"
 #include "stl_reader.h"
+#include "Luts.h"
 
 /* Static declarations */
 std::shared_ptr<GUI> GUI::instance = nullptr;
 GLFWwindow* GUI::window = nullptr;
+
+void RenderUnderlinedText(const char* text) {
+    ImGui::Text(text);  // Render the text
+
+    // Get the current ImGui window's draw list
+    ImDrawList* draw_list = ImGui::GetWindowDrawList();
+
+    // Calculate the size and position of the text
+    ImVec2 text_pos = ImGui::GetItemRectMin();  // Get the top-left corner of the text
+    ImVec2 text_size = ImGui::CalcTextSize(text);
+
+    // Define the line position (under the text) and thickness
+    float line_y = text_pos.y + text_size.y;    // Position of the underline
+    float thickness = 1.0f;                     // Thickness of the underline
+
+    // Draw the underline
+    draw_list->AddLine(ImVec2(text_pos.x, line_y), ImVec2(text_pos.x + text_size.x, line_y), IM_COL32(255, 255, 255, 255), thickness);
+}
 
 std::shared_ptr<GUI> GUI::get_instance() {
     if (instance == nullptr) {
@@ -69,9 +88,6 @@ void GUI::initialize() {
     }
     // Render pixels based on depth ordering
     glEnable(GL_DEPTH_TEST);
-
-    // Build and compile shaders
-    shaders = Shader("../data/shaders/model.vs", "../data/shaders/model.fs");
 
     glfwSetWindowUserPointer(window, this);
 
@@ -159,6 +175,7 @@ void GUI::render_step_selection_pane() {
                 window_width * 0.5f - help_popup_size[WIDTH_INDEX] * 0.5f,
                 window_height * 0.5f - help_popup_size[HEIGHT_INDEX] * 0.5f
             );
+
             num_timesteps_width = sim_config_size[WIDTH_INDEX] * num_timesteps_width_fraction;
             location_width = sim_config_size[WIDTH_INDEX] * location_width_fraction;
             time_field_width = sim_config_size[WIDTH_INDEX] * time_field_width_fraction;
@@ -178,7 +195,7 @@ void GUI::render_step_selection_pane() {
         set_window_size_position_on_resize(help_popup_size, help_popup_position);
     }
 
-    if (ImGui::BeginPopupModal("Guide", NULL, ImGuiWindowFlags_AlwaysAutoResize))
+    if (ImGui::BeginPopupModal("Guide", NULL, 0))
     {
         ImGui::PushTextWrapPos(ImGui::GetWindowContentRegionMax().x);
         ImGui::Text("The array simulation is split into three distinct steps:");
@@ -213,7 +230,7 @@ void GUI::render_simulation_configuration_pane() {
     } else if (selected_step == static_cast<int>(steps::STEP_2)) {
         render_step_two_layout();
     } else if (selected_step == static_cast<int>(steps::STEP_3)) {
-        ImGui::Begin("Visualize");
+        render_step_three_layout();
     }
     ImGui::End();
 }
@@ -274,14 +291,42 @@ void GUI::render_step_two_layout() {
     std::filesystem::path path; // Dummy variable
     insert_file_dialog_button("Array Cell STL Directory", &button_size,"arraySTLDir", "Choose Directory", nullptr, path, cell_stl_folder_path);
     insert_file_dialog_button("Canopy STL File", &button_size, "canopySTLFile", "Choose File", ".stl", canopy_stl_file_path, path);
+    insert_file_dialog_button("Sun Positions CSV", &button_size, "sunPositionPath", "Choose File", ".csv", sun_positions_path, path);
 
-    // ImGui::SetNextItemWidth(text_field_width);
-    // ImGui::InputText("Direction", &direction);
-    // insert_tooltip("Direction of the nose of the car. Usually \"-x\". Confirm with the CAD of the car");
+    ImGui::SetNextItemWidth(text_field_width);
+    ImGui::InputText("Direction", &direction);
+    insert_tooltip("Direction of the nose of the car. Usually \"-x\". Confirm with the CAD of the car");
 
+    ImGui::SetNextItemWidth(text_field_width);
+    ImGui::InputInt("Bearing", &bearing);
+    insert_tooltip("The clockwise angle of the nose of the car from true north in degrees\n"
+                   "when positioned at the location in the sun path csv. For WSC, if the sun\n"
+                   "position csv was generated at Alice Springs, then this would be 180 since the car\n"
+                   "is facing south at that point during the race.");
+    ImGui::NewLine();
+
+    if (ImGui::Button("Generate Irradiance CSV")) {
+        std::cout << "Generating irradiance csv..." << std::endl;
+        car_model = std::make_shared<Model>();
+        car_model->loadCanopy(canopy_stl_file_path.string());
+        car_model->loadArray(cell_stl_folder_path.string());
+        car_model->init_camera();  // Get bounding box characteristics
+
+        SunPositionLUT sun_position(sun_positions_path);
+
+        std::cout << "Loaded everything" << std::endl;
+    }
+}
+
+void GUI::render_step_three_layout() {
+    ImGui::Begin("Visualizations");
+    RenderUnderlinedText("See Canopy and Array");
+    std::filesystem::path path;
+    insert_file_dialog_button("Array Cell STL Directory", &button_size,"arraySTLDir", "Choose Directory", nullptr, path, cell_stl_folder_path_v);
+    insert_file_dialog_button("Canopy STL File", &button_size, "canopySTLFile", "Choose File", ".stl", canopy_stl_file_path_v, path);
     // If we have both a canopy STL and the array cell stl folder, render them
     if (ImGui::Button("Visualize")) {
-        std::cout << "Rendering car" << std::endl;
+        std::cout << "Rendering car..." << std::endl;
         // Reset visualization variables
         car_visualized = true;
         first_mouse_movement = true;
@@ -290,9 +335,10 @@ void GUI::render_step_two_layout() {
         last_frame = 0.0f;
         glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
         car_model = std::make_shared<Model>();
-        car_model->loadCanopy(canopy_stl_file_path.string());
-        car_model->loadArray(cell_stl_folder_path.string());
+        car_model->loadCanopy(canopy_stl_file_path_v.string());
+        car_model->loadArray(cell_stl_folder_path_v.string());
         car_model->init_camera();
+        car_model->init_shaders();
         std::cout << "Finished rendering car" << std::endl;
     }
 
@@ -302,7 +348,7 @@ void GUI::render_step_two_layout() {
         delta_time = current_frame - last_frame;
         last_frame = current_frame;
         process_input(window);
-        car_model->Draw(shaders, window_width, window_height);
+        car_model->Draw(window_width, window_height);
     }
 }
 
@@ -434,21 +480,19 @@ void GUI::cursor_callback(double xpos, double ypos) {
         return;
     }
 
-    //if (is_left_click_held) {
-        if (first_mouse_movement)
-        {
-            last_x = xpos;
-            last_y = ypos;
-            first_mouse_movement = false;
-        }
-    
-        float xoffset = xpos - last_x;
-        float yoffset = last_y - ypos; 
+    if (first_mouse_movement)
+    {
         last_x = xpos;
         last_y = ypos;
+        first_mouse_movement = false;
+    }
 
-        car_model->camera->ProcessMouseMovement(xoffset, yoffset);
-    //}
+    float xoffset = xpos - last_x;
+    float yoffset = last_y - ypos; 
+    last_x = xpos;
+    last_y = ypos;
+
+    car_model->camera->ProcessMouseMovement(xoffset, yoffset);
 }
 
 void GUI::process_input(GLFWwindow *window)
@@ -459,10 +503,6 @@ void GUI::process_input(GLFWwindow *window)
 
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
         glfwSetWindowShouldClose(window, true);
-
-    // if (is_left_click_held) {
-    //     return;
-    // }
 
     if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
         car_model->camera->ProcessKeyboard(Camera_Movement::FORWARD, delta_time);

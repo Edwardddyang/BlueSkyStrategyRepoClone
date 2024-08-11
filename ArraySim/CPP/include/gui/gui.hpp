@@ -108,7 +108,6 @@ private:
 
     // Visualizations
     std::shared_ptr<Model> car_model;
-    Shader shaders;
     glm::vec3 sun_position = glm::vec3(1.2f, 1.0f, 2.0f);
     glm::vec3 sun_diffuse = glm::vec3(0.5f, 0.5f, 0.5f); // Gray-ish
 
@@ -130,8 +129,12 @@ private:
     // Step 2
     std::filesystem::path cell_stl_folder_path;
     std::filesystem::path canopy_stl_file_path;
+    std::filesystem::path sun_positions_path;
     std::string direction;
+    int bearing = 0;
     // Visualization
+    std::filesystem::path cell_stl_folder_path_v;
+    std::filesystem::path canopy_stl_file_path_v;
     bool car_visualized = false;
     float delta_time = 0.0f;	// Time between current frame and last frame
     float last_frame = 0.0f; // Time of last frame
@@ -147,6 +150,7 @@ private:
     void render_frame();
     void render_step_one_layout();
     void render_step_two_layout();
+    void render_step_three_layout();
 
     // Mouse and keyboard capture functions
     void cursor_callback(double xpos, double ypos);

@@ -23,8 +23,10 @@ public:
 
     // Initialize the camera
     void init_camera();
+    // Initialize shaders
+    void init_shaders();
 
-    void Draw(Shader &shader, double window_width, double window_height);
+    void Draw(double window_width, double window_height);
 
     glm::vec3 get_max_values() const {return max_values;}
     glm::vec3 get_min_values() const {return min_values;}
@@ -37,8 +39,10 @@ public:
     std::shared_ptr<Camera> camera;
 
 private:
+    std::shared_ptr<Shader> shaders;
     // A model is composed of many meshes
-    std::vector<std::shared_ptr<Mesh>> meshes;
+    std::shared_ptr<Mesh> canopy_mesh;
+    std::vector<std::shared_ptr<Mesh>> array_cell_meshes;
 
     // Max and min coordinate values along each dimension
     glm::vec3 max_values;

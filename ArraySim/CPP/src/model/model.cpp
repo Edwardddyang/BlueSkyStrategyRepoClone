@@ -25,9 +25,9 @@ void printMat3(const glm::mat3& mat) {
     }
 }
 
-void Model::Draw(Shader &shader, double window_width, double window_height)
+void Model::Draw(double window_width, double window_height)
 {
-    shader.use();
+    shaders->use();
     
     // Create projection, view, model matrices
     float near_plane = bsphere_radius / 10.0f;
@@ -39,9 +39,9 @@ void Model::Draw(Shader &shader, double window_width, double window_height)
     glm::mat4 model = glm::mat4(1.0f); // Identity model matrix (no change from local to world coordinates)
     
     // Set the uniform matrices
-    shader.setMat4("projection", projection);
-    shader.setMat4("view", view);
-    shader.setMat4("model", model);
+    shaders->setMat4("projection", projection);
+    shaders->setMat4("view", view);
+    shaders->setMat4("model", model);
 
     // Set uniform lighting variables
     // shader.setVec3("material.specular", 0.5f, 0.5f, 0.5f);
@@ -54,9 +54,13 @@ void Model::Draw(Shader &shader, double window_width, double window_height)
     // shader.setVec3("light.diffuse",  0.8f, 0.8f, 0.8f); // darken diffuse light a bit
     // shader.setVec3("light.specular", 1.0f, 1.0f, 1.0f); 
 
-    for(unsigned int i = 0; i < meshes.size(); i++) {
-        meshes[i]->Draw(shader);
+    // Render array cells
+    for(unsigned int i = 0; i < array_cell_meshes.size(); i++) {
+        array_cell_meshes[i]->Draw(shaders);
     }
+
+    // Render canopy
+    canopy_mesh->Draw(shaders);
 }
 
 void Model::loadCanopy(const std::filesystem::path& path) {
@@ -65,8 +69,7 @@ void Model::loadCanopy(const std::filesystem::path& path) {
         return;
     }
 
-    std::shared_ptr<Mesh> canopy_mesh = std::make_shared<Mesh>(path);
-    meshes.push_back(canopy_mesh);
+    canopy_mesh = std::make_shared<Mesh>(path);
     update_max_min_values(canopy_mesh);
     loaded_canopy = true;
 }
@@ -80,7 +83,7 @@ void Model::loadArray(const std::filesystem::path& path) {
     for (const auto& entry : std::filesystem::directory_iterator(path))
     {
         std::shared_ptr<Mesh> cell_mesh = std::make_shared<Mesh>(entry.path());
-        meshes.push_back(cell_mesh);
+        array_cell_meshes.push_back(cell_mesh);
         update_max_min_values(cell_mesh);
     }
 }
@@ -100,6 +103,11 @@ void Model::init_camera() {
                                       Camera::DEFAULT_THETA, Camera::DEFAULT_SPEED,
                                       Camera::DEFAULT_SENSITIVITY, Camera::DEFAULT_FOV,
                                       camera_distance, center);
+}
+
+void Model::init_shaders() {
+    // Build and compile shaders
+    shaders = std::make_shared<Shader>("../data/shaders/model.vs", "../data/shaders/model.fs");
 }
 
 void Model::update_max_min_values(const std::shared_ptr<Mesh>& mesh) {

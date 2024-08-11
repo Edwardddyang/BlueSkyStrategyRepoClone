@@ -107,7 +107,7 @@ Mesh::Mesh(const std::filesystem::path& path) {
     setupMesh();
 }
 
-void Mesh::Draw(Shader &shader) 
+void Mesh::Draw(std::shared_ptr<Shader> &shader) 
 {
     // draw mesh
     glBindVertexArray(VAO);
