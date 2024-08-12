@@ -12,11 +12,18 @@ class Model {
 public:
     Model() : loaded_canopy(false), loaded_array(false),
     max_values(glm::vec3(std::numeric_limits<float>::lowest())),
-    min_values(glm::vec3(std::numeric_limits<float>::max())) {}
+    min_values(glm::vec3(std::numeric_limits<float>::max())),
+    centroid(glm::vec3(0.0,0.0,0.0)), num_vertices(0) {}
     
     // Functions to load canopy file and array cells
     void loadCanopy(const std::filesystem::path& path);
     void loadArray(const std::filesystem::path& path);
+
+    // Center the array and canopy
+    void center_model();
+
+    // Calculate the centroid once both the array and canopy are loaded
+    void calc_centroid();
 
     bool loaded_canopy;
     bool loaded_array;
@@ -38,6 +45,11 @@ public:
     // For viewing and navigating the scene
     std::shared_ptr<Camera> camera;
 
+    std::shared_ptr<Mesh> get_canopy_mesh() {return canopy_mesh;}
+    std::vector<std::shared_ptr<Mesh>> get_array_cell_meshes() {return array_cell_meshes;}
+
+    std::vector<Vertex> get_canopy_vertices() {return canopy_mesh->get_vertices();}
+    std::vector<std::vector<Vertex>> get_array_cell_vertices() {return array_cell_vertices;}
 private:
     std::shared_ptr<Shader> shaders;
     // A model is composed of many meshes
@@ -48,6 +60,15 @@ private:
     glm::vec3 max_values;
     glm::vec3 min_values;
 
+    // Vertices
+    std::vector<std::vector<Vertex>> array_cell_vertices;
+    std::vector<Vertex> canopy_vertices;
+
+    // Total number of vertices in both the array and canopy
+    size_t num_vertices;
+
+    // Centroid of all points from the array and canopy
+    glm::vec3 centroid;
     // Center of bounding box defined by max_values and min_values
     glm::vec3 center;
     // Diagonal length of the bounding box

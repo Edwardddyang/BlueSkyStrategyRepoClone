@@ -2,8 +2,7 @@
 Row Format: |Azimuth(double)|Elevation(double)|Irradiance(double)|Time(string)|
  */
 
-#ifndef LUTS_H
-#define LUTS_H
+#pragma once
 
 #include <stdlib.h>
 #include <string>
@@ -11,13 +10,8 @@ Row Format: |Azimuth(double)|Elevation(double)|Irradiance(double)|Time(string)|
 #include <fstream>
 #include <cassert>
 #include <filesystem>
-
-bool isDouble(std::string str) {
-	if (str[0] == '-' && str.size() >= 2) {
-		return isdigit(str[1]);
-	}
-	return isdigit(str[0]);
-}
+#include <iostream>
+#include "Utilities.hpp"
 
 class SunPositionLUT {
 protected:
@@ -47,16 +41,19 @@ public:
             std::getline(linestream, cell, ',');
             assert(isDouble(cell) && "Value is not a number.");
             double azimuthValue = std::stod(cell);
+            assert(azimuthValue >= 0.0 && azimuthValue <= 360.0);
             azimuth.emplace_back(azimuthValue);
 
             std::getline(linestream, cell, ',');
             assert(isDouble(cell) && "Value is not a number.");
             double elevationValue = std::stod(cell);
+            assert(elevationValue >= 0.0 && elevationValue <= 90.0);
             elevation.emplace_back(elevationValue);
 
             std::getline(linestream, cell, ',');
             assert(isDouble(cell) && "Value is not a number.");
             double irradianceValue = std::stod(cell);
+            assert(irradianceValue >= 0.0);
             irradiance.emplace_back(irradianceValue);
 
             std::getline(linestream, cell, ',');
@@ -66,6 +63,31 @@ public:
         this->num_rows = azimuth.size();
         this->num_cols = 4;
     }
-};
 
-#endif
+    size_t get_num_rows() {return num_rows;}
+    size_t get_num_cols() {return num_cols;}
+
+    double get_azimuth_value(size_t idx) {
+        if (idx < azimuth.size() && idx >= 0) {
+            return azimuth[idx];
+        }
+        std::cout << "Index out of bounds on azimuth access, returning azimuth's last value" << std::endl;
+        return azimuth[num_rows-1];
+    }
+
+    double get_elevation_value(size_t idx) {
+        if (idx < elevation.size() && idx >= 0) {
+            return elevation[idx];
+        } 
+        std::cout << "Index out of bounds on elevation access, returning azimuth's last value" << std::endl;      
+        return elevation[num_rows-1];
+    }
+
+    double get_irradiance_value(size_t idx) {
+        if (idx < irradiance.size() && idx >= 0) {
+            return irradiance[idx];
+        }
+        std::cout << "Index out of bounds on irradiance access, returning irradiance's last value" << std::endl;
+        return irradiance[idx];
+    }
+};

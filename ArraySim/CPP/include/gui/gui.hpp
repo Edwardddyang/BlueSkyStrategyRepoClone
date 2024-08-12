@@ -13,11 +13,14 @@
 #include "Shader.hpp"
 #include "camera.hpp"
 #include <filesystem>
+#include "Luts.hpp"
+#include "Utilities.hpp"
 #define GL_SILENCE_DEPRECATION
 #if defined(IMGUI_IMPL_OPENGL_ES2)
 #include <GLES2/gl2.h>
 #endif
 #include "glad/glad.h"
+#include "sun_plane.hpp"
 #include <GLFW/glfw3.h> // Will drag system OpenGL headers
 // [Win32] Our example includes a copy of glfw3.lib pre-compiled with VS2010 to maximize ease of testing and compatibility with old VS compilers.
 // To link with VS2010-era libraries, VS2015+ requires linking with legacy_stdio_definitions.lib, which we do using this pragma.
@@ -130,8 +133,11 @@ private:
     std::filesystem::path cell_stl_folder_path;
     std::filesystem::path canopy_stl_file_path;
     std::filesystem::path sun_positions_path;
+    std::shared_ptr<SunPositionLUT> sun_position_lut;
     std::string direction;
-    int bearing = 0;
+    double bearing = 0;
+    void generate_irradiance_csv();
+    void compute_canopy_shadow(std::shared_ptr<SunPlane>& sun_plane);
     // Visualization
     std::filesystem::path cell_stl_folder_path_v;
     std::filesystem::path canopy_stl_file_path_v;

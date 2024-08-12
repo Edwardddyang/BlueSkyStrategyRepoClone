@@ -29,10 +29,17 @@ public:
 
     Mesh(const std::filesystem::path& path);
 
+    // Pass in a centroid and vertex count by reference. Used for visualizations
+    Mesh(const std::filesystem::path& path, glm::vec3& centroid, size_t& num_vertices);
+
     void Draw(std::shared_ptr<Shader>& shader);
 
     glm::vec3 get_max_values() const {return max_values;}
     glm::vec3 get_min_values() const {return min_values;}
+
+    std::vector<Vertex> get_vertices() {return vertices;}
+    // Center the mesh according to the some centroid
+    void center_mesh(glm::vec3& centroid, bool update_min_max_values=false);
 
 private:
     // Largest and smallest coordinate values along each dimension

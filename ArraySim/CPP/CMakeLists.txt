@@ -7,6 +7,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 add_subdirectory(${CMAKE_SOURCE_DIR}/libs/GLFW) # glfw3
 add_subdirectory(${CMAKE_SOURCE_DIR}/libs/glm) # glm
 add_subdirectory(${CMAKE_SOURCE_DIR}/libs/glad) # glad
+add_subdirectory(${CMAKE_SOURCE_DIR}/libs/Clipper2/CPP) # Clipper2
 find_package(OpenGL REQUIRED) # OpenGL provided by Windows
 
 # Build ImGUI
@@ -43,6 +44,9 @@ set (PROJECT_SOURCES
     ${CMAKE_SOURCE_DIR}/src/shader/Shader.cpp
     ${CMAKE_SOURCE_DIR}/src/model/model.cpp
     ${CMAKE_SOURCE_DIR}/src/camera/camera.cpp
+    ${CMAKE_SOURCE_DIR}/src/irradiance/sun_plane.cpp
+    ${CMAKE_SOURCE_DIR}/src/Utilities.cpp
+    ${CMAKE_SOURCE_DIR}/libs/quickhull/QuickHull.cpp
 )
 
 add_executable(arraySim ${PROJECT_SOURCES})
@@ -51,10 +55,12 @@ target_include_directories(arraySim PRIVATE
     ${CMAKE_SOURCE_DIR}/include/model
     ${CMAKE_SOURCE_DIR}/include/shader
     ${CMAKE_SOURCE_DIR}/include/camera
+    ${CMAKE_SOURCE_DIR}/include/irradiance
     ${CMAKE_SOURCE_DIR}/libs/ImGuiFileDialog/
     ${CMAKE_SOURCE_DIR}/libs/glm/glm
     ${CMAKE_SOURCE_DIR}/libs/glad/include
     ${CMAKE_SOURCE_DIR}/include/
+    ${CMAKE_SOURCE_DIR}/libs/quickhull
 )
 
 # Filesystem requires C++17 standard which might not be available on all compilers
@@ -81,5 +87,5 @@ elseif (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
     endif()
 endif()
 
-target_link_libraries(arraySim PRIVATE imgui glm glad)
+target_link_libraries(arraySim PRIVATE imgui glm glad Clipper2)
 target_compile_features(arraySim PRIVATE cxx_std_17)

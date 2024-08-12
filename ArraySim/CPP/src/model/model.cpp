@@ -69,9 +69,8 @@ void Model::loadCanopy(const std::filesystem::path& path) {
         return;
     }
 
-    canopy_mesh = std::make_shared<Mesh>(path);
-    update_max_min_values(canopy_mesh);
-    loaded_canopy = true;
+    canopy_mesh = std::make_shared<Mesh>(path, centroid, num_vertices);
+    canopy_vertices = canopy_mesh->get_vertices();
 }
 
 void Model::loadArray(const std::filesystem::path& path) {
@@ -82,10 +81,24 @@ void Model::loadArray(const std::filesystem::path& path) {
     // Load all stl files in the current directory
     for (const auto& entry : std::filesystem::directory_iterator(path))
     {
-        std::shared_ptr<Mesh> cell_mesh = std::make_shared<Mesh>(entry.path());
+        std::shared_ptr<Mesh> cell_mesh = std::make_shared<Mesh>(entry.path(), centroid, num_vertices);
         array_cell_meshes.push_back(cell_mesh);
-        update_max_min_values(cell_mesh);
+        array_cell_vertices.push_back(cell_mesh->get_vertices());
     }
+}
+
+void Model::center_model() {
+    for (std::shared_ptr<Mesh>& mesh : array_cell_meshes) {
+        mesh->center_mesh(centroid, true);
+        update_max_min_values(mesh);
+    }
+
+    canopy_mesh->center_mesh(centroid, true);
+    update_max_min_values(canopy_mesh);
+}
+
+void Model::calc_centroid() {
+    centroid /= static_cast<float>(num_vertices);
 }
 
 void Model::init_camera() {
