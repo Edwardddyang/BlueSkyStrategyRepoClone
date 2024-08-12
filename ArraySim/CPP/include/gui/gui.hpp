@@ -20,6 +20,7 @@
 #include <GLES2/gl2.h>
 #endif
 #include "glad/glad.h"
+#include "irradiance_csv.hpp"
 #include "sun_plane.hpp"
 #include <GLFW/glfw3.h> // Will drag system OpenGL headers
 // [Win32] Our example includes a copy of glfw3.lib pre-compiled with VS2010 to maximize ease of testing and compatibility with old VS compilers.
@@ -136,8 +137,7 @@ private:
     std::shared_ptr<SunPositionLUT> sun_position_lut;
     std::string direction;
     double bearing = 0;
-    void generate_irradiance_csv();
-    void compute_canopy_shadow(std::shared_ptr<SunPlane>& sun_plane);
+    std::shared_ptr<IrradianceCSV> irradiance_csv;
     // Visualization
     std::filesystem::path cell_stl_folder_path_v;
     std::filesystem::path canopy_stl_file_path_v;

@@ -47,6 +47,7 @@ set (PROJECT_SOURCES
     ${CMAKE_SOURCE_DIR}/src/irradiance/sun_plane.cpp
     ${CMAKE_SOURCE_DIR}/src/Utilities.cpp
     ${CMAKE_SOURCE_DIR}/libs/quickhull/QuickHull.cpp
+    ${CMAKE_SOURCE_DIR}/src/irradiance/irradiance_csv.cpp
 )
 
 add_executable(arraySim ${PROJECT_SOURCES})
