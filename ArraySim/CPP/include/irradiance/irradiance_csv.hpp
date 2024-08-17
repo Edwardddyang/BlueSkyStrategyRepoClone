@@ -19,6 +19,7 @@ private:
     std::shared_ptr<SunPositionLUT> sun_position;
     std::shared_ptr<Model> car;
 
-    const int NUM_RAYS = 3000; // Number of rays to generate for each partially shaded triangles
-    void compute_canopy_shadow(std::shared_ptr<SunPlane>& sun_plane);
+    const int NUM_RAYS = 3000; // Number of rays to generate for each partially shaded triangle
+    std::vector<std::vector<double>> irradiance_csv;  // stores the output csv
+    void compute_canopy_shadow(std::shared_ptr<SunPlane>& sun_plane, size_t row_idx, double irradiance);
 };

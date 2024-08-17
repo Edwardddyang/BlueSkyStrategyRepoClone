@@ -62,7 +62,10 @@ IrradianceCSV::IrradianceCSV(std::shared_ptr<SunPositionLUT> sun_position_lut, s
     car->init_camera();  // Get bounding box characteristics
 
     size_t num_sun_positions = sun_position_lut->get_num_rows();
+    size_t num_solar_cells = (car->get_array_cell_meshes()).size();
+    irradiance_csv.resize(num_sun_positions);
     for (size_t i=0; i<num_sun_positions; i++) {
+        irradiance_csv[i].reserve(num_solar_cells);
         double azimuth = sun_position_lut->get_azimuth_value(i);
         double elevation = sun_position_lut->get_elevation_value(i);
         double irradiance = sun_position_lut->get_irradiance_value(i);
@@ -75,15 +78,7 @@ IrradianceCSV::IrradianceCSV(std::shared_ptr<SunPositionLUT> sun_position_lut, s
 
         std::cout << "INDEX: " << i << std::endl;
         // Compute the shadow on the array cells from the canopy
-        compute_canopy_shadow(sun_plane);
-    }
-}
-
-glm::vec3 IrradianceCSV::findOrthogonalVector(const glm::vec3& normal) {
-    if (std::abs(normal.x) > std::abs(normal.y)) {
-        return glm::normalize(glm::vec3(-normal.z, 0, normal.x));
-    } else {
-        return glm::normalize(glm::vec3(0, normal.z, -normal.y));
+        compute_canopy_shadow(sun_plane, i, irradiance);
     }
 }
 
@@ -105,22 +100,41 @@ void export_to_obj(const std::vector<Triangle>& triangles, const std::string& fi
     file.close();
 }
 
-void IrradianceCSV::compute_canopy_shadow(std::shared_ptr<SunPlane>& sun_plane) {
+glm::vec3 compute_triangle_norm(const Triangle& triangle) {
+    Point p1 = triangle[0];
+    Point p2 = triangle[1];
+    Point p3 = triangle[2];
+    glm::vec3 u(p2.x() - p1.x(), p2.y() - p1.y(), p3.z() - p3.z());
+    glm::vec3 v(p3.x() - p1.x(), p3.y() - p1.y(), p3.z() - p1.z());
+
+    // In the case of a degenerate triangle, we assume its so small that
+    // its effective irradiance ~= 0. We return a 0 normal vector to realize
+    // this
+    if (u == v) {
+        return glm::vec3(0,0,0);
+    }
+
+    return (glm::normalize(glm::cross(u,v)));
+}
+
+void IrradianceCSV::compute_canopy_shadow(std::shared_ptr<SunPlane>& sun_plane, size_t row_idx, double irradiance) {
     std::vector<Vertex> canopy_vertices = car->get_canopy_mesh()->get_vertices();
     std::vector<std::vector<Vertex>> array_cells = car->get_array_cell_vertices();
     glm::vec3& sun_plane_normal = sun_plane->normal;
 
     // Construct AABB tree of the array cells.
     // Note: triangle index refers to the index of a triangle in array_triangles or
-    // flattened_array_triangles. Cell index refers to the index of a cell in
-    // array_cells
+    // flattened_array_triangles or triangle_normals. Cell index refers to the index
+    // of a cell in array_cells
     std::vector<Triangle> array_triangles;
     std::vector<Triangle2> flattened_array_triangles; // Flattened onto the XY plane
     std::unordered_map<size_t, size_t> triangle_to_cell;  // Map of triangle indices to array cell indices
+    std::vector<glm::vec3> triangle_normals; // Normalized unit normal vector of each triangle
     size_t num_array_cells = array_cells.size();
     size_t triangle_idx = 0;
     for (size_t cell_idx=0; cell_idx<num_array_cells; cell_idx++) {
         for (size_t vert_idx=0; vert_idx<array_cells[cell_idx].size(); vert_idx+=3) {
+
             Point point1(array_cells[cell_idx][vert_idx].position.x,
                         array_cells[cell_idx][vert_idx].position.y,
                         array_cells[cell_idx][vert_idx].position.z);
@@ -136,7 +150,12 @@ void IrradianceCSV::compute_canopy_shadow(std::shared_ptr<SunPlane>& sun_plane) 
             Point2 point3_2d(point3.x(), point3.y());
 
             flattened_array_triangles.push_back(Triangle2(point1_2d, point2_2d, point3_2d));
-            array_triangles.push_back(Triangle(point1, point2, point3));
+
+            Triangle array_triangle = Triangle(point1, point2, point3);
+            array_triangles.push_back(array_triangle);
+
+            glm::vec3 normal = compute_triangle_norm(array_triangle);
+            triangle_normals.push_back(normal);
             triangle_to_cell.insert({triangle_idx, cell_idx});
             triangle_idx++;
         }
@@ -192,7 +211,6 @@ void IrradianceCSV::compute_canopy_shadow(std::shared_ptr<SunPlane>& sun_plane) 
     // Flatten the projected canopy points down to the xy plane and compute its convex hull
     std::vector<Point2> flattened_canopy_points;
     std::vector<Point2> canopy_convex_hull;
-    std::cout << num_projected_canopy_points << " " << projected_canopy_points.size() << std::endl;
     for (size_t vert_idx=0; vert_idx<num_projected_canopy_points; vert_idx++) {
         Point p = projected_canopy_points[vert_idx];
         flattened_canopy_points.push_back(Point2(p.x(), p.y()));
@@ -207,14 +225,15 @@ void IrradianceCSV::compute_canopy_shadow(std::shared_ptr<SunPlane>& sun_plane) 
     // completely shaded, not shaded, or partially shaded
     std::unordered_set<size_t> partially_shaded_triangles;
     std::unordered_set<size_t> completely_shaded_triangles;
-    std::unordered_map<size_t, double> triangle_shaded_areas;  // Triangle index -> its shaded area
+    std::unordered_set<size_t> non_shaded_triangles;
+    std::unordered_map<size_t, double> flattened_triangle_shaded_area;  // Triangle index -> its flattened shaded area (NOT its actual shaded area in 3D space)
+    std::unordered_map<size_t, double> triangle_shaded_area; // Triangle index -> its shaded area in 3D space
     std::unordered_map<size_t, double> triangle_areas;  // Triangle index -> its area
     size_t num_array_triangles = flattened_array_triangles.size();
     int num_tri = 0;
     for (size_t tri_idx=0; tri_idx<num_array_triangles; tri_idx++) {
-        triangle_shaded_areas.insert({tri_idx, 0.0});
+        flattened_triangle_shaded_area.insert({tri_idx, 0.0});
     }
-    std::cout << "INITIALIZED" << std::endl;
     for (size_t tri_idx=0; tri_idx<num_array_triangles; tri_idx++) {
         Triangle2 tri = flattened_array_triangles[tri_idx];
         bool intersects = false;
@@ -225,7 +244,7 @@ void IrradianceCSV::compute_canopy_shadow(std::shared_ptr<SunPlane>& sun_plane) 
 
             CGAL::Object result = CGAL::intersection(tri, Triangle2(p1, p2, p3));
             if (const Triangle2* int_tri = CGAL::object_cast<Triangle2>(&result)) {
-                triangle_shaded_areas[tri_idx] += std::abs(CGAL::area(int_tri->vertex(0),
+                flattened_triangle_shaded_area[tri_idx] += std::abs(CGAL::area(int_tri->vertex(0),
                                                                      int_tri->vertex(1),
                                                                      int_tri->vertex(2)));
                 intersects = true;
@@ -234,21 +253,25 @@ void IrradianceCSV::compute_canopy_shadow(std::shared_ptr<SunPlane>& sun_plane) 
         num_tri = intersects ? num_tri + 1 : num_tri;
     }
     int num_completely_shaded_triangles = 0;
-    for (auto it=triangle_shaded_areas.begin(); it != triangle_shaded_areas.end(); it++) {
-        double shaded_area = it->second;  // Shaded area on the xy plane. Not representative of actual shaded area
+    for (auto it=flattened_triangle_shaded_area.begin(); it != flattened_triangle_shaded_area.end(); it++) {
+        double shaded_area = it->second;  // Shaded area on the xy plane. Again, this is NOT representative of actual shaded area
+        Triangle2 tri = flattened_array_triangles[it->first];
+        double tri_area = std::abs(CGAL::area(tri[0], tri[1], tri[2]));
+        triangle_areas[it->first] = tri_area;
         if (shaded_area > 0.0) {
-            Triangle2 tri = flattened_array_triangles[it->first];
-            double tri_area = std::abs(CGAL::area(tri[0], tri[1], tri[2]));
-            triangle_areas[it->first] = tri_area;
             if (std::abs(shaded_area - tri_area) < 1.0 || shaded_area > tri_area) {
                 num_completely_shaded_triangles++;
                 completely_shaded_triangles.insert(it->first);
+                triangle_shaded_area[it->first] = tri_area;
             } else {
                 partially_shaded_triangles.insert(it->first);
             }
+        } else {
+            non_shaded_triangles.insert(it->first);
+            triangle_shaded_area[it->first] = 0.0;
         }
     }
-    std::cout << "NUM TRIANGLE INTERSECTIONS: " << num_tri << " | Total completely shaded triangles " << num_completely_shaded_triangles << " | Total partially shaded triangles " << partially_shaded_triangles.size() << std::endl;
+    //std::cout << "NUM TRIANGLE INTERSECTIONS: " << num_tri << " | Total completely shaded triangles " << num_completely_shaded_triangles << " | Total partially shaded triangles " << partially_shaded_triangles.size() << std::endl;
 
     // For each partially shaded triangle, cast NUM_RAYS from the triangle towards the sun plane. The numerical approximation
     // for shaded area is given by (Num rays intersecting with canopy / NUM_RAYS) * triangle area
@@ -267,6 +290,19 @@ void IrradianceCSV::compute_canopy_shadow(std::shared_ptr<SunPlane>& sun_plane) 
             }
         }
 
-        std::cout << "PARTIALLY SHADED TRIANGLE AREA: " << triangle_areas[*it] << " | SHADED AREA: " << ((num_rays_intersected /(double) NUM_RAYS)) * triangle_areas[*it] << " | NUM RAYS INTERSECTED: " << num_rays_intersected << std::endl;
+        double shaded_area = ((num_rays_intersected /(double) NUM_RAYS)) * triangle_areas[*it];
+        triangle_shaded_area[*it] = shaded_area;
+    }
+
+    // Compute effective irradiances
+    for (size_t cell_idx = 0; cell_idx < num_array_cells; cell_idx++) {
+        irradiance_csv[row_idx][cell_idx] = 0.0;
+    }
+    for (auto it = triangle_shaded_area.begin(); it != triangle_shaded_area.end(); it++) {
+        double shaded_area = it->second;
+        size_t cell_i = triangle_to_cell[it->first];
+        glm::vec3 normal = triangle_normals[it->first];
+        double effective_triangle_irradiance = glm::dot(normal, sun_plane_normal) * (triangle_areas[it->first] - shaded_area) * irradiance;
+        irradiance_csv[row_idx][cell_i] += effective_triangle_irradiance;
     }
 }
