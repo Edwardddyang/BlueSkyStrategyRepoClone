@@ -297,7 +297,6 @@ void GUI::render_step_two_layout() {
     insert_tooltip("Direction of the nose of the car. Usually \"-x\". Confirm with the CAD of the car");
 
     ImGui::SetNextItemWidth(text_field_width);
-    std::string bearing_text;
     ImGui::InputText("Bearing", &bearing_text);
     if (bearing_text != "" && isDouble(bearing_text)) {
         bearing = std::stod(bearing_text);

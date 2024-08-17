@@ -168,6 +168,10 @@ Mesh::Mesh(const std::filesystem::path& path, glm::vec3& centroid, size_t& num_v
 }
 
 void Mesh::center_mesh(glm::vec3& centroid, bool update_min_max_values) {
+    if (update_min_max_values) {
+        max_values = glm::vec3(std::numeric_limits<float>::lowest());
+        min_values = glm::vec3(std::numeric_limits<float>::max());
+    }
     for (Vertex& vert : vertices) {
         vert.position -= centroid;
 

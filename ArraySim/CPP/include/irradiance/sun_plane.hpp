@@ -11,6 +11,11 @@ struct SunPlane {
     glm::vec3 point;
     glm::vec3 normal;
 
+    double a;
+    double b;
+    double c;
+    double d;
+
     // NOTE: By convention, we use a right handed coordinate system where the +z axis points up towards
     // the sky. Therefore, the returned normal vector is really just the normalized position of the sun in
     // the sky and will always have +ve z component

@@ -50,4 +50,10 @@ SunPlane::SunPlane(double azimuth, double elevation, std::string direction, doub
     float offset_distance = glm::length(furthest_point) + 1.0;  // Add buffer
 
     point = normal * offset_distance;
+
+    // Define the plane equation form
+    a = x;
+    b = y;
+    c = z;
+    d = -1.0 * (a * point.x + b * point.y + c * point.z);
 }

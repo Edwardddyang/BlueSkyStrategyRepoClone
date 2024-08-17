@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.12)
 project(ArraySim VERSION 1.0 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+add_definitions(-DBOOST_NO_CXX98_FUNCTION_BASE)
 
 # Build GLFW and OpenGL backends
 add_subdirectory(${CMAKE_SOURCE_DIR}/libs/GLFW) # glfw3
@@ -62,6 +63,8 @@ target_include_directories(arraySim PRIVATE
     ${CMAKE_SOURCE_DIR}/libs/glad/include
     ${CMAKE_SOURCE_DIR}/include/
     ${CMAKE_SOURCE_DIR}/libs/quickhull
+    ${CMAKE_SOURCE_DIR}/libs/CGAL/include
+    C:/boost_1_66_0
 )
 
 # Filesystem requires C++17 standard which might not be available on all compilers
@@ -88,5 +91,7 @@ elseif (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
     endif()
 endif()
 
-target_link_libraries(arraySim PRIVATE imgui glm glad Clipper2)
+find_library(GMP_LIB gmp-10 PATHS ${CMAKE_SOURCE_DIR}/build)
+find_library(MPFR_LIB mpfr-4 PATHS ${CMAKE_SOURCE_DIR}/build)
+target_link_libraries(arraySim PRIVATE imgui glm glad Clipper2 ${MPFR_LIB} ${GMP_LIB})
 target_compile_features(arraySim PRIVATE cxx_std_17)

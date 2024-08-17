@@ -88,12 +88,15 @@ void Model::loadArray(const std::filesystem::path& path) {
 }
 
 void Model::center_model() {
+    array_cell_vertices.resize(0);
     for (std::shared_ptr<Mesh>& mesh : array_cell_meshes) {
         mesh->center_mesh(centroid, true);
+        array_cell_vertices.push_back(mesh->get_vertices());
         update_max_min_values(mesh);
     }
 
     canopy_mesh->center_mesh(centroid, true);
+    canopy_vertices = canopy_mesh->get_vertices();
     update_max_min_values(canopy_mesh);
 }
 

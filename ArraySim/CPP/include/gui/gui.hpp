@@ -136,6 +136,7 @@ private:
     std::filesystem::path sun_positions_path;
     std::shared_ptr<SunPositionLUT> sun_position_lut;
     std::string direction;
+    std::string bearing_text;
     double bearing = 0;
     std::shared_ptr<IrradianceCSV> irradiance_csv;
     // Visualization
