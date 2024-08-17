@@ -315,7 +315,8 @@ void GUI::render_step_two_layout() {
         sun_position_lut = std::make_shared<SunPositionLUT>(sun_positions_path);
         std::cout << "Loaded canopy stl, array cells stl and sun positions csv." << std::endl;
 
-        irradiance_csv = std::make_shared<IrradianceCSV>(sun_position_lut, car_model, bearing, direction);
+        irradiance_csv = std::make_shared<IrradianceCSV>(sun_position_lut, car_model, bearing, direction, false);
+        irradiance_csv->write_csv("wscIrr.csv");
     }
 }
 
