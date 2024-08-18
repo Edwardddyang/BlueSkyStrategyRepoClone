@@ -4,6 +4,7 @@
 #include <iostream>
 #include <glad/glad.h> 
 #include <stb_image.h>
+#include "tinycolormap.hpp"
 
 void printMat4(const glm::mat4& mat) {
     for (int i = 0; i < 4; ++i) {
@@ -25,7 +26,9 @@ void printMat3(const glm::mat3& mat) {
     }
 }
 
-void Model::Draw(double window_width, double window_height)
+void Model::Draw(double window_width, double window_height,
+                std::vector<double> irradiance_values, std::pair<double, double> irradiance_limits,
+                bool outline)
 {
     shaders->use();
     
@@ -55,12 +58,24 @@ void Model::Draw(double window_width, double window_height)
     // shader.setVec3("light.specular", 1.0f, 1.0f, 1.0f); 
 
     // Render array cells
-    for(unsigned int i = 0; i < array_cell_meshes.size(); i++) {
-        array_cell_meshes[i]->Draw(shaders);
+    size_t num_cells = array_cell_meshes.size();
+    for(unsigned int i = 0; i < num_cells; i++) {
+        // For each array cell, shade it according to some colour
+        glm::vec3 fill_colour = glm::vec3(1.0f, 1.0f, 1.0f);
+        if (irradiance_values.size() == num_cells) {
+            double irradiance_value = irradiance_values[i];
+            double normalized_value = (irradiance_value - irradiance_limits.first) /
+                                      (irradiance_limits.second - irradiance_limits.first);
+            const tinycolormap::Color color = tinycolormap::GetColor(normalized_value, tinycolormap::ColormapType::Jet);
+            fill_colour = glm::vec3(color.r(), color.g(), color.b());
+            array_cell_meshes[i]->Draw(shaders, fill_colour, outline);
+        } else {
+            array_cell_meshes[i]->Draw(shaders, fill_colour, outline);
+        }
     }
 
     // Render canopy
-    canopy_mesh->Draw(shaders);
+    canopy_mesh->Draw(shaders, glm::vec3(1.0f, 1.0f, 1.0f), true);
 }
 
 void Model::loadCanopy(const std::filesystem::path& path) {
@@ -123,11 +138,11 @@ void Model::init_camera() {
 
 void Model::init_shaders() {
     // Build and compile shaders
-    if (see_heat_map) {
-        shaders = std::make_shared<Shader>("../data/shaders/model_heat.vs", "../data/shaders/model_heat.fs");
-    } else {
+    // if (see_heat_map) {
+    //     shaders = std::make_shared<Shader>("../data/shaders/model_heat.vs", "../data/shaders/model_heat.fs");
+    // } else {
         shaders = std::make_shared<Shader>("../data/shaders/model.vs", "../data/shaders/model.fs");
-    }
+    //}
 }
 
 void Model::update_max_min_values(const std::shared_ptr<Mesh>& mesh) {

@@ -68,9 +68,18 @@ public:
     // Load a CSV from a file path
     IrradianceCSV(std::filesystem::path csv_path);
     void write_csv(const std::string& csv_name);
+
+    inline double get_min_irradiance_value() {return min_irradiance_value;}
+    inline double get_max_irradiance_value() {return max_irradiance_value;}
+    inline  std::pair<double, double> get_irradiance_limits() {return irradiance_limits;}
+    inline std::vector<std::vector<double>> get_irradiance_csv() {return irradiance_csv;}
 private:
     std::shared_ptr<SunPositionLUT> sun_position;
     std::shared_ptr<Model> car;
+    double min_irradiance_value;
+    double max_irradiance_value;
+
+    std::pair<double, double> irradiance_limits;
 
     const int NUM_RAYS = 3000; // Number of rays to generate for each partially shaded triangle
     std::vector<std::vector<double>> irradiance_csv;  // stores the output csv

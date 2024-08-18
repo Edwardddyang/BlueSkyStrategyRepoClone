@@ -12,6 +12,9 @@ IrradianceCSV::IrradianceCSV(std::shared_ptr<SunPositionLUT> sun_position_lut, s
     car->center_model();
     car->init_camera();  // Get bounding box characteristics
 
+    max_irradiance_value = std::numeric_limits<double>::lowest();
+    min_irradiance_value = std::numeric_limits<double>::max();
+
     size_t num_sun_positions = sun_position_lut->get_num_rows();
     size_t num_solar_cells = (car->get_array_cell_meshes()).size();
     irradiance_csv.resize(num_sun_positions);
@@ -57,7 +60,7 @@ glm::vec3 IrradianceCSV::compute_triangle_norm(const Triangle& triangle) {
     Point p1 = triangle[0];
     Point p2 = triangle[1];
     Point p3 = triangle[2];
-    glm::vec3 u(p2.x() - p1.x(), p2.y() - p1.y(), p3.z() - p3.z());
+    glm::vec3 u(p2.x() - p1.x(), p2.y() - p1.y(), p2.z() - p1.z());
     glm::vec3 v(p3.x() - p1.x(), p3.y() - p1.y(), p3.z() - p1.z());
 
     // In the case of a degenerate triangle, we assume its so small that
@@ -70,6 +73,8 @@ glm::vec3 IrradianceCSV::compute_triangle_norm(const Triangle& triangle) {
     glm::vec3 cross_product = glm::cross(u,v);
     if (cross_product.z < 0.0f) {
         cross_product.z *= -1.0f;
+        cross_product.x *= -1.0f;
+        cross_product.y *= -1.0f;
     }
 
     return (glm::normalize(cross_product));
@@ -222,8 +227,9 @@ void IrradianceCSV::construct_csv_row(std::shared_ptr<SunPlane>& sun_plane, size
                 triangle_shaded_area[tri_idx] = flattened_tri_area;
             } else {
                 partially_shaded_triangles.insert(tri_idx);
-                triangle_shaded_area[tri_idx] = 0.0;  // If we're not calculating precise shadows, approximate shaded triangles
-                                                        // as fully shaded
+                // If we're not calculating precise shadows and there's any shaded area,
+                // we assume the entire triangle is shaded
+                triangle_shaded_area[tri_idx] = triangle_areas[tri_idx];
             }
         } else {
             non_shaded_triangles.insert(tri_idx);
@@ -266,8 +272,11 @@ void IrradianceCSV::construct_csv_row(std::shared_ptr<SunPlane>& sun_plane, size
         double dot_product = glm::dot(normal, sun_plane_normal);
         if (dot_product > 0.0) {
             triangle_powers.push_back(dot_product * (triangle_areas[tri_idx] - shaded_area) * irradiance);
+        } else {
+            triangle_powers.push_back(0.0);
         }
     }
+
     for (size_t cell_idx=0; cell_idx < num_array_cells; cell_idx++) {
         std::vector<size_t> cell_triangles = cell_to_triangle[cell_idx];
 
@@ -277,9 +286,13 @@ void IrradianceCSV::construct_csv_row(std::shared_ptr<SunPlane>& sun_plane, size
             cell_power += triangle_powers[tri_idx];
             cell_area += triangle_areas[tri_idx];
         }
+        double value = cell_power / cell_area;
+        max_irradiance_value = value > max_irradiance_value ? value : max_irradiance_value;
+        min_irradiance_value = value < min_irradiance_value ? value : min_irradiance_value;
 
-        irradiance_csv[row_idx][cell_idx] = (cell_power / cell_area);
+        irradiance_csv[row_idx][cell_idx] = value;
     }
+    irradiance_limits = {min_irradiance_value, max_irradiance_value};
 }
 
 void IrradianceCSV::write_csv(const std::string& csv_name) {
@@ -318,11 +331,17 @@ IrradianceCSV::IrradianceCSV(std::filesystem::path csv_path) {
         std::string cell;
         while (std::getline(ss, cell, ',')) {
             try {
-                row.push_back(std::stod(cell));
+                double value = std::stod(cell);
+                max_irradiance_value = value > max_irradiance_value ? value : max_irradiance_value;
+                min_irradiance_value = value < min_irradiance_value ? value : min_irradiance_value;
+                row.push_back(value);
             } catch (const std::invalid_argument& e) {
                 std::cerr << "Invalid number in file: " << cell << std::endl;
+                return;
             }
         }
         irradiance_csv.push_back(row);
     }
+
+    irradiance_limits = {min_irradiance_value, max_irradiance_value};
 }

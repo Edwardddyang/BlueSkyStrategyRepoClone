@@ -319,7 +319,7 @@ void GUI::render_step_two_layout() {
         car_model->loadCanopy(canopy_stl_file_path.string());
         car_model->loadArray(cell_stl_folder_path.string());
         sun_position_lut = std::make_shared<SunPositionLUT>(sun_positions_path);
-        irradiance_csv = std::make_shared<IrradianceCSV>(sun_position_lut, car_model, bearing, direction, true);
+        irradiance_csv = std::make_shared<IrradianceCSV>(sun_position_lut, car_model, bearing, direction, false);
         irradiance_csv->write_csv(irradiance_csv_name);
     }
 }
@@ -366,7 +366,7 @@ void GUI::render_step_three_layout() {
 
         irradiance_csv = std::make_shared<IrradianceCSV>(irradiance_csv_file_path);
         glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-        car_model = std::make_shared<Model>(true);
+        car_model = std::make_shared<Model>();
         car_model->init_shaders();
         car_model->loadCanopy(canopy_stl_file_path_v.string());
         car_model->loadArray(cell_stl_folder_path_v.string());
@@ -384,7 +384,13 @@ void GUI::render_step_three_layout() {
         delta_time = current_frame - last_frame;
         last_frame = current_frame;
         process_input(window);
-        car_model->Draw(window_width, window_height);
+        std::vector<double> irradiance_values = {};
+        std::pair<double, double> irradiance_limits = {};
+        if (irradiance_csv != nullptr) {
+            irradiance_values = irradiance_csv->get_irradiance_csv()[43];
+            irradiance_limits = irradiance_csv->get_irradiance_limits();
+        }
+        car_model->Draw(window_width, window_height, irradiance_values, irradiance_limits, true);
     }
 }
 

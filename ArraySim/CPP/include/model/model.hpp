@@ -5,15 +5,17 @@
 #include "Shader.hpp"
 #include "mesh.hpp"
 #include "camera.hpp"
+//#include "irradiance_csv.hpp"
 #include <filesystem>
 #include <memory>
 
 class Model {
 public:
-    Model(bool heat_map = false) : loaded_canopy(false), loaded_array(false), see_heat_map(heat_map),
-    max_values(glm::vec3(std::numeric_limits<float>::lowest())),
-    min_values(glm::vec3(std::numeric_limits<float>::max())),
-    centroid(glm::vec3(0.0,0.0,0.0)), num_vertices(0) {}
+    Model()
+        : loaded_canopy(false), loaded_array(false),
+        max_values(glm::vec3(std::numeric_limits<float>::lowest())),
+        min_values(glm::vec3(std::numeric_limits<float>::max())),
+        centroid(glm::vec3(0.0,0.0,0.0)), num_vertices(0) {};
     
     // Functions to load canopy file and array cells
     void loadCanopy(const std::filesystem::path& path);
@@ -33,7 +35,8 @@ public:
     // Initialize shaders
     void init_shaders();
 
-    void Draw(double window_width, double window_height);
+    void Draw(double window_width, double window_height, std::vector<double> irradiance_values,
+             std::pair<double, double> irradiance_limits, bool outline = true);
 
     glm::vec3 get_max_values() const {return max_values;}
     glm::vec3 get_min_values() const {return min_values;}
@@ -82,8 +85,6 @@ private:
     // Direction that the camera is pointing in
     glm::vec3 camera_direction;
     void update_max_min_values(const std::shared_ptr<Mesh>& mesh);
-
-    bool see_heat_map;
 };
 
 #endif /* MODEL_H */
