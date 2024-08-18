@@ -10,7 +10,7 @@
 
 class Model {
 public:
-    Model() : loaded_canopy(false), loaded_array(false),
+    Model(bool heat_map = false) : loaded_canopy(false), loaded_array(false), see_heat_map(heat_map),
     max_values(glm::vec3(std::numeric_limits<float>::lowest())),
     min_values(glm::vec3(std::numeric_limits<float>::max())),
     centroid(glm::vec3(0.0,0.0,0.0)), num_vertices(0) {}
@@ -82,6 +82,8 @@ private:
     // Direction that the camera is pointing in
     glm::vec3 camera_direction;
     void update_max_min_values(const std::shared_ptr<Mesh>& mesh);
+
+    bool see_heat_map;
 };
 
 #endif /* MODEL_H */

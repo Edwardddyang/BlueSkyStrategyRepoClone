@@ -192,7 +192,20 @@ void Mesh::center_mesh(glm::vec3& centroid, bool update_min_max_values) {
 void Mesh::Draw(std::shared_ptr<Shader> &shader) 
 {
     // draw mesh
+    // Bind the VAO
+    shader->setVec3("uColor", glm::vec3(1.0f, 1.0f, 1.0f));
     glBindVertexArray(VAO);
+
+    // 1. Draw filled triangles (white fill)
+    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);           // Set fill mode
     glDrawElements(GL_TRIANGLES, static_cast<unsigned int>(indices.size()), GL_UNSIGNED_INT, 0);
+
+    // 2. Draw triangle outlines (black outline)
+    shader->setVec3("uColor", glm::vec3(0.0f, 0.0f, 0.0f));
+    glLineWidth(1.0f);
+    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);           // Set line mode
+    glDrawElements(GL_TRIANGLES, static_cast<unsigned int>(indices.size()), GL_UNSIGNED_INT, 0);
+
+    // Unbind the VAO
     glBindVertexArray(0);
 }  

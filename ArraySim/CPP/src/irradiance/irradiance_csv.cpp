@@ -280,10 +280,6 @@ void IrradianceCSV::construct_csv_row(std::shared_ptr<SunPlane>& sun_plane, size
 
         irradiance_csv[row_idx][cell_idx] = (cell_power / cell_area);
     }
-    // for (size_t cell_idx = 0; cell_idx < num_array_cells; cell_idx++) {
-    //     std::cout << irradiance_csv[row_idx][cell_idx] << " " << std::endl;
-    // }
-    // std::cout << "\n";
 }
 
 void IrradianceCSV::write_csv(const std::string& csv_name) {
@@ -306,4 +302,27 @@ void IrradianceCSV::write_csv(const std::string& csv_name) {
     }
 
     csv_file.close();
+}
+
+IrradianceCSV::IrradianceCSV(std::filesystem::path csv_path) {
+    std::ifstream lut(csv_path.string()); // Use ifstream for reading
+    assert(lut.is_open() && "File not found...");
+
+    std::string line;
+    std::string cell;
+    std::vector<double> row;
+
+    while (std::getline(lut, line)) {
+        std::stringstream ss(line);
+        std::vector<double> row;
+        std::string cell;
+        while (std::getline(ss, cell, ',')) {
+            try {
+                row.push_back(std::stod(cell));
+            } catch (const std::invalid_argument& e) {
+                std::cerr << "Invalid number in file: " << cell << std::endl;
+            }
+        }
+        irradiance_csv.push_back(row);
+    }
 }

@@ -16,12 +16,13 @@
 struct Vertex {
     glm::vec3 position;
     glm::vec3 normal;
+    glm::vec3 colour;
 };
 
 class Mesh {
 public:
     static const int NUM_TRI_VERTS = 3;
-    // Mesh data
+    // Mesh data with 
     std::vector<Vertex> vertices;
     std::vector<std::array<size_t, NUM_TRI_VERTS>> faces; // Each face is a triangle
     std::vector<glm::vec3> face_normals; // face_normals[i] is the normal for faces[i]

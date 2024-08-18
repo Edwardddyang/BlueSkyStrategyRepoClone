@@ -111,7 +111,7 @@ void Model::init_camera() {
     bbox_length = glm::length(max_values - min_values);
     bsphere_radius = bbox_length / 2.0f;
     camera_distance = bsphere_radius * 1.5f;
-    camera_position = center + glm::vec3(0.0f, 0.0f, camera_distance);
+    camera_position = center + glm::vec3(0.0f, 0.0f, camera_distance);  // On positive z axis
     camera_direction = glm::normalize(center - camera_position);
 
     camera = std::make_shared<Camera>(camera_position, camera_direction,
@@ -123,7 +123,11 @@ void Model::init_camera() {
 
 void Model::init_shaders() {
     // Build and compile shaders
-    shaders = std::make_shared<Shader>("../data/shaders/model.vs", "../data/shaders/model.fs");
+    if (see_heat_map) {
+        shaders = std::make_shared<Shader>("../data/shaders/model_heat.vs", "../data/shaders/model_heat.fs");
+    } else {
+        shaders = std::make_shared<Shader>("../data/shaders/model.vs", "../data/shaders/model.fs");
+    }
 }
 
 void Model::update_max_min_values(const std::shared_ptr<Mesh>& mesh) {

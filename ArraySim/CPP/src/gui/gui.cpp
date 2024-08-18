@@ -181,6 +181,8 @@ void GUI::render_step_selection_pane() {
             text_field_width = sim_config_size[WIDTH_INDEX] * text_field_width_fraction;
         } else if (selected_step == static_cast<int>(steps::STEP_2)) {
             button_size = ImVec2(button_width_fraction*sim_config_size[WIDTH_INDEX], button_height);
+        } else if (selected_step == static_cast<int>(steps::STEP_3)) {
+            button_size = ImVec2(button_width_fraction*sim_config_size[WIDTH_INDEX], button_height);
         }
     }
 
@@ -305,6 +307,10 @@ void GUI::render_step_two_layout() {
                    "when positioned at the location in the sun path csv. For WSC, if the sun\n"
                    "position csv was generated at Alice Springs, then this would be 180 since the car\n"
                    "is facing south at that point during the race.");
+
+    ImGui::SetNextItemWidth(text_field_width);
+    ImGui::InputText("Output Name", &irradiance_csv_name);
+    insert_tooltip("Name of the output irradiance csv");
     ImGui::NewLine();
 
     if (ImGui::Button("Generate Irradiance CSV")) {
@@ -313,10 +319,8 @@ void GUI::render_step_two_layout() {
         car_model->loadCanopy(canopy_stl_file_path.string());
         car_model->loadArray(cell_stl_folder_path.string());
         sun_position_lut = std::make_shared<SunPositionLUT>(sun_positions_path);
-        std::cout << "Loaded canopy stl, array cells stl and sun positions csv." << std::endl;
-
-        irradiance_csv = std::make_shared<IrradianceCSV>(sun_position_lut, car_model, bearing, direction, false);
-        irradiance_csv->write_csv("wscIrr.csv");
+        irradiance_csv = std::make_shared<IrradianceCSV>(sun_position_lut, car_model, bearing, direction, true);
+        irradiance_csv->write_csv(irradiance_csv_name);
     }
 }
 
@@ -324,10 +328,13 @@ void GUI::render_step_three_layout() {
     ImGui::Begin("Visualizations");
     RenderUnderlinedText("See Canopy and Array");
     std::filesystem::path path;
-    insert_file_dialog_button("Array Cell STL Directory", &button_size,"arraySTLDir", "Choose Directory", nullptr, path, cell_stl_folder_path_v);
-    insert_file_dialog_button("Canopy STL File", &button_size, "canopySTLFile", "Choose File", ".stl", canopy_stl_file_path_v, path);
+    insert_file_dialog_button("Array Cell STL Directory", &button_size,"arraySTLDir", "Choose Directory",
+                             nullptr, path, cell_stl_folder_path_v);
+    insert_file_dialog_button("Canopy STL File", &button_size, "canopySTLFile", "Choose File",
+                             ".stl", canopy_stl_file_path_v, path);
+    insert_file_dialog_button("Irradiance CSV", &button_size, "csvFile", "Choose File", ".csv", irradiance_csv_file_path, path);
     // If we have both a canopy STL and the array cell stl folder, render them
-    if (ImGui::Button("Visualize")) {
+    if (ImGui::Button("See Car")) {
         std::cout << "Rendering car..." << std::endl;
         // Reset visualization variables
         car_visualized = true;
@@ -345,10 +352,30 @@ void GUI::render_step_three_layout() {
         car_model->init_shaders();
         glm::vec3 min = car_model->get_min_values();
         glm::vec3 max = car_model->get_max_values();
-
-        std::cout << "MIN: " << min[0]<< " " << min[1] << " " << min[2] << std::endl;
-        std::cout << "MAX: " << max[0] << " " << max[1] << " " << max[2] << std::endl; 
         std::cout << "Finished rendering car" << std::endl;
+    }
+
+    if (ImGui::Button("See Irradiance Map")) {
+        std::cout << "Rendering car..." << std::endl;
+        // Reset visualization variables
+        car_visualized = true;
+        first_mouse_movement = true;
+        is_left_click_held = false;
+        delta_time = 0.0f;
+        last_frame = 0.0f;
+
+        irradiance_csv = std::make_shared<IrradianceCSV>(irradiance_csv_file_path);
+        glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+        car_model = std::make_shared<Model>(true);
+        car_model->init_shaders();
+        car_model->loadCanopy(canopy_stl_file_path_v.string());
+        car_model->loadArray(cell_stl_folder_path_v.string());
+        car_model->calc_centroid();
+        car_model->center_model();
+        car_model->init_camera();
+        glm::vec3 min = car_model->get_min_values();
+        glm::vec3 max = car_model->get_max_values();
+        std::cout << "Finished rendering car" << std::endl;    
     }
 
     if (car_visualized) {

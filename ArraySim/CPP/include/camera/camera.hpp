@@ -4,6 +4,8 @@
 #include <glad/glad.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/quaternion.hpp>
+#include <glm/gtc/type_ptr.hpp>
 #include <iostream>
 
 // Defines several possible options for camera movement. Used as abstraction to stay away from window-system specific input methods
@@ -31,11 +33,11 @@ public:
 
     static const glm::vec3 DEFAULT_POSITION;
     static const glm::vec3 DEFAULT_UP;
-    static const glm::vec3 DEFAULT_FRONT;
+    static const glm::vec3 DEFAULT_DIRECTION;
 
     // camera Attributes
     glm::vec3 Position; // Camera position
-    glm::vec3 Front; // The direction that the camera is looking
+    glm::vec3 Direction; // The direction that the camera is looking
     glm::vec3 Up; // Up vector of the camera
     glm::vec3 Right;
     glm::vec3 WorldUp;
@@ -44,15 +46,18 @@ public:
     // rotation angles
     float Phi;
     float Theta;
+
+    // Use quarternion to get around the gimbal lock when using Euler Angles
+    glm::quat q_camera = glm::quat(1, 0, 0, 0); // No initial rotation
     // camera options
     float MovementSpeed;
     float MouseSensitivity;
     float Zoom;
 
-    Camera(glm::vec3 position = DEFAULT_POSITION, glm::vec3 camera_front = DEFAULT_FRONT, glm::vec3 up = DEFAULT_UP,
+    Camera(glm::vec3 position = DEFAULT_POSITION, glm::vec3 camera_direction = DEFAULT_DIRECTION, glm::vec3 up = DEFAULT_UP,
         float phi = DEFAULT_PHI, float theta = DEFAULT_THETA, float camera_speed = DEFAULT_SPEED,
         float mouse_sensitivity = DEFAULT_SENSITIVITY, float fov = DEFAULT_FOV, float camera_distance = 5.0f,
-        glm::vec3 model_center = glm::vec3(0.0f,0.0f,0.0f)) : Front(camera_front), MovementSpeed(camera_speed),
+        glm::vec3 model_center = glm::vec3(0.0f,0.0f,0.0f)) : Direction(camera_direction), MovementSpeed(camera_speed),
         MouseSensitivity(mouse_sensitivity), Zoom(fov), Position(position), WorldUp(up), Theta(theta), Phi(phi),
         center(model_center), Radius(camera_distance)
     {
@@ -62,16 +67,13 @@ public:
     // returns the view matrix calculated using Euler Angles and the LookAt Matrix
     glm::mat4 GetViewMatrix()
     {
-        float theta_rad = glm::radians(Theta);
-        float phi_rad = glm::radians(Phi);
-
-        float x = Radius * cos(phi_rad) * sin(theta_rad);
-        float y = Radius * sin(phi_rad);
-        float z = Radius * cos(phi_rad) * cos(theta_rad);
-
-        Position = glm::vec3(x, y, z) + center;
+        // Phi (Vertical direction) rotates the camera about its right vector
+        q_camera = glm::angleAxis(glm::radians(-Phi), Right);
+        // Theta (Horizaontal direction) rotates the camera about its up vector
+        q_camera *= glm::angleAxis(glm::radians(Theta), Up);
         // API: (camera position, the point that the camera is looking at, world up)
-        return glm::lookAt(Position, center, Up);
+        // We rotate by the rotation matrix
+        return glm::lookAt(Position, center, Up) * glm::mat4_cast(q_camera);
     }
 
     // processes input received from any keyboard-like input system. Accepts input parameter in the form of camera defined ENUM (to abstract it from windowing systems)
@@ -79,9 +81,9 @@ public:
     {
         float velocity = MovementSpeed * deltaTime;
         if (direction == Camera_Movement::FORWARD)
-            Position += Front * velocity;
+            Position += Direction * velocity;
         if (direction == Camera_Movement::BACKWARD)
-            Position -= Front * velocity;
+            Position -= Direction * velocity;
         if (direction == Camera_Movement::LEFT)
             Position -= Right * velocity;
         if (direction == Camera_Movement::RIGHT)
@@ -96,14 +98,6 @@ public:
 
         Theta -= xoffset;
         Phi -= yoffset;
-
-        if (constrainPitch) {
-            if (Phi > 89.0f) Phi = 89.0f;
-            if (Phi < -89.0f) Phi = -89.0f;
-        }
-
-        // update Front, Right and Up Vectors using the updated Euler angles
-        updateCameraVectors();
     }
 
     // processes input received from a mouse scroll-wheel event. Only requires input on the vertical wheel-axis
@@ -117,14 +111,12 @@ public:
     }
 
 private:
-    // calculates the front vector from the Camera's (updated) Euler Angles
+    // calculates the Direction vector from the Camera's (updated) Euler Angles
     void updateCameraVectors()
     {
-        // calculate the new Front vector
-        Front = glm::normalize(center - Position);
-        // also re-calculate the Right and Up vector
-        Right = glm::normalize(glm::cross(Front, WorldUp));  // normalize the vectors, because their length gets closer to 0 the more you look up or down which results in slower movement.
-        Up    = glm::normalize(glm::cross(Right, Front));
+        // Get the camera's right and up vector
+        Right = glm::normalize(glm::cross(Direction, WorldUp));
+        Up    = glm::normalize(glm::cross(Right, Direction));
     }
 };
 #endif

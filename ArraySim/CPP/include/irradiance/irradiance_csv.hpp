@@ -61,8 +61,12 @@ class IrradianceCSV {
 public:
     static glm::vec3 compute_triangle_norm(const Triangle& triangle);
 
+    // Create an irradiance csv based on the given configurations
     IrradianceCSV(std::shared_ptr<SunPositionLUT> sun_position_lut, std::shared_ptr<Model> car_model,
                   double bearing, std::string direction, bool precise_shadows = true);
+
+    // Load a CSV from a file path
+    IrradianceCSV(std::filesystem::path csv_path);
     void write_csv(const std::string& csv_name);
 private:
     std::shared_ptr<SunPositionLUT> sun_position;

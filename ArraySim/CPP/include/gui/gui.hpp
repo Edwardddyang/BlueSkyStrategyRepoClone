@@ -137,11 +137,13 @@ private:
     std::shared_ptr<SunPositionLUT> sun_position_lut;
     std::string direction;
     std::string bearing_text;
+    std::string irradiance_csv_name;
     double bearing = 0;
     std::shared_ptr<IrradianceCSV> irradiance_csv;
     // Visualization
     std::filesystem::path cell_stl_folder_path_v;
     std::filesystem::path canopy_stl_file_path_v;
+    std::filesystem::path irradiance_csv_file_path;
     bool car_visualized = false;
     float delta_time = 0.0f;	// Time between current frame and last frame
     float last_frame = 0.0f; // Time of last frame
