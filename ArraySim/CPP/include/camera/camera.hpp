@@ -68,7 +68,7 @@ public:
     glm::mat4 GetViewMatrix()
     {
         // Phi (Vertical direction) rotates the camera about its right vector
-        q_camera = glm::angleAxis(glm::radians(-Phi), Right);
+        q_camera = glm::angleAxis(glm::radians(Phi), Right);
         // Theta (Horizaontal direction) rotates the camera about its up vector
         q_camera *= glm::angleAxis(glm::radians(Theta), Up);
         // API: (camera position, the point that the camera is looking at, world up)

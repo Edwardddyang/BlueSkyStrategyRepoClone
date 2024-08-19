@@ -182,6 +182,7 @@ void GUI::render_step_selection_pane() {
         } else if (selected_step == static_cast<int>(steps::STEP_2)) {
             button_size = ImVec2(button_width_fraction*sim_config_size[WIDTH_INDEX], button_height);
         } else if (selected_step == static_cast<int>(steps::STEP_3)) {
+            irr_row_width = sim_config_size[WIDTH_INDEX] * irr_row_width_fraction;
             button_size = ImVec2(button_width_fraction*sim_config_size[WIDTH_INDEX], button_height);
         }
     }
@@ -333,8 +334,14 @@ void GUI::render_step_three_layout() {
     insert_file_dialog_button("Canopy STL File", &button_size, "canopySTLFile", "Choose File",
                              ".stl", canopy_stl_file_path_v, path);
     insert_file_dialog_button("Irradiance CSV", &button_size, "csvFile", "Choose File", ".csv", irradiance_csv_file_path, path);
+    ImGui::SetNextItemWidth(irr_row_width);
+    ImGui::InputInt("Sun Position Row", &irr_row);
+    insert_tooltip("The row in the irradiance csv to display. This is equivalent\n"
+                    "to the desired sun position row in the sun positions csv.");
+
+    ImGui::NewLine();
     // If we have both a canopy STL and the array cell stl folder, render them
-    if (ImGui::Button("See Car")) {
+    if (ImGui::Button("See Car", button_size)) {
         std::cout << "Rendering car..." << std::endl;
         // Reset visualization variables
         car_visualized = true;
@@ -355,7 +362,7 @@ void GUI::render_step_three_layout() {
         std::cout << "Finished rendering car" << std::endl;
     }
 
-    if (ImGui::Button("See Irradiance Map")) {
+    if (ImGui::Button("See Irradiance Map", button_size)) {
         std::cout << "Rendering car..." << std::endl;
         // Reset visualization variables
         car_visualized = true;
@@ -365,6 +372,7 @@ void GUI::render_step_three_layout() {
         last_frame = 0.0f;
 
         irradiance_csv = std::make_shared<IrradianceCSV>(irradiance_csv_file_path);
+        num_csv_rows = irradiance_csv->get_irradiance_csv().size();
         glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
         car_model = std::make_shared<Model>();
         car_model->init_shaders();
@@ -387,7 +395,8 @@ void GUI::render_step_three_layout() {
         std::vector<double> irradiance_values = {};
         std::pair<double, double> irradiance_limits = {};
         if (irradiance_csv != nullptr) {
-            irradiance_values = irradiance_csv->get_irradiance_csv()[43];
+            if (irr_row >= num_csv_rows) irr_row = 0;
+            irradiance_values = irradiance_csv->get_irradiance_csv()[irr_row];
             irradiance_limits = irradiance_csv->get_irradiance_limits();
         }
         car_model->Draw(window_width, window_height, irradiance_values, irradiance_limits, true);
@@ -544,8 +553,9 @@ void GUI::process_input(GLFWwindow *window)
     }
 
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
-        glfwSetWindowShouldClose(window, true);
-
+        glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+    if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS)
+        glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
     if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
         car_model->camera->ProcessKeyboard(Camera_Movement::FORWARD, delta_time);
     if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)

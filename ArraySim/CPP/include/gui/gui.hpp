@@ -114,6 +114,10 @@ private:
     std::shared_ptr<Model> car_model;
     glm::vec3 sun_position = glm::vec3(1.2f, 1.0f, 2.0f);
     glm::vec3 sun_diffuse = glm::vec3(0.5f, 0.5f, 0.5f); // Gray-ish
+    size_t num_csv_rows;
+    int irr_row = 0;
+    const float irr_row_width_fraction = 0.4;
+    float irr_row_width;
 
     /* ----- Internal State ----- */
     bool window_resized = true;
