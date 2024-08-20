@@ -22,6 +22,7 @@
 #include "glad/glad.h"
 #include "irradiance_csv.hpp"
 #include "sun_plane.hpp"
+#include "tinycolormap.hpp"
 #include <GLFW/glfw3.h> // Will drag system OpenGL headers
 // [Win32] Our example includes a copy of glfw3.lib pre-compiled with VS2010 to maximize ease of testing and compatibility with old VS compilers.
 // To link with VS2010-era libraries, VS2015+ requires linking with legacy_stdio_definitions.lib, which we do using this pragma.
@@ -64,9 +65,6 @@ private:
 
     // Keyboard and mouse I/O
     ImGuiIO io;
-
-    // Array vertex data structures
-    unsigned int VBO, VAO;
 
     /* ----- Window Component Size + Locations ----- */
     // All window width and height fractions are relative to the entire window size
@@ -112,11 +110,18 @@ private:
 
     // Visualizations
     std::shared_ptr<Model> car_model;
+    std::vector<std::vector<glm::vec3>> cell_colours; // Colour for each cell mesh on a jet gradient
     glm::vec3 sun_position = glm::vec3(1.2f, 1.0f, 2.0f);
     glm::vec3 sun_diffuse = glm::vec3(0.5f, 0.5f, 0.5f); // Gray-ish
     size_t num_csv_rows;
+    size_t num_cells;
     int irr_row = 0;
-    const float irr_row_width_fraction = 0.4;
+    int cell_idx = -1;
+    std::string time_of_day = "";
+    std::string azimuth = "";
+    std::string elevation = "";
+    std::string irradiance = "";
+    const float irr_row_width_fraction = 0.3;
     float irr_row_width;
 
     /* ----- Internal State ----- */
@@ -149,12 +154,20 @@ private:
     std::filesystem::path canopy_stl_file_path_v;
     std::filesystem::path irradiance_csv_file_path;
     bool car_visualized = false;
+    bool irradiance_visualized = false;
+    int last_key_pressed = GLFW_KEY_UNKNOWN;
+    float key_press_duration;  // Time from first frame of the key press. Otherwise, since frame loading
+                                // is very fast, a "single" arrow key press could result in many increments
+                                // or decrements of irr_row
+    float key_press_start;
+    float key_press_duration_threshold = 0.2;
     float delta_time = 0.0f;	// Time between current frame and last frame
     float last_frame = 0.0f; // Time of last frame
     double last_x;
     double last_y;
     bool first_mouse_movement;
     bool is_left_click_held;
+    bool mouse_control;  // If the mouse is controlling the visualization camera
 
     // Frame render functions
     void render_step_selection_pane();

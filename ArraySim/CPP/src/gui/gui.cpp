@@ -130,6 +130,7 @@ void GUI::initialize() {
     //io.Fonts->AddFontFromFileTTF("../../misc/fonts/Cousine-Regular.ttf", 15.0f);
     //ImFont* font = io.Fonts->AddFontFromFileTTF("c:\\Windows\\Fonts\\ArialUni.ttf", 18.0f, nullptr, io.Fonts->GetGlyphRangesJapanese());
     //IM_ASSERT(font != nullptr);
+    mouse_control = false;
 }
 
 void GUI::render() {
@@ -333,12 +334,36 @@ void GUI::render_step_three_layout() {
                              nullptr, path, cell_stl_folder_path_v);
     insert_file_dialog_button("Canopy STL File", &button_size, "canopySTLFile", "Choose File",
                              ".stl", canopy_stl_file_path_v, path);
+    insert_file_dialog_button("Sun Position CSV", &button_size, "SunCsvFile", "Choose File", ".csv", sun_positions_path, path);
     insert_file_dialog_button("Irradiance CSV", &button_size, "csvFile", "Choose File", ".csv", irradiance_csv_file_path, path);
     ImGui::SetNextItemWidth(irr_row_width);
     ImGui::InputInt("Sun Position Row", &irr_row);
     insert_tooltip("The row in the irradiance csv to display. This is equivalent\n"
                     "to the desired sun position row in the sun positions csv.");
 
+    ImGui::SetNextItemWidth(irr_row_width);
+    ImGui::InputInt("Cell Highlight", &cell_idx);
+    insert_tooltip("The cell to highlight in white");
+
+    // Sun position information
+    if (irradiance_visualized && (0 < irr_row < num_csv_rows) && sun_position_lut != nullptr) {
+        time_of_day = "Time Of Day: " + sun_position_lut->get_time(irr_row);
+        azimuth = "Azimuth: " + std::to_string(sun_position_lut->get_azimuth_value(irr_row));
+        elevation = "Elevation: " + std::to_string(sun_position_lut->get_elevation_value(irr_row));
+        irradiance = "Irradiance: " + std::to_string(sun_position_lut->get_irradiance_value(irr_row));
+    }
+    if (time_of_day != "") {
+        ImGui::Text(time_of_day.c_str());
+    }
+    if (azimuth != "") {
+        ImGui::Text(azimuth.c_str());
+    }
+    if (elevation != "") {
+        ImGui::Text(elevation.c_str());
+    }
+    if (irradiance != "") {
+        ImGui::Text(irradiance.c_str());
+    }
     ImGui::NewLine();
     // If we have both a canopy STL and the array cell stl folder, render them
     if (ImGui::Button("See Car", button_size)) {
@@ -346,7 +371,7 @@ void GUI::render_step_three_layout() {
         // Reset visualization variables
         car_visualized = true;
         first_mouse_movement = true;
-        is_left_click_held = false;
+        mouse_control = true;
         delta_time = 0.0f;
         last_frame = 0.0f;
         glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
@@ -367,12 +392,32 @@ void GUI::render_step_three_layout() {
         // Reset visualization variables
         car_visualized = true;
         first_mouse_movement = true;
-        is_left_click_held = false;
+        mouse_control = true;
+        irradiance_visualized = true;
         delta_time = 0.0f;
         last_frame = 0.0f;
 
+        if (!sun_positions_path.empty()) {
+            std::cout << sun_positions_path << std::endl;
+            sun_position_lut = std::make_shared<SunPositionLUT>(sun_positions_path);
+        }
         irradiance_csv = std::make_shared<IrradianceCSV>(irradiance_csv_file_path);
-        num_csv_rows = irradiance_csv->get_irradiance_csv().size();
+        
+        std::vector<double> irradiance_values;
+        std::pair<double, double> irradiance_limits = irradiance_csv->get_irradiance_limits();
+        std::vector<std::vector<double>> values = irradiance_csv->get_irradiance_csv();
+        num_csv_rows = values.size();
+        for (size_t i = 0; i < num_csv_rows; i++) {
+            std::vector<glm::vec3> colours;
+            std::vector<double> irradiance_values = values[i];
+            for (size_t j = 0; j < irradiance_values.size(); j++) {
+                double normalized_value = (irradiance_values[j] - irradiance_limits.first) /
+                                      (irradiance_limits.second - irradiance_limits.first);
+                const tinycolormap::Color color = tinycolormap::GetColor(normalized_value, tinycolormap::ColormapType::Jet);
+                colours.push_back(glm::vec3(color.r(), color.g(), color.b()));
+            }
+            cell_colours.push_back(colours);
+        }
         glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
         car_model = std::make_shared<Model>();
         car_model->init_shaders();
@@ -381,8 +426,7 @@ void GUI::render_step_three_layout() {
         car_model->calc_centroid();
         car_model->center_model();
         car_model->init_camera();
-        glm::vec3 min = car_model->get_min_values();
-        glm::vec3 max = car_model->get_max_values();
+        num_cells = car_model->get_array_cell_meshes().size();
         std::cout << "Finished rendering car" << std::endl;    
     }
 
@@ -394,12 +438,15 @@ void GUI::render_step_three_layout() {
         process_input(window);
         std::vector<double> irradiance_values = {};
         std::pair<double, double> irradiance_limits = {};
-        if (irradiance_csv != nullptr) {
-            if (irr_row >= num_csv_rows) irr_row = 0;
+        std::vector<glm::vec3> colours = {};
+        if (irradiance_csv != nullptr && irradiance_visualized) {
+            if (irr_row >= num_csv_rows || irr_row < 0) irr_row = 0;
             irradiance_values = irradiance_csv->get_irradiance_csv()[irr_row];
             irradiance_limits = irradiance_csv->get_irradiance_limits();
+            colours = cell_colours[irr_row];
+            if (-1 > cell_idx || cell_idx >= num_cells) cell_idx = -1;
         }
-        car_model->Draw(window_width, window_height, irradiance_values, irradiance_limits, true);
+        car_model->Draw(window_width, window_height, colours, cell_idx, true);
     }
 }
 
@@ -527,7 +574,7 @@ void GUI::cursor_callback_bridge(GLFWwindow* window, double xpos, double ypos) {
 }
 
 void GUI::cursor_callback(double xpos, double ypos) {
-    if (car_model == nullptr || car_model->camera == nullptr) {
+    if (!car_visualized || !mouse_control) {
         return;
     }
 
@@ -548,22 +595,71 @@ void GUI::cursor_callback(double xpos, double ypos) {
 
 void GUI::process_input(GLFWwindow *window)
 {
-    if (car_model == nullptr || car_model->camera == nullptr) {
+    if (!car_visualized) {
         return;
     }
 
-    if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
+    if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
         glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
-    if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS)
+        last_key_pressed = GLFW_KEY_ESCAPE;
+        mouse_control = false;
+    }
+    if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS) {
         glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-    if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
+        last_key_pressed = GLFW_KEY_Q;
+        mouse_control = true;
+    }
+    
+    if (irradiance_visualized) {
+        bool perform_row_mod = false;
+        bool valid_key_pressed = true;
+        int key_pressed;
+        int irr_mod;
+        if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS) {
+            key_pressed = GLFW_KEY_RIGHT;
+            irr_mod = 1;
+        } else if (glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS) {
+            key_pressed = GLFW_KEY_LEFT;
+            irr_mod = -1;
+        } else {
+            valid_key_pressed = false;
+        }
+
+        if (valid_key_pressed) {
+            if (last_key_pressed != key_pressed) {
+                key_press_start = glfwGetTime();
+            } else {
+                float key_press_duration = glfwGetTime() - key_press_start;
+                if (key_press_duration >= key_press_duration_threshold) {
+                    perform_row_mod = true;
+                    key_press_start = glfwGetTime();
+                }
+            }
+
+            last_key_pressed = key_pressed;
+            if (!perform_row_mod) return;
+            irr_row = irr_row + irr_mod;
+        }
+    }
+
+    if (!mouse_control) return;
+
+    if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
         car_model->camera->ProcessKeyboard(Camera_Movement::FORWARD, delta_time);
-    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
+        last_key_pressed = GLFW_KEY_W;
+    }
+    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) {
         car_model->camera->ProcessKeyboard(Camera_Movement::BACKWARD, delta_time);
-    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
+        last_key_pressed = GLFW_KEY_S;
+    }
+    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) {
         car_model->camera->ProcessKeyboard(Camera_Movement::LEFT, delta_time);
-    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
+        last_key_pressed = GLFW_KEY_A;
+    }
+    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) {
         car_model->camera->ProcessKeyboard(Camera_Movement::RIGHT, delta_time);
+        last_key_pressed = GLFW_KEY_D;
+    }
 }
 
 void GUI::scroll_callback_bridge(GLFWwindow* window, double xpos, double ypos) {
@@ -571,7 +667,7 @@ void GUI::scroll_callback_bridge(GLFWwindow* window, double xpos, double ypos) {
 }
 
 void GUI::scroll_callback(double xpos, double ypos) {
-    if (car_model == nullptr || car_model->camera == nullptr) {
+    if (!car_visualized || !mouse_control) {
         return;
     }
 

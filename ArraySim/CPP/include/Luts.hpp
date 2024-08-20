@@ -88,6 +88,15 @@ public:
             return irradiance[idx];
         }
         std::cout << "Index out of bounds on irradiance access, returning irradiance's last value" << std::endl;
-        return irradiance[idx];
+        return irradiance[num_rows-1];
+    }
+
+    std::string get_time(size_t idx) {
+        if (idx < time.size() && idx >= 0) {
+            return time[idx];
+        }
+
+        std::cout << "Index out of bounds on time access, returning time last value" << std::endl;
+        return time[num_rows-1];
     }
 };

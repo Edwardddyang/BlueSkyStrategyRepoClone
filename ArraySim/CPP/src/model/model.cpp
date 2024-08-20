@@ -4,7 +4,6 @@
 #include <iostream>
 #include <glad/glad.h> 
 #include <stb_image.h>
-#include "tinycolormap.hpp"
 
 void printMat4(const glm::mat4& mat) {
     for (int i = 0; i < 4; ++i) {
@@ -26,9 +25,7 @@ void printMat3(const glm::mat3& mat) {
     }
 }
 
-void Model::Draw(double window_width, double window_height,
-                std::vector<double> irradiance_values, std::pair<double, double> irradiance_limits,
-                bool outline)
+void Model::Draw(double window_width, double window_height, std::vector<glm::vec3> colours, int cell_idx, bool outline)
 {
     shaders->use();
     
@@ -62,20 +59,18 @@ void Model::Draw(double window_width, double window_height,
     for(unsigned int i = 0; i < num_cells; i++) {
         // For each array cell, shade it according to some colour
         glm::vec3 fill_colour = glm::vec3(1.0f, 1.0f, 1.0f);
-        if (irradiance_values.size() == num_cells) {
-            double irradiance_value = irradiance_values[i];
-            double normalized_value = (irradiance_value - irradiance_limits.first) /
-                                      (irradiance_limits.second - irradiance_limits.first);
-            const tinycolormap::Color color = tinycolormap::GetColor(normalized_value, tinycolormap::ColormapType::Jet);
-            fill_colour = glm::vec3(color.r(), color.g(), color.b());
-            array_cell_meshes[i]->Draw(shaders, fill_colour, outline);
+        bool highlight = false;
+        if (i == cell_idx) highlight = true;
+        if (colours.size() == num_cells) {
+            fill_colour = colours[i];
+            array_cell_meshes[i]->Draw(shaders, fill_colour, outline, highlight);
         } else {
-            array_cell_meshes[i]->Draw(shaders, fill_colour, outline);
+            array_cell_meshes[i]->Draw(shaders, fill_colour, outline, highlight);
         }
     }
 
     // Render canopy
-    canopy_mesh->Draw(shaders, glm::vec3(1.0f, 1.0f, 1.0f), true);
+    canopy_mesh->Draw(shaders, glm::vec3(1.0f, 1.0f, 1.0f), true, false);
 }
 
 void Model::loadCanopy(const std::filesystem::path& path) {

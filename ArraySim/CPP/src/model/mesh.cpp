@@ -189,7 +189,7 @@ void Mesh::center_mesh(glm::vec3& centroid, bool update_min_max_values) {
     }
 }
 
-void Mesh::Draw(std::shared_ptr<Shader> &shader, glm::vec3 fill_colour, bool outline) 
+void Mesh::Draw(std::shared_ptr<Shader> &shader, glm::vec3 fill_colour, bool outline, bool highlight) 
 {
     // draw mesh
     // Bind the VAO
@@ -203,8 +203,13 @@ void Mesh::Draw(std::shared_ptr<Shader> &shader, glm::vec3 fill_colour, bool out
         glDrawElements(GL_TRIANGLES, static_cast<unsigned int>(indices.size()), GL_UNSIGNED_INT, 0);
     }
 
+    if (highlight) {
+        shader->setVec3("uColor", glm::vec3(0.65, 0.16, 0.16));
+    } else {
+        shader->setVec3("uColor", fill_colour);
+    }
+
     // 1. Draw filled triangles
-    shader->setVec3("uColor", fill_colour);
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);           // Set fill mode
     glDrawElements(GL_TRIANGLES, static_cast<unsigned int>(indices.size()), GL_UNSIGNED_INT, 0);
 

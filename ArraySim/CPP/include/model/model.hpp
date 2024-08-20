@@ -35,8 +35,7 @@ public:
     // Initialize shaders
     void init_shaders();
 
-    void Draw(double window_width, double window_height, std::vector<double> irradiance_values,
-             std::pair<double, double> irradiance_limits, bool outline = true);
+    void Draw(double window_width, double window_height, std::vector<glm::vec3> colours, int cell_idx = 1, bool outline = false);
 
     glm::vec3 get_max_values() const {return max_values;}
     glm::vec3 get_min_values() const {return min_values;}
