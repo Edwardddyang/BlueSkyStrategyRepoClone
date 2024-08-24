@@ -8,7 +8,6 @@ add_definitions(-DBOOST_NO_CXX98_FUNCTION_BASE)
 add_subdirectory(${CMAKE_SOURCE_DIR}/libs/GLFW) # glfw3
 add_subdirectory(${CMAKE_SOURCE_DIR}/libs/glm) # glm
 add_subdirectory(${CMAKE_SOURCE_DIR}/libs/glad) # glad
-add_subdirectory(${CMAKE_SOURCE_DIR}/libs/Clipper2/CPP) # Clipper2
 find_package(OpenGL REQUIRED) # OpenGL provided by Windows
 
 # Build ImGUI
@@ -47,7 +46,6 @@ set (PROJECT_SOURCES
     ${CMAKE_SOURCE_DIR}/src/camera/camera.cpp
     ${CMAKE_SOURCE_DIR}/src/irradiance/sun_plane.cpp
     ${CMAKE_SOURCE_DIR}/src/Utilities.cpp
-    ${CMAKE_SOURCE_DIR}/libs/quickhull/QuickHull.cpp
     ${CMAKE_SOURCE_DIR}/src/irradiance/irradiance_csv.cpp
 )
 
@@ -62,7 +60,6 @@ target_include_directories(arraySim PRIVATE
     ${CMAKE_SOURCE_DIR}/libs/glm/glm
     ${CMAKE_SOURCE_DIR}/libs/glad/include
     ${CMAKE_SOURCE_DIR}/include/
-    ${CMAKE_SOURCE_DIR}/libs/quickhull
     ${CMAKE_SOURCE_DIR}/libs/CGAL/include
     C:/boost_1_66_0
 )
@@ -93,5 +90,5 @@ endif()
 
 find_library(GMP_LIB gmp-10 PATHS ${CMAKE_SOURCE_DIR}/build)
 find_library(MPFR_LIB mpfr-4 PATHS ${CMAKE_SOURCE_DIR}/build)
-target_link_libraries(arraySim PRIVATE imgui glm glad Clipper2 ${MPFR_LIB} ${GMP_LIB})
+target_link_libraries(arraySim PRIVATE imgui glm glad ${MPFR_LIB} ${GMP_LIB})
 target_compile_features(arraySim PRIVATE cxx_std_17)

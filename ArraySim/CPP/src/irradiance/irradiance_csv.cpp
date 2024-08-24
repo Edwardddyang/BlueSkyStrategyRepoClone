@@ -1,6 +1,4 @@
 #include "irradiance_csv.hpp"
-#include "QuickHull.hpp"
-#include <clipper2/clipper.h>
 #include <fstream>
 #include <iomanip>
 
