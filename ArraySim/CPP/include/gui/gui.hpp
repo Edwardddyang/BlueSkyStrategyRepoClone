@@ -20,7 +20,7 @@
 #include <GLES2/gl2.h>
 #endif
 #include "glad/glad.h"
-#include "irradiance_csv.hpp"
+#include "CellIrradianceSim.hpp"
 #include "sun_plane.hpp"
 #include "tinycolormap.hpp"
 #include <GLFW/glfw3.h> // Will drag system OpenGL headers
@@ -121,6 +121,7 @@ private:
     std::string azimuth = "";
     std::string elevation = "";
     std::string irradiance = "";
+    std::string cell_irradiance = "";
     const float irr_row_width_fraction = 0.3;
     float irr_row_width;
 
@@ -143,12 +144,18 @@ private:
     std::filesystem::path cell_stl_folder_path;
     std::filesystem::path canopy_stl_file_path;
     std::filesystem::path sun_positions_path;
+    std::filesystem::path route_path;
+    std::string start_route_time;
+    std::string end_route_time;
+    float car_speed;
+    int sim_type;
     std::shared_ptr<SunPositionLUT> sun_position_lut;
+    std::shared_ptr<RouteLUT> route_lut;
     std::string direction;
     std::string bearing_text;
     std::string irradiance_csv_name;
     double bearing = 0;
-    std::shared_ptr<IrradianceCSV> irradiance_csv;
+    std::shared_ptr<CellIrradianceSim> irradiance_csv;
     // Visualization
     std::filesystem::path cell_stl_folder_path_v;
     std::filesystem::path canopy_stl_file_path_v;

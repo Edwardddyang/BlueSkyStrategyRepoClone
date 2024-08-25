@@ -1,9 +1,10 @@
-#include "irradiance_csv.hpp"
+#include "CellIrradianceSim.hpp"
 #include <fstream>
 #include <iomanip>
+#include <cmath>
 
-IrradianceCSV::IrradianceCSV(std::shared_ptr<SunPositionLUT> sun_position_lut, std::shared_ptr<Model> car_model,
-                            double bearing, std::string direction, bool precise_shadows) {
+void CellIrradianceSim::run_static_sim(std::shared_ptr<SunPositionLUT> sun_position_lut, std::shared_ptr<Model> car_model,
+                                       double bearing, std::string direction) {
     sun_position = sun_position_lut;
     car = car_model;
     car->calc_centroid();
@@ -32,8 +33,159 @@ IrradianceCSV::IrradianceCSV(std::shared_ptr<SunPositionLUT> sun_position_lut, s
         std::cout << "INDEX: " << i << std::endl;
         // Calculate the effective irradiance for all cells given the position of the
         // sun in the sky
-        construct_csv_row(sun_plane, i, irradiance, precise_shadows);
+        construct_csv_row(sun_plane, i, irradiance, partial_shadows);
     }
+}
+
+void CellIrradianceSim::run_dynamic_sim(std::shared_ptr<SunPositionLUT> sun_position_lut, std::shared_ptr<Model> car_model,
+                                        std::shared_ptr<RouteLUT> route_lut, double speed, std::string direction,
+                                        std::string start_time, std::string end_time) {
+    sun_position = sun_position_lut;
+    car = car_model;
+    car->calc_centroid();
+    car->center_model();
+    car->init_camera();  // Get bounding box characteristics
+
+    max_irradiance_value = std::numeric_limits<double>::lowest();
+    min_irradiance_value = std::numeric_limits<double>::max();
+
+    size_t num_sun_positions = sun_position_lut->get_num_rows();
+    size_t num_solar_cells = (car->get_array_cell_meshes()).size();
+
+    // Create time objects
+    Time starting_time(start_time);
+    Time ending_time(end_time);
+
+    // Travel through the route
+    std::vector<Coord> route_points = route_lut->get_coords();
+    size_t num_points = route_points.size();
+    size_t idx = 0;
+    size_t next_idx = 1;
+
+    // Construct time objects for sun position times
+    std::vector<Time> sun_position_times(num_sun_positions);
+    size_t upper_bound_cache;
+    size_t lower_bound_cache;
+    bool found_cache_window = false;
+    size_t sun_position_cache = 0;
+    for (size_t idx=0; idx<num_sun_positions; idx++) {
+        sun_position_times[idx] = Time(sun_position_lut->get_time(idx));
+        if (starting_time < sun_position_times[idx] && !found_cache_window) {
+            upper_bound_cache = idx;
+            lower_bound_cache = idx > 0 ? idx - 1 : idx;
+            found_cache_window = true;
+        }
+    }
+
+    time_t lower_bound = sun_position_times[lower_bound_cache].get_local_time_point();
+    time_t upper_bound = sun_position_times[upper_bound_cache].get_local_time_point();
+    time_t starting_time_point = starting_time.get_local_time_point();
+
+    if (upper_bound == lower_bound) {
+        sun_position_cache = lower_bound_cache;
+    } else {
+        uint64_t diff_time_from_lower = abs((double) (lower_bound - starting_time_point));
+        uint64_t diff_time_from_upper = abs((double) (upper_bound - starting_time_point));
+        if (diff_time_from_lower <= diff_time_from_upper) {
+            sun_position_cache = lower_bound_cache;
+        } else {
+            sun_position_cache = upper_bound_cache;
+        }
+    }
+
+    size_t i = 0;
+    while (starting_time < ending_time) {
+        if (next_idx >= num_points) next_idx = 0;
+        if (idx >= num_points) idx = 0;
+        Coord start_point = route_points[idx];
+        Coord dest_point = route_points[next_idx];
+
+        double bearing = get_bearing(start_point, dest_point);
+
+        irradiance_csv.push_back(std::vector<double>(num_solar_cells));
+        double azimuth = sun_position_lut->get_azimuth_value(sun_position_cache);
+        double elevation = sun_position_lut->get_elevation_value(sun_position_cache);
+        double irradiance = sun_position_lut->get_irradiance_value(sun_position_cache);
+
+        // Create sun plane
+        std::shared_ptr<SunPlane> sun_plane = std::make_shared<SunPlane>(
+            azimuth, elevation, direction, bearing, car->get_min_values(),
+            car->get_max_values()
+        );
+
+        std::cout << "INDEX: " << i << std::endl;
+        // Calculate the effective irradiance for all cells given the position of the
+        // sun in the sky
+        construct_csv_row(sun_plane, i, irradiance, partial_shadows);
+        i++;
+        idx++;
+        next_idx++;
+
+        // Move to the next point and update the time
+        double distance = get_distance(start_point, dest_point);
+        double travel_time = distance / speed;
+        starting_time.update_time_seconds(travel_time);
+
+        // Update sun position index cache
+        time_t lower_bound = sun_position_times[sun_position_cache].get_local_time_point();
+        time_t upper_bound = sun_position_times[sun_position_cache+1].get_local_time_point();
+        time_t curr_time_point = starting_time.get_local_time_point();
+
+        uint64_t diff_time_from_lower = abs((double) (lower_bound - curr_time_point));
+        uint64_t diff_time_from_upper = abs((double) (upper_bound - curr_time_point));
+        if (diff_time_from_upper < diff_time_from_lower) {
+            sun_position_cache += 1;
+        }
+
+        std::cout << "CURRENT TIME: " << starting_time.get_local_readable_time() << std::endl;
+        std::cout << "SUN POSITION CACHE: " << sun_position_cache << std::endl; 
+    }
+}
+
+double CellIrradianceSim::get_irr_value(const size_t row_idx, const size_t col_idx) const {
+    return irradiance_csv[row_idx][col_idx];
+}
+
+double CellIrradianceSim::get_bearing(Coord src_coord, Coord dst_coord) {
+    Coord src_coord_rad = {deg2rad(src_coord.lat), deg2rad(src_coord.lon), src_coord.alt};
+    Coord dst_coord_rad = {deg2rad(dst_coord.lat), deg2rad(dst_coord.lon), dst_coord.alt};
+    double delta_lon = dst_coord_rad.lon - src_coord_rad.lon;
+
+    double X = cos(dst_coord_rad.lat)*sin(delta_lon);
+    double Y = (cos(src_coord_rad.lat)*sin(dst_coord_rad.lat))-(sin(src_coord_rad.lat) * cos(dst_coord_rad.lat)* cos(delta_lon));
+
+    if (delta_lon < 0) {
+        return 360 + rad2deg(atan2(X,Y));
+    } else {
+        return rad2deg(atan2(X,Y));
+    }
+}
+
+double CellIrradianceSim::get_distance(Coord src_coord, Coord dst_coord) {
+	constexpr double R = 6371e3; 
+
+	double phi_1 = src_coord.lat * PI/180; 
+	double phi_2 = dst_coord.lat * PI/180;
+	double delPhi = (dst_coord.lat-src_coord.lat) * PI/180;
+	double delLambda = (dst_coord.lon-src_coord.lon) * PI/180;
+
+	double a =  ( sin(delPhi/2) * sin(delPhi/2) ) + ( cos(phi_1) * cos(phi_2) * sin(delLambda/2) * sin(delLambda/2) );
+	double c = 2 * atan2(sqrt(a), sqrt(1-a));
+
+	// Haversine distance in m
+	double dist_km = (R * c);
+
+	// calculate altitude difference
+	double alt_1 = src_coord.alt;
+	double alt_2 = dst_coord.alt;
+
+	double alt_difference = abs(alt_1-alt_2);
+
+	// Calculate true distance with haversine
+	double true_distance = sqrt(dist_km * dist_km + alt_difference * alt_difference);
+	
+    // In meters
+	return true_distance;
 }
 
 void export_to_obj(const std::vector<Triangle>& triangles, const std::string& filename) {
@@ -54,7 +206,7 @@ void export_to_obj(const std::vector<Triangle>& triangles, const std::string& fi
     file.close();
 }
 
-glm::vec3 IrradianceCSV::compute_triangle_norm(const Triangle& triangle) {
+glm::vec3 CellIrradianceSim::compute_triangle_norm(const Triangle& triangle) {
     Point p1 = triangle[0];
     Point p2 = triangle[1];
     Point p3 = triangle[2];
@@ -67,6 +219,7 @@ glm::vec3 IrradianceCSV::compute_triangle_norm(const Triangle& triangle) {
     if (u == v) {
         return glm::vec3(0,0,0);
     }
+
     // Ensure that the normal vector has +ve z component
     glm::vec3 cross_product = glm::cross(u,v);
     if (cross_product.z < 0.0f) {
@@ -78,7 +231,7 @@ glm::vec3 IrradianceCSV::compute_triangle_norm(const Triangle& triangle) {
     return (glm::normalize(cross_product));
 }
 
-void IrradianceCSV::construct_csv_row(std::shared_ptr<SunPlane>& sun_plane, size_t row_idx, double irradiance, bool precise_shadows) {
+void CellIrradianceSim::construct_csv_row(std::shared_ptr<SunPlane>& sun_plane, size_t row_idx, double irradiance, bool precise_shadows) {
     std::vector<Vertex> canopy_vertices = car->get_canopy_mesh()->get_vertices();
     std::vector<std::vector<Vertex>> array_cells = car->get_array_cell_vertices();
     glm::vec3& sun_plane_normal = sun_plane->normal;
@@ -293,7 +446,7 @@ void IrradianceCSV::construct_csv_row(std::shared_ptr<SunPlane>& sun_plane, size
     irradiance_limits = {min_irradiance_value, max_irradiance_value};
 }
 
-void IrradianceCSV::write_csv(const std::string& csv_name) {
+void CellIrradianceSim::write_csv(const std::string& csv_name) {
     std::ofstream csv_file(csv_name);
     csv_file << std::fixed << std::setprecision(8);
 
@@ -315,7 +468,7 @@ void IrradianceCSV::write_csv(const std::string& csv_name) {
     csv_file.close();
 }
 
-IrradianceCSV::IrradianceCSV(std::filesystem::path csv_path) {
+CellIrradianceSim::CellIrradianceSim(std::filesystem::path csv_path) {
     std::ifstream lut(csv_path.string()); // Use ifstream for reading
     assert(lut.is_open() && "File not found...");
 

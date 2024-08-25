@@ -25,6 +25,7 @@
 #include <unordered_set>
 #include <unordered_map>
 #include <CGAL/Random.h>
+#include "time.hpp"
 
 typedef CGAL::Exact_predicates_inexact_constructions_kernel K;
 typedef K::FT FT;
@@ -57,23 +58,45 @@ typedef CGAL::Alpha_shape_2<Triangulation> Alpha_shape;
 typedef CGAL::Side_of_triangle_mesh<Polyhedron, K> Side_of_triangle_mesh;
 typedef Delaunay2::Finite_faces_iterator Face_iterator;
 
-class IrradianceCSV {
+enum class SimType {
+    DYNAMIC,
+    STATIC
+};
+
+class CellIrradianceSim {
 public:
     static glm::vec3 compute_triangle_norm(const Triangle& triangle);
 
+    CellIrradianceSim(bool precise_shadows = false) : partial_shadows(precise_shadows) {};
+
+    // Run dynamic simulation
+    void run_dynamic_sim(std::shared_ptr<SunPositionLUT> sun_position_lut, std::shared_ptr<Model> car_model,
+                        std::shared_ptr<RouteLUT> route_lut, double speed, std::string direction,
+                        std::string start_time, std::string end_time);
+
+    // Run static simulation
+    void run_static_sim(std::shared_ptr<SunPositionLUT> sun_position_lut, std::shared_ptr<Model> car_model,
+                        double bearing, std::string direction);
+
     // Create an irradiance csv based on the given configurations
-    IrradianceCSV(std::shared_ptr<SunPositionLUT> sun_position_lut, std::shared_ptr<Model> car_model,
+    CellIrradianceSim(std::shared_ptr<SunPositionLUT> sun_position_lut, std::shared_ptr<Model> car_model,
                   double bearing, std::string direction, bool precise_shadows = true);
 
     // Load a CSV from a file path
-    IrradianceCSV(std::filesystem::path csv_path);
+    CellIrradianceSim(std::filesystem::path csv_path);
     void write_csv(const std::string& csv_name);
+
+    // Get a certain value within the csv
+    double get_irr_value(const size_t row_idx, const size_t col_idx) const;
 
     inline double get_min_irradiance_value() {return min_irradiance_value;}
     inline double get_max_irradiance_value() {return max_irradiance_value;}
-    inline  std::pair<double, double> get_irradiance_limits() {return irradiance_limits;}
+    inline std::pair<double, double> get_irradiance_limits() {return irradiance_limits;}
     inline std::vector<std::vector<double>> get_irradiance_csv() {return irradiance_csv;}
 private:
+    SimType sim_type;
+    bool partial_shadows;
+
     std::shared_ptr<SunPositionLUT> sun_position;
     std::shared_ptr<Model> car;
     double min_irradiance_value;
@@ -84,4 +107,7 @@ private:
     const int NUM_RAYS = 3000; // Number of rays to generate for each partially shaded triangle
     std::vector<std::vector<double>> irradiance_csv;  // stores the output csv
     void construct_csv_row(std::shared_ptr<SunPlane>& sun_plane, size_t row_idx, double irradiance, bool precise_shadows);
+
+    double get_bearing(Coord src_coord, Coord dest_coord);
+    double get_distance(Coord src_coord, Coord dest_coord);
 };

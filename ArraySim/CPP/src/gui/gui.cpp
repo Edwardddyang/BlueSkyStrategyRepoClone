@@ -6,6 +6,7 @@
 #include "ImGuiFileDialog.h"
 #include "Shader.hpp"
 #include "stl_reader.h"
+#include "Utilities.hpp"
 
 /* Static declarations */
 std::shared_ptr<GUI> GUI::instance = nullptr;
@@ -293,8 +294,15 @@ void GUI::render_step_two_layout() {
     ImGui::Begin("Step 2 - Effective Irradiance CSV");
     std::filesystem::path path; // Dummy variable
     insert_file_dialog_button("Array Cell STL Directory", &button_size,"arraySTLDir", "Choose Directory", nullptr, path, cell_stl_folder_path);
+    insert_tooltip("Directory that exclusively contains all the STL files for the array cells");
     insert_file_dialog_button("Canopy STL File", &button_size, "canopySTLFile", "Choose File", ".stl", canopy_stl_file_path, path);
+    insert_tooltip("STL file of the canopy");
     insert_file_dialog_button("Sun Positions CSV", &button_size, "sunPositionPath", "Choose File", ".csv", sun_positions_path, path);
+    insert_tooltip("CSV file describing the path of the sun generated according to step 1.");
+    insert_file_dialog_button("Route CSV", &button_size, "routePath", "Choose File", ".csv", route_path, path);
+    insert_tooltip("CSV file of the route. This should be used ONLY for dynamic simulations");
+    ImGui::RadioButton("Dynamic Simulation", &sim_type, static_cast<int>(SimType::DYNAMIC));
+    ImGui::RadioButton("Static Simulation", &sim_type, static_cast<int>(SimType::STATIC));
 
     ImGui::SetNextItemWidth(text_field_width);
     ImGui::InputText("Direction", &direction);
@@ -306,9 +314,27 @@ void GUI::render_step_two_layout() {
         bearing = std::stod(bearing_text);
     }
     insert_tooltip("The clockwise angle of the nose of the car from true north in degrees\n"
-                   "when positioned at the location in the sun path csv. For WSC, if the sun\n"
-                   "position csv was generated at Alice Springs, then this would be 180 since the car\n"
-                   "is facing south at that point during the race.");
+                   "when positioned at the location in the sun path csv. This should ONLY be used\n"
+                   "for a static simulation. Example: In WSC, if the sun position csv was generated\n"
+                   "at Alice Springs, then this would be 180 since the car is facing south at that\n"
+                   "point during the race.");
+
+    ImGui::SetNextItemWidth(text_field_width);
+    ImGui::InputFloat("Car Speed", &car_speed);
+    insert_tooltip("Speed that the car travels around the Route in m/s.\n"
+                    "This should only be used for a dynamic simulation.");
+
+    ImGui::SetNextItemWidth(text_field_width);
+    ImGui::InputText("Start Route Time", &start_route_time);
+    insert_tooltip("Start time of the simulation in 24 hour local time with format: YYYY-MM-DD HH:MM:SS\n"
+                    "This must be within the time range of the sun position csv. This should only be used\n"
+                    "for a dynamic simulation.");
+
+    ImGui::SetNextItemWidth(text_field_width);
+    ImGui::InputText("End Route Time", &end_route_time);
+    insert_tooltip("End time of the simulation in 24 hour local time with format: YYYY-MM-DD HH:MM:SS\n"
+                    "This must be within the time range of the sun position csv. This should only be used\n"
+                    "for a dynamic simulation.");
 
     ImGui::SetNextItemWidth(text_field_width);
     ImGui::InputText("Output Name", &irradiance_csv_name);
@@ -321,7 +347,16 @@ void GUI::render_step_two_layout() {
         car_model->loadCanopy(canopy_stl_file_path.string());
         car_model->loadArray(cell_stl_folder_path.string());
         sun_position_lut = std::make_shared<SunPositionLUT>(sun_positions_path);
-        irradiance_csv = std::make_shared<IrradianceCSV>(sun_position_lut, car_model, bearing, direction, false);
+
+        irradiance_csv = std::make_shared<CellIrradianceSim>(false);
+        car_speed = kph2mps(car_speed);
+        if (sim_type == static_cast<int>(SimType::DYNAMIC)) {
+            route_lut = std::make_shared<RouteLUT>(route_path);
+            irradiance_csv->run_dynamic_sim(sun_position_lut, car_model, route_lut, (double)car_speed, direction,
+                                            start_route_time, end_route_time);
+        } else {
+            irradiance_csv->run_static_sim(sun_position_lut, car_model, bearing, direction);
+        }
         irradiance_csv->write_csv(irradiance_csv_name);
     }
 }
@@ -364,6 +399,10 @@ void GUI::render_step_three_layout() {
     if (irradiance != "") {
         ImGui::Text(irradiance.c_str());
     }
+    if (irradiance_visualized && (0 < cell_idx < num_cells)) {
+        cell_irradiance = "Highlighted Irradiance: " + std::to_string(irradiance_csv->get_irr_value(irr_row, cell_idx));
+        ImGui::Text(cell_irradiance.c_str());
+    }
     ImGui::NewLine();
     // If we have both a canopy STL and the array cell stl folder, render them
     if (ImGui::Button("See Car", button_size)) {
@@ -398,10 +437,9 @@ void GUI::render_step_three_layout() {
         last_frame = 0.0f;
 
         if (!sun_positions_path.empty()) {
-            std::cout << sun_positions_path << std::endl;
             sun_position_lut = std::make_shared<SunPositionLUT>(sun_positions_path);
         }
-        irradiance_csv = std::make_shared<IrradianceCSV>(irradiance_csv_file_path);
+        irradiance_csv = std::make_shared<CellIrradianceSim>(irradiance_csv_file_path);
         
         std::vector<double> irradiance_values;
         std::pair<double, double> irradiance_limits = irradiance_csv->get_irradiance_limits();

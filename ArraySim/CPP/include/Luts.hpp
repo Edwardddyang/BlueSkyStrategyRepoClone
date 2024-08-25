@@ -13,6 +13,53 @@ Row Format: |Azimuth(double)|Elevation(double)|Irradiance(double)|Time(string)|
 #include <iostream>
 #include "Utilities.hpp"
 
+struct Coord {
+	double lat;
+	double lon;
+	double alt;
+
+	Coord(double latitude, double longitude, double altitude) : lat(latitude), lon(longitude), alt(altitude) {}
+	Coord() : lat(0), lon(0), alt(0) {}
+};
+
+class RouteLUT {
+private:
+    std::vector<Coord> route_points;
+    size_t num_points;
+public:
+    std::vector<Coord> get_coords() const {return route_points;}
+    RouteLUT(const std::filesystem::path& path) {
+        std::ifstream lut(path.string());
+        assert(lut.is_open() && "File not found...");
+
+        std::string line;
+        num_points = 0;
+        while (std::getline(lut, line)) {
+            if (line.empty()) continue;
+            std::stringstream linestream(line);
+            std::string cell;
+            double lat, lon, alt;
+
+            std::getline(linestream, cell, ',');
+            assert(isDouble(cell) && "Value is not a number.");
+            lat = std::stod(cell);
+            
+            std::getline(linestream, cell, ',');
+            assert(isDouble(cell) && "Value is not a number.");
+            lon = std::stod(cell);
+
+            std::getline(linestream, cell, ',');
+            assert(isDouble(cell) && "Value is not a number.");
+            alt = std::stod(cell);
+
+            Coord new_coord(lat, lon, alt);
+            route_points.emplace_back(new_coord);
+            num_points++;
+        }
+        assert(num_points == route_points.size() && "Route points not parsed correctly");
+    }
+};
+
 class SunPositionLUT {
 protected:
     /* Absolute path to LUT */
@@ -29,7 +76,7 @@ protected:
     size_t num_cols;
 public:
     SunPositionLUT(const std::filesystem::path& path) {
-        std::ifstream lut(path.string()); // Use ifstream for reading
+        std::ifstream lut(path.string());
         assert(lut.is_open() && "File not found...");
 
         std::string line;
