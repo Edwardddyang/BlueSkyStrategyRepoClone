@@ -119,6 +119,8 @@ private:
     int cell_idx = -1;
     std::string time_of_day = "";
     std::string azimuth = "";
+    std::string bearing_label = "";
+    std::string coordinate_label = "";
     std::string elevation = "";
     std::string irradiance = "";
     std::string cell_irradiance = "";
@@ -160,6 +162,8 @@ private:
     std::filesystem::path cell_stl_folder_path_v;
     std::filesystem::path canopy_stl_file_path_v;
     std::filesystem::path irradiance_csv_file_path;
+    std::filesystem::path metadata_csv_file_path;
+    bool show_dynamic_params = false;
     bool car_visualized = false;
     bool irradiance_visualized = false;
     int last_key_pressed = GLFW_KEY_UNKNOWN;

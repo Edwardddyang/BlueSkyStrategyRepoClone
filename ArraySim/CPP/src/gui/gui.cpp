@@ -354,10 +354,11 @@ void GUI::render_step_two_layout() {
             route_lut = std::make_shared<RouteLUT>(route_path);
             irradiance_csv->run_dynamic_sim(sun_position_lut, car_model, route_lut, (double)car_speed, direction,
                                             start_route_time, end_route_time);
+            irradiance_csv->write_dynamic_csv(irradiance_csv_name, "metadata.csv");
         } else {
             irradiance_csv->run_static_sim(sun_position_lut, car_model, bearing, direction);
+            irradiance_csv->write_static_csv(irradiance_csv_name);
         }
-        irradiance_csv->write_csv(irradiance_csv_name);
     }
 }
 
@@ -371,6 +372,7 @@ void GUI::render_step_three_layout() {
                              ".stl", canopy_stl_file_path_v, path);
     insert_file_dialog_button("Sun Position CSV", &button_size, "SunCsvFile", "Choose File", ".csv", sun_positions_path, path);
     insert_file_dialog_button("Irradiance CSV", &button_size, "csvFile", "Choose File", ".csv", irradiance_csv_file_path, path);
+    insert_file_dialog_button("Metadata CSV", &button_size, "metadataFile", "Choose File", ".csv", metadata_csv_file_path, path);
     ImGui::SetNextItemWidth(irr_row_width);
     ImGui::InputInt("Sun Position Row", &irr_row);
     insert_tooltip("The row in the irradiance csv to display. This is equivalent\n"
@@ -387,6 +389,29 @@ void GUI::render_step_three_layout() {
         elevation = "Elevation: " + std::to_string(sun_position_lut->get_elevation_value(irr_row));
         irradiance = "Irradiance: " + std::to_string(sun_position_lut->get_irradiance_value(irr_row));
     }
+
+    // Display information if the user has requested heat map mode
+    if (irradiance_visualized && (0 < irr_row < num_csv_rows)) {
+        if (show_dynamic_params) {
+            size_t sun_position_idx = irradiance_csv->get_sun_position_cache_value(irr_row);
+            time_of_day = "Time Of Day: " + sun_position_lut->get_time(sun_position_idx);
+            azimuth = "Azimuth: " + std::to_string(sun_position_lut->get_azimuth_value(sun_position_idx));
+            elevation = "Elevation: " + std::to_string(sun_position_lut->get_elevation_value(sun_position_idx));
+            irradiance = "Irradiance: " + std::to_string(sun_position_lut->get_irradiance_value(sun_position_idx));  
+            bearing_label = "Car Bearing: " + std::to_string(irradiance_csv->get_bearing_value(irr_row));
+            Coord coord = irradiance_csv->get_coordinate_value(irr_row);
+            coordinate_label = "Coordinates of Car: " + std::to_string(coord.lat) + ", " + std::to_string(coord.lon) + ", " + std::to_string(coord.alt);
+        } else {
+            time_of_day = "Time Of Day: " + sun_position_lut->get_time(irr_row);
+            azimuth = "Azimuth: " + std::to_string(sun_position_lut->get_azimuth_value(irr_row));
+            elevation = "Elevation: " + std::to_string(sun_position_lut->get_elevation_value(irr_row));
+            irradiance = "Irradiance: " + std::to_string(sun_position_lut->get_irradiance_value(irr_row));
+        }
+
+        if (0 < cell_idx < num_cells) {
+            cell_irradiance = "Highlighted Cell Irradiance: " + std::to_string(irradiance_csv->get_irr_value(irr_row, cell_idx));
+        }
+    }
     if (time_of_day != "") {
         ImGui::Text(time_of_day.c_str());
     }
@@ -399,10 +424,16 @@ void GUI::render_step_three_layout() {
     if (irradiance != "") {
         ImGui::Text(irradiance.c_str());
     }
-    if (irradiance_visualized && (0 < cell_idx < num_cells)) {
-        cell_irradiance = "Highlighted Irradiance: " + std::to_string(irradiance_csv->get_irr_value(irr_row, cell_idx));
-        ImGui::Text(cell_irradiance.c_str());
+    if (bearing_label != "") {
+        ImGui::Text(bearing_label.c_str());
     }
+    if (coordinate_label != "") {
+        ImGui::Text(coordinate_label.c_str());
+    }
+    if (cell_irradiance != "") {
+        ImGui::Text(cell_irradiance.c_str());
+    }  
+
     ImGui::NewLine();
     // If we have both a canopy STL and the array cell stl folder, render them
     if (ImGui::Button("See Car", button_size)) {
@@ -439,7 +470,15 @@ void GUI::render_step_three_layout() {
         if (!sun_positions_path.empty()) {
             sun_position_lut = std::make_shared<SunPositionLUT>(sun_positions_path);
         }
-        irradiance_csv = std::make_shared<CellIrradianceSim>(irradiance_csv_file_path);
+
+        if (!metadata_csv_file_path.empty()) {
+            show_dynamic_params = true;
+            irradiance_csv = std::make_shared<CellIrradianceSim>(irradiance_csv_file_path,
+                                                                metadata_csv_file_path);
+        } else {
+            show_dynamic_params = false;
+            irradiance_csv = std::make_shared<CellIrradianceSim>(irradiance_csv_file_path);
+        }
         
         std::vector<double> irradiance_values;
         std::pair<double, double> irradiance_limits = irradiance_csv->get_irradiance_limits();

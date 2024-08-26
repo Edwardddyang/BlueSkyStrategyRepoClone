@@ -137,8 +137,10 @@ void CellIrradianceSim::run_dynamic_sim(std::shared_ptr<SunPositionLUT> sun_posi
             sun_position_cache += 1;
         }
 
-        std::cout << "CURRENT TIME: " << starting_time.get_local_readable_time() << std::endl;
-        std::cout << "SUN POSITION CACHE: " << sun_position_cache << std::endl; 
+        bearings.push_back(bearing);
+        coordinates.push_back(Coord(start_point));
+        times.push_back(starting_time);
+        sun_position_caches.push_back(sun_position_cache);
     }
 }
 
@@ -446,7 +448,27 @@ void CellIrradianceSim::construct_csv_row(std::shared_ptr<SunPlane>& sun_plane, 
     irradiance_limits = {min_irradiance_value, max_irradiance_value};
 }
 
-void CellIrradianceSim::write_csv(const std::string& csv_name) {
+void CellIrradianceSim::write_dynamic_csv(const std::string& irradiance_csv_name, const std::string& metadata_csv_name) {
+    write_static_csv(irradiance_csv_name);
+
+    std::ofstream metadata_csv_file(metadata_csv_name);
+    metadata_csv_file << std::fixed << std::setprecision(8);
+    if (!metadata_csv_file.is_open()) {
+        std::cout << "Could not open metadata csv file for writing" << std::endl;
+        return;
+    }
+
+    size_t idx = 0;
+    for (const Coord coord : coordinates) {
+        metadata_csv_file << bearings[idx] << ','
+                          << coord.lat << ',' << coord.lon << ',' << coord.alt << ','
+                          << times[idx].get_local_readable_time() << ',' << sun_position_caches[idx] << ",\n";
+        idx++;
+    }
+    metadata_csv_file.close();
+}
+
+void CellIrradianceSim::write_static_csv(const std::string& csv_name) {
     std::ofstream csv_file(csv_name);
     csv_file << std::fixed << std::setprecision(8);
 
@@ -473,8 +495,6 @@ CellIrradianceSim::CellIrradianceSim(std::filesystem::path csv_path) {
     assert(lut.is_open() && "File not found...");
 
     std::string line;
-    std::string cell;
-    std::vector<double> row;
 
     while (std::getline(lut, line)) {
         std::stringstream ss(line);
@@ -495,4 +515,73 @@ CellIrradianceSim::CellIrradianceSim(std::filesystem::path csv_path) {
     }
 
     irradiance_limits = {min_irradiance_value, max_irradiance_value};
+}
+
+CellIrradianceSim::CellIrradianceSim(std::filesystem::path irradiance_csv_path,
+                                    std::filesystem::path metadata_csv_path) {
+    std::ifstream irradiance_lut(irradiance_csv_path.string()); // Use ifstream for reading
+    assert(irradiance_lut.is_open() && "File not found...");
+
+    std::string line;
+
+    while (std::getline(irradiance_lut, line)) {
+        std::stringstream ss(line);
+        std::vector<double> row;
+        std::string cell;
+        while (std::getline(ss, cell, ',')) {
+            try {
+                double value = std::stod(cell);
+                max_irradiance_value = value > max_irradiance_value ? value : max_irradiance_value;
+                min_irradiance_value = value < min_irradiance_value ? value : min_irradiance_value;
+                row.push_back(value);
+            } catch (const std::invalid_argument& e) {
+                std::cerr << "Invalid number in file: " << cell << std::endl;
+                return;
+            }
+        }
+        irradiance_csv.push_back(row);
+    }
+
+    irradiance_limits = {min_irradiance_value, max_irradiance_value};
+
+    std::ifstream metadata_csv(metadata_csv_path.string());
+    assert(metadata_csv.is_open() && "Metadata file csv not found...");
+
+    while(std::getline(metadata_csv, line)) {
+        if (line.empty()) continue;
+        std::stringstream linestream(line);
+        std::string cell;
+
+        double lat, lon, alt, bearing;
+        int sun_position_cache;
+        std::string time_s;
+
+        std::getline(linestream, cell, ',');
+        assert(isDouble(cell) && "Value is not a number.");
+        bearing = std::stod(cell);
+        bearings.emplace_back(bearing);
+        
+        std::getline(linestream, cell, ',');
+        assert(isDouble(cell) && "Value is not a number.");
+        lat = std::stod(cell);
+
+        std::getline(linestream, cell, ',');
+        assert(isDouble(cell) && "Value is not a number.");
+        lon = std::stod(cell);
+
+        std::getline(linestream, cell, ',');
+        assert(isDouble(cell) && "Value is not a number.");
+        alt = std::stod(cell);
+
+        Coord new_coord(lat, lon, alt);
+        coordinates.emplace_back(new_coord);
+
+        std::getline(linestream, cell, ',');
+        time_s = cell;
+        times.emplace_back(time_s);
+
+        std::getline(linestream, cell, ',');
+        sun_position_cache = std::stoi(cell);
+        sun_position_caches.emplace_back(sun_position_cache);
+    }
 }

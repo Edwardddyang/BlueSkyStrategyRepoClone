@@ -78,13 +78,19 @@ public:
     void run_static_sim(std::shared_ptr<SunPositionLUT> sun_position_lut, std::shared_ptr<Model> car_model,
                         double bearing, std::string direction);
 
-    // Create an irradiance csv based on the given configurations
-    CellIrradianceSim(std::shared_ptr<SunPositionLUT> sun_position_lut, std::shared_ptr<Model> car_model,
-                  double bearing, std::string direction, bool precise_shadows = true);
-
-    // Load a CSV from a file path
+    // Load an irradiance CSV from a file path
     CellIrradianceSim(std::filesystem::path csv_path);
-    void write_csv(const std::string& csv_name);
+
+    // Load an irradiance csv, bearing csv and coordinate csv previously generated from a dynamic simulation
+    CellIrradianceSim(std::filesystem::path irradiance_csv_path,
+                      std::filesystem::path metadata_csv_path);
+
+    // Write the irradiance CSV from a dynamic simulation
+    void write_static_csv(const std::string& csv_name);
+
+    // Write irradiance CSV for a dynamic simulation and a CSV storing the bearing, coordinates, times and
+    // sun position cache indices
+    void write_dynamic_csv(const std::string& irradiance_csv_name, const std::string& metadata_csv_name);
 
     // Get a certain value within the csv
     double get_irr_value(const size_t row_idx, const size_t col_idx) const;
@@ -93,6 +99,10 @@ public:
     inline double get_max_irradiance_value() {return max_irradiance_value;}
     inline std::pair<double, double> get_irradiance_limits() {return irradiance_limits;}
     inline std::vector<std::vector<double>> get_irradiance_csv() {return irradiance_csv;}
+    inline double get_bearing_value(size_t idx) {return bearings[idx];}
+    inline Coord get_coordinate_value(size_t idx) {return coordinates[idx];}
+    inline std::string get_time_string_value(size_t idx) {return times[idx].get_local_readable_time();}
+    inline size_t get_sun_position_cache_value(size_t idx) {return sun_position_caches[idx];}
 private:
     SimType sim_type;
     bool partial_shadows;
@@ -106,6 +116,10 @@ private:
 
     const int NUM_RAYS = 3000; // Number of rays to generate for each partially shaded triangle
     std::vector<std::vector<double>> irradiance_csv;  // stores the output csv
+    std::vector<double> bearings;  // For a dynamic simulation, this stores the bearing of the car at each row
+    std::vector<Coord> coordinates;  // For a dynamic simulation, this stores the coordinates of the car at each row
+    std::vector<Time> times; // For a dynamic simulation, this stores the times of the car at each row
+    std::vector<size_t> sun_position_caches;  // For a dynamic simulation, this stores the sun position row indices
     void construct_csv_row(std::shared_ptr<SunPlane>& sun_plane, size_t row_idx, double irradiance, bool precise_shadows);
 
     double get_bearing(Coord src_coord, Coord dest_coord);
