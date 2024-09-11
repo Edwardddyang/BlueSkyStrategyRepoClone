@@ -27,55 +27,54 @@
 #include <CGAL/Random.h>
 #include "time.hpp"
 
+// Use CGAL's exact kernel
 typedef CGAL::Exact_predicates_inexact_constructions_kernel K;
-typedef K::FT FT;
 typedef K::Ray_3 Ray;
-typedef K::Line_3 Line;
 typedef K::Point_3 Point;
-typedef K::Point_2 Point2;
 typedef K::Triangle_3 Triangle;
-typedef K::Triangle_2 Triangle2;
 typedef K::Direction_3 Direction;
-typedef K::Segment_3 Segment;
-typedef K::Vector_3 Vector;
 typedef std::vector<Triangle>::iterator Iterator;
 typedef CGAL::AABB_triangle_primitive<K, Iterator> Primitive;
 typedef CGAL::AABB_traits<K, Primitive> AABB_triangle_traits;
 typedef CGAL::AABB_tree<AABB_triangle_traits> Tree;
-typedef CGAL::Polygon_2<K> Polygon2;
 typedef Tree::Primitive_id Primitive_id;
-typedef boost::optional< Tree::Intersection_and_primitive_id<CGAL::Ray_3<K> >::Type > Ray_intersection;
-typedef CGAL::Polyhedron_3<K> Polyhedron;
-typedef CGAL::AABB_face_graph_triangle_primitive<Polyhedron> PrimitiveI;
-typedef CGAL::AABB_traits<K, PrimitiveI> AABB_traits_i;
-typedef CGAL::AABB_tree<AABB_traits_i> Tree_i;
-typedef CGAL::Alpha_shape_vertex_base_2<K> Vb;
-typedef CGAL::Alpha_shape_face_base_2<K> Fb;
-typedef CGAL::Triangulation_data_structure_2<Vb, Fb> Tds;
-typedef CGAL::Delaunay_triangulation_2<K, Tds> Triangulation;
-typedef CGAL::Delaunay_triangulation_2<K> Delaunay2;
-typedef CGAL::Alpha_shape_2<Triangulation> Alpha_shape;
-typedef CGAL::Side_of_triangle_mesh<Polyhedron, K> Side_of_triangle_mesh;
-typedef Delaunay2::Finite_faces_iterator Face_iterator;
-
-enum class SimType {
-    DYNAMIC,
-    STATIC
-};
 
 class CellIrradianceSim {
 public:
+    // Supported simulation types. Static means that the car is stationary in one location.
+    // Dynamic means that the car is moving through a route
+    enum class SimType {
+        DYNAMIC,
+        STATIC
+    };
+
+    /** @brief Compute the normal vector of a triangle's centroid in 3D space
+     * @param triangle: CGAL triangle with points in 3D space
+     * @return glm vec3 type
+     */
     static glm::vec3 compute_triangle_norm(const Triangle& triangle);
 
+    /** @brief Constructor with default imprecise shadow calculations. Specifically, if a triangle in a cell stl
+     * is slightly shaded, then the entire triangle is considered shaded. Setting precise_shadows is significantly
+     * slower and should only be used to generate the final lookup table for the chosen array
+     */
     CellIrradianceSim(bool precise_shadows = false) : partial_shadows(precise_shadows) {};
 
-    // Run dynamic simulation
-    void run_dynamic_sim(std::shared_ptr<SunPositionLUT> sun_position_lut, std::shared_ptr<Model> car_model,
-                        std::shared_ptr<RouteLUT> route_lut, double speed, std::string direction,
-                        std::string start_time, std::string end_time);
+    /** @brief Run a dynamic simulation (Car moves through a route) 
+     * @param sun_position_lut: SunPositionLUT csv object describing the path of the sun in the sky
+     * @param car_model: Model object describing the car (array and canopy)
+     * @param route_lut: RouteLUT csv object describing the points of the route
+     * @param speed: Speed of the car in m/s
+     * @param direction: Direction of the nose of the car. Must be {"-x", "-y", "+x", "-x"}
+     * @param start_time: Starting time of the dynamic simulation
+     * @param end_time: Ending time of the dynamic simulation
+    */
+    void run_dynamic_sim(const std::shared_ptr<SunPositionLUT>& sun_position_lut, const std::shared_ptr<Model>& car_model,
+                        const std::shared_ptr<RouteLUT>& route_lut, double speed, std::string direction,
+                        const std::shared_ptr<Time>& start_time, const std::shared_ptr<Time>& end_time);
 
     // Run static simulation
-    void run_static_sim(std::shared_ptr<SunPositionLUT> sun_position_lut, std::shared_ptr<Model> car_model,
+    void run_static_sim(const std::shared_ptr<SunPositionLUT>& sun_position_lut, const std::shared_ptr<Model>& car_model,
                         double bearing, std::string direction);
 
     // Load an irradiance CSV from a file path
@@ -101,14 +100,12 @@ public:
     inline std::vector<std::vector<double>> get_irradiance_csv() {return irradiance_csv;}
     inline double get_bearing_value(size_t idx) {return bearings[idx];}
     inline Coord get_coordinate_value(size_t idx) {return coordinates[idx];}
-    inline std::string get_time_string_value(size_t idx) {return times[idx].get_local_readable_time();}
+    inline std::string get_time_string_value(size_t idx) {return time_strings[idx];}
     inline size_t get_sun_position_cache_value(size_t idx) {return sun_position_caches[idx];}
 private:
     SimType sim_type;
     bool partial_shadows;
 
-    std::shared_ptr<SunPositionLUT> sun_position;
-    std::shared_ptr<Model> car;
     double min_irradiance_value;
     double max_irradiance_value;
 
@@ -120,7 +117,9 @@ private:
     std::vector<Coord> coordinates;  // For a dynamic simulation, this stores the coordinates of the car at each row
     std::vector<Time> times; // For a dynamic simulation, this stores the times of the car at each row
     std::vector<size_t> sun_position_caches;  // For a dynamic simulation, this stores the sun position row indices
-    void construct_csv_row(std::shared_ptr<SunPlane>& sun_plane, size_t row_idx, double irradiance, bool precise_shadows);
+    std::vector<std::string> time_strings;  
+    void construct_csv_row(const std::shared_ptr<SunPlane>& sun_plane, const std::shared_ptr<Model>& car_model,
+                            const size_t& row_idx, double irradiance, bool precise_shadows);
 
     double get_bearing(Coord src_coord, Coord dest_coord);
     double get_distance(Coord src_coord, Coord dest_coord);

@@ -12,6 +12,7 @@
 #include <array>
 #include <iostream>
 #include <limits>
+#include <stdexcept>
 
 struct Vertex {
     glm::vec3 position;

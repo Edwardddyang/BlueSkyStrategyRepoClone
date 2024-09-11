@@ -37,7 +37,8 @@ SunPlane::SunPlane(double azimuth, double elevation, std::string direction, doub
         x *= -1.0;
         y *= -1.0;
     } else {
-        std::cout << "Unrecognized direction " << direction << std::endl;
+        std::string error_message = "Nose direction must be one of {-x, +x, -y, +y}";
+        throw std::runtime_error(error_message);
     }
     normal = glm::vec3(x, y, z);
 

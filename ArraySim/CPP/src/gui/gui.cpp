@@ -2,17 +2,19 @@
 #include <cstdlib>
 #include "imgui_stdlib.h"
 #include <sstream>
-#include <iomanip>  // for std::setprecision
+#include <iomanip>
 #include "ImGuiFileDialog.h"
 #include "Shader.hpp"
 #include "stl_reader.h"
+#include <chrono>
+#include <date.h>
 #include "Utilities.hpp"
 
 /* Static declarations */
 std::shared_ptr<GUI> GUI::instance = nullptr;
 GLFWwindow* GUI::window = nullptr;
 
-void RenderUnderlinedText(const char* text) {
+void GUI::render_underlined_text(const char* text) {
     ImGui::Text(text);  // Render the text
 
     // Get the current ImGui window's draw list
@@ -21,13 +23,12 @@ void RenderUnderlinedText(const char* text) {
     // Calculate the size and position of the text
     ImVec2 text_pos = ImGui::GetItemRectMin();  // Get the top-left corner of the text
     ImVec2 text_size = ImGui::CalcTextSize(text);
-
-    // Define the line position (under the text) and thickness
-    float line_y = text_pos.y + text_size.y;    // Position of the underline
-    float thickness = 1.0f;                     // Thickness of the underline
+    float line_y = text_pos.y + text_size.y;
+    float thickness = 1.0f;
 
     // Draw the underline
-    draw_list->AddLine(ImVec2(text_pos.x, line_y), ImVec2(text_pos.x + text_size.x, line_y), IM_COL32(255, 255, 255, 255), thickness);
+    draw_list->AddLine(ImVec2(text_pos.x, line_y), ImVec2(text_pos.x + text_size.x, line_y),
+                       IM_COL32(255, 255, 255, 255), thickness);
 }
 
 std::shared_ptr<GUI> GUI::get_instance() {
@@ -36,6 +37,7 @@ std::shared_ptr<GUI> GUI::get_instance() {
     }
     return instance;
 }
+
 void GUI::glfw_error_callback(int error, const char* description)
 {
     fprintf(stderr, "GLFW Error %d: %s\n", error, description);
@@ -44,8 +46,10 @@ void GUI::glfw_error_callback(int error, const char* description)
 // NOTE: This function's code was almost entirely copied from ImGUI's opengl3 example
 void GUI::initialize() {
     glfwSetErrorCallback(glfw_error_callback);
-    if (!glfwInit())
-        return;
+    if (!glfwInit()) {
+        std::cout << "GLFW could not be initialized. Exiting" << std::endl;
+        exit(1);  
+    }
 
     // Decide GL+GLSL versions
 #if defined(IMGUI_IMPL_OPENGL_ES2)
@@ -73,9 +77,9 @@ void GUI::initialize() {
     // Create window with graphics context
     window = glfwCreateWindow(window_width, window_height, APP_NAME, nullptr, nullptr);
     if (window == nullptr) {
-        std::cout << "Could not initialize glfw window" << std::endl;
+        std::cout << "Could not initialize glfw window. Exiting" << std::endl;
         glfwTerminate();
-        return;
+        exit(1);
     }
     glfwMakeContextCurrent(window);
     glfwSwapInterval(1); // Enable vsync
@@ -83,30 +87,25 @@ void GUI::initialize() {
     // Setup GLAD
     if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
     {
-        std::cout << "Failed to initialize GLAD" << std::endl;
-        return;
+        std::cout << "Failed to initialize GLAD. Exiting" << std::endl;
+        exit(1);
     }
     // Render pixels based on depth ordering
     glEnable(GL_DEPTH_TEST);
-
-    glfwSetWindowUserPointer(window, this);
-
-    /* Set mouse capture */
-    // glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    
     /* Set window callbacks */
-    glfwSetCursorPosCallback(window, cursor_callback_bridge); 
-    glfwSetScrollCallback(window, scroll_callback_bridge);
-    glfwSetMouseButtonCallback(window, mouse_button_callback_bridge);
+    glfwSetWindowUserPointer(window, this);
+    glfwSetWindowFocusCallback(window,window_iconify_callback);
+    glfwSetCursorPosCallback(window, cursor_callback); 
+    glfwSetScrollCallback(window, scroll_callback);
+
     // Setup Dear ImGui context
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO(); (void)io;
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
-
-    // Setup Dear ImGui style
     ImGui::StyleColorsDark();
-    //ImGui::StyleColorsLight();
 
     // Setup Platform/Renderer backends
     ImGui_ImplGlfw_InitForOpenGL(window, true);
@@ -131,27 +130,54 @@ void GUI::initialize() {
     //io.Fonts->AddFontFromFileTTF("../../misc/fonts/Cousine-Regular.ttf", 15.0f);
     //ImFont* font = io.Fonts->AddFontFromFileTTF("c:\\Windows\\Fonts\\ArialUni.ttf", 18.0f, nullptr, io.Fonts->GetGlyphRangesJapanese());
     //IM_ASSERT(font != nullptr);
-    mouse_control = false;
 }
 
 void GUI::render() {
     // Main render loop
     while (!glfwWindowShouldClose(window))
     {
+        // Get mouse and keyboard inputs
+        glfwPollEvents();
+
+        if (is_minimized) continue;
+
         initialize_new_frame();
-        // continue;
+
         /* Step selection window pane */
         render_step_selection_pane();
 
         /* Simulation configuration pane */
         render_simulation_configuration_pane();
 
+        /* Error message popup */
+        render_error_message_popup();
+
         /* Render the frame */
         render_frame();
     }
 }
 
+void GUI::render_error_message_popup() {
+    if (!is_error_popup_open) return;
+
+    ImGui::OpenPopup("Error");
+    set_window_size_position(error_popup_size, error_popup_position);
+    if (ImGui::BeginPopupModal("Error", NULL, 0))
+    {
+        ImGui::PushTextWrapPos(ImGui::GetWindowContentRegionMax().x);
+        ImGui::Text(error_popup_message.c_str());
+        ImGui::PopTextWrapPos();
+        if (ImGui::Button("Close")) {
+            ImGui::CloseCurrentPopup();
+            is_error_popup_open = false;
+            error_popup_message = "";
+        }
+        ImGui::EndPopup();
+    }
+}
+
 void GUI::render_step_selection_pane() {
+    // Adjust the size only when the application window is resized
     set_window_size_position_on_resize(step_selection_size, step_selection_position);
 
     ImGui::Begin("Steps");
@@ -165,12 +191,21 @@ void GUI::render_step_selection_pane() {
     ImGui::RadioButton("Visualization", &selected_step, static_cast<int>(steps::STEP_3));
     insert_tooltip("Visualizations of the sun path csv (step 1) or the array heat map (step 2)");
 
-    // Recalculate the simulation configuration window component size/positions
+    // Recalculate the simulation configuration pane size/positions
     // when the application resizes or when the selected step changes
     if (window_resized || selected_step != last_selected_step) {
+        error_popup_size = ImVec2(
+            window_width * error_popup_width_fraction,
+            window_height * error_popup_height_fraction
+        );
+        error_popup_position = ImVec2( // Center of the screen
+            window_width * 0.5f - error_popup_size[WIDTH_INDEX] * 0.5f,
+            window_height * 0.5f - error_popup_size[HEIGHT_INDEX] * 0.5f
+        );
         if (selected_step == static_cast<int>(steps::STEP_1)) {
             help_popup_size = ImVec2(
-                window_width*help_popup_width_fraction, window_height*help_popup_height_fraction
+                window_width * help_popup_width_fraction,
+                window_height * help_popup_height_fraction
             );
             help_popup_position = ImVec2( // Center of the screen
                 window_width * 0.5f - help_popup_size[WIDTH_INDEX] * 0.5f,
@@ -193,10 +228,16 @@ void GUI::render_step_selection_pane() {
     if (ImGui::Button("Help")) {
         ImGui::OpenPopup("Guide");
         is_help_popup_open = true;
+        first_frame_help_render = true;
     }
 
     if (is_help_popup_open) {
-        set_window_size_position_on_resize(help_popup_size, help_popup_position);
+        if (first_frame_help_render) {
+            set_window_size_position(help_popup_size, help_popup_position);
+            first_frame_help_render = false;
+        } else {
+            set_window_size_position_on_resize(help_popup_size, help_popup_position);
+        }
     }
 
     if (ImGui::BeginPopupModal("Guide", NULL, 0))
@@ -251,21 +292,21 @@ void GUI::render_step_one_layout() {
 
     ImGui::NewLine();
     ImGui::SetNextItemWidth(text_field_width);
-    ImGui::InputText("Start Time", &start_time);
+    ImGui::InputText("Start Time", &start_time_buffer);
     insert_tooltip("Start time of the simulation day in 24 hour local time with format: YYYY-MM-DD HH:MM:SS");
 
     ImGui::NewLine();
     ImGui::SetNextItemWidth(text_field_width);
-    ImGui::InputText("End Time", &end_time);
+    ImGui::InputText("End Time", &end_time_buffer);
     insert_tooltip("End time of the simulation day in 24 hour local time with format: YYYY-MM-DD HH:MM:SS");
 
     ImGui::NewLine();
     ImGui::Text("UTC Adjustment");
     insert_tooltip("Adjustment from local time to UTC time in HH:MM:SS format. Forwards implies (+) adjustment, Backward implies (-) adjustment.\n"
                    "E.g. 9:30:00 local time with a UTC adjustment of 4:30:00 hours forward implies 14:00:00 UTC time");
-    ImGui::RadioButton("Forward", &adjustment, FORWARD_ADJUSTMENT);
+    ImGui::RadioButton("Forward", &utc_adjustment_direction, FORWARD_ADJUSTMENT);
     ImGui::SameLine();
-    ImGui::RadioButton("Backward", &adjustment, BACKWARD_ADJUSTMENT);
+    ImGui::RadioButton("Backward", &utc_adjustment_direction, BACKWARD_ADJUSTMENT);
     ImGui::SetNextItemWidth(text_field_width);
     ImGui::InputText("Adjustment", &utc_adjustment);
 
@@ -273,12 +314,16 @@ void GUI::render_step_one_layout() {
     ImGui::SetNextItemWidth(text_field_width);
     ImGui::InputText("Output File Name", &output_file_buffer);
     if (ImGui::Button("Create")) {
-        std::string sign = adjustment == FORWARD_ADJUSTMENT ? "+" : "-";
+        std::string sign = utc_adjustment_direction == FORWARD_ADJUSTMENT ? "+" : "-";
+        // Check for input argument validity
+        if (!check_dayAzElIrr_args()) {
+            return;
+        }
         std::ostringstream oss;
         oss << "python dayAzElIrr.py " << "--lat " << std::fixed << std::setprecision(6) << location[0]
                                        << " --lon " << std::fixed << std::setprecision(6) << location[1]
-                                       << " --start_time \"" << start_time << "\""
-                                       << " --end_time \"" << end_time << "\""
+                                       << " --start_time \"" << start_time_buffer << "\""
+                                       << " --end_time \"" << end_time_buffer << "\""
                                        << " --utc_adjustment " << sign << utc_adjustment
                                        << " --num_timesteps " << num_timesteps;
         if (output_file_buffer != "") {
@@ -290,29 +335,87 @@ void GUI::render_step_one_layout() {
     }
 }
 
+bool GUI::check_dayAzElIrr_args() {
+    bool are_args_valid = true;
+    if (num_timesteps < 0) {
+        are_args_valid = false;
+        error_popup_message += "Must specify at least one timestep\n";
+    }
+
+    if (location[0] < -90.0 || location[0] > 90.0) {
+        are_args_valid = false;
+        error_popup_message += "Latitude is not within range [-90, 90]\n";
+    }
+
+    if (location[1] < -180.0 || location[1] > 180.0) {
+        are_args_valid = false;
+        error_popup_message += "Longitude is not within range [-180, 180]\n";
+    }
+
+	std::istringstream rss(start_time_buffer);
+    date::sys_time<std::chrono::seconds> epoch_time;
+    rss >> date::parse("%F %T", epoch_time);
+
+    if (rss.fail()) {
+        are_args_valid = false;
+        error_popup_message += "Start time is not in YYYY-MM-DD HH:MM:SS format\n";
+    }
+
+    std::istringstream ess(end_time_buffer);
+    ess >> date::parse("%F %T", epoch_time);
+    
+    if (ess.fail()) {
+        are_args_valid = false;
+        error_popup_message += "End time is not in YYYY-MM-DD HH:MM:SS format\n";
+    }
+
+    if (utc_adjustment.empty()) {
+        are_args_valid = false;
+        error_popup_message += "UTC adjustment not entered\n";
+    }
+    std::istringstream tss(utc_adjustment);
+	int hours, minutes, seconds;
+	char delimiter;
+	tss >> hours >> delimiter >> minutes >> delimiter >> seconds;
+    if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59 || seconds < 0 || seconds > 59) {
+        are_args_valid = false;
+        error_popup_message += "UTC adjustment has invalid HH:MM:SS format\n";
+    }
+
+    is_error_popup_open = !are_args_valid;
+
+    return are_args_valid;
+}
+
 void GUI::render_step_two_layout() {    
     ImGui::Begin("Step 2 - Effective Irradiance CSV");
     std::filesystem::path path; // Dummy variable
-    insert_file_dialog_button("Array Cell STL Directory", &button_size,"arraySTLDir", "Choose Directory", nullptr, path, cell_stl_folder_path);
+    insert_file_dialog_button("Array Cell STL Directory", &button_size,
+                              "arraySTLDir", "Choose Directory", nullptr,
+                              path, cell_stl_folder_path);
     insert_tooltip("Directory that exclusively contains all the STL files for the array cells");
-    insert_file_dialog_button("Canopy STL File", &button_size, "canopySTLFile", "Choose File", ".stl", canopy_stl_file_path, path);
+
+    insert_file_dialog_button("Canopy STL File", &button_size, "canopySTLFile",
+                            "Choose File", ".stl", canopy_stl_file_path, path);
     insert_tooltip("STL file of the canopy");
-    insert_file_dialog_button("Sun Positions CSV", &button_size, "sunPositionPath", "Choose File", ".csv", sun_positions_path, path);
+
+    insert_file_dialog_button("Sun Positions CSV", &button_size, "sunPositionPath",
+                              "Choose File", ".csv", sun_positions_path, path);
     insert_tooltip("CSV file describing the path of the sun generated according to step 1.");
-    insert_file_dialog_button("Route CSV", &button_size, "routePath", "Choose File", ".csv", route_path, path);
+
+    insert_file_dialog_button("Route CSV", &button_size, "routePath", "Choose File",
+                              ".csv", route_path, path);
     insert_tooltip("CSV file of the route. This should be used ONLY for dynamic simulations");
-    ImGui::RadioButton("Dynamic Simulation", &sim_type, static_cast<int>(SimType::DYNAMIC));
-    ImGui::RadioButton("Static Simulation", &sim_type, static_cast<int>(SimType::STATIC));
+
+    ImGui::RadioButton("Dynamic Simulation", &sim_type, static_cast<int>(CellIrradianceSim::SimType::DYNAMIC));
+    ImGui::RadioButton("Static Simulation", &sim_type, static_cast<int>(CellIrradianceSim::SimType::STATIC));
 
     ImGui::SetNextItemWidth(text_field_width);
     ImGui::InputText("Direction", &direction);
     insert_tooltip("Direction of the nose of the car. Usually \"-x\". Confirm with the CAD of the car");
 
     ImGui::SetNextItemWidth(text_field_width);
-    ImGui::InputText("Bearing", &bearing_text);
-    if (bearing_text != "" && isDouble(bearing_text)) {
-        bearing = std::stod(bearing_text);
-    }
+    ImGui::InputFloat("Bearing", &bearing);
     insert_tooltip("The clockwise angle of the nose of the car from true north in degrees\n"
                    "when positioned at the location in the sun path csv. This should ONLY be used\n"
                    "for a static simulation. Example: In WSC, if the sun position csv was generated\n"
@@ -325,13 +428,13 @@ void GUI::render_step_two_layout() {
                     "This should only be used for a dynamic simulation.");
 
     ImGui::SetNextItemWidth(text_field_width);
-    ImGui::InputText("Start Route Time", &start_route_time);
+    ImGui::InputText("Start Route Time", &start_route_time_buffer);
     insert_tooltip("Start time of the simulation in 24 hour local time with format: YYYY-MM-DD HH:MM:SS\n"
                     "This must be within the time range of the sun position csv. This should only be used\n"
                     "for a dynamic simulation.");
 
     ImGui::SetNextItemWidth(text_field_width);
-    ImGui::InputText("End Route Time", &end_route_time);
+    ImGui::InputText("End Route Time", &end_route_time_buffer);
     insert_tooltip("End time of the simulation in 24 hour local time with format: YYYY-MM-DD HH:MM:SS\n"
                     "This must be within the time range of the sun position csv. This should only be used\n"
                     "for a dynamic simulation.");
@@ -342,74 +445,165 @@ void GUI::render_step_two_layout() {
     ImGui::NewLine();
 
     if (ImGui::Button("Generate Irradiance CSV")) {
-        std::cout << "Generating irradiance csv..." << std::endl;
-        car_model = std::make_shared<Model>();
-        car_model->loadCanopy(canopy_stl_file_path.string());
-        car_model->loadArray(cell_stl_folder_path.string());
-        sun_position_lut = std::make_shared<SunPositionLUT>(sun_positions_path);
+        if (!check_irrCsv_args()) return;
+        try {
+            car_model = std::make_shared<Model>();
+            car_model->loadCanopy(canopy_stl_file_path.string());
+            car_model->loadArray(cell_stl_folder_path.string());
+            std::shared_ptr<SunPositionLUT> sun_position = std::make_shared<SunPositionLUT>(sun_positions_path);
 
-        irradiance_csv = std::make_shared<CellIrradianceSim>(false);
-        car_speed = kph2mps(car_speed);
-        if (sim_type == static_cast<int>(SimType::DYNAMIC)) {
-            route_lut = std::make_shared<RouteLUT>(route_path);
-            irradiance_csv->run_dynamic_sim(sun_position_lut, car_model, route_lut, (double)car_speed, direction,
-                                            start_route_time, end_route_time);
-            irradiance_csv->write_dynamic_csv(irradiance_csv_name, "metadata.csv");
-        } else {
-            irradiance_csv->run_static_sim(sun_position_lut, car_model, bearing, direction);
-            irradiance_csv->write_static_csv(irradiance_csv_name);
+            irradiance_csv = std::make_shared<CellIrradianceSim>(false);
+            car_speed = kph2mps(car_speed);
+            if (sim_type == static_cast<int>(CellIrradianceSim::SimType::DYNAMIC)) {
+                std::shared_ptr<RouteLUT> route_lut = std::make_shared<RouteLUT>(route_path);
+                std::shared_ptr<Time> start_route_time = std::make_shared<Time>(start_route_time_buffer);
+                std::shared_ptr<Time> end_route_time = std::make_shared<Time>(end_route_time_buffer);
+                irradiance_csv->run_dynamic_sim(sun_position, car_model, route_lut, (double)car_speed, direction,
+                                                start_route_time, end_route_time);
+                irradiance_csv->write_dynamic_csv(irradiance_csv_name, "metadata.csv");
+            } else {
+                irradiance_csv->run_static_sim(sun_position, car_model, (double)bearing, direction);
+                irradiance_csv->write_static_csv(irradiance_csv_name);
+            }
+        } catch (const std::exception& e) {
+            is_error_popup_open = true;
+            error_popup_message = "Irradiance CSV could not be generated. Caught exception " + std::string(e.what());
+            return;
         }
     }
 }
 
+bool GUI::check_irrCsv_args() {
+    bool are_args_valid = true;
+
+    if (cell_stl_folder_path.empty()) {
+        are_args_valid = false;
+        error_popup_message += "No cell STL folder supplied\n";
+    }
+
+    if (canopy_stl_file_path.empty()) {
+        are_args_valid = false;
+        error_popup_message += "No canopy STL file supplied\n";
+    }
+
+    if (direction.empty()) {
+        are_args_valid = false;
+        error_popup_message += "No nose direction entered\n";
+    }
+
+    if (direction != "-x" && direction != "+x" &&
+        direction != "-y" && direction != "+y") {
+        are_args_valid = false;
+        error_popup_message += "Nose direction must be one of {-x, +x, -y, +y}\n";
+    }
+
+    if (bearing < 0.0 || bearing > 360.0) {
+        are_args_valid = false;
+        error_popup_message += "Bearing out of range [0, 360]\n";
+    }
+
+    if (sun_positions_path.empty()) {
+        are_args_valid = false;
+        error_popup_message += "No sun position csv (step 1) supplied\n";
+    }
+
+    if (irradiance_csv_name.empty()) {
+        are_args_valid = false;
+        error_popup_message += "No output csv name given\n";
+    }
+
+    if (sim_type == static_cast<int>(CellIrradianceSim::SimType::DYNAMIC)) {
+        if (car_speed <= 0.0) {
+            are_args_valid = false;
+            error_popup_message += "Car speed must be greater than 0 kph for a dynamic simulation\n";
+        }
+        
+        if (route_path.empty()) {
+            are_args_valid = false;
+            error_popup_message += "No route path was supplied for a dynamic simulation\n";
+        }
+
+        std::istringstream rss(start_route_time_buffer);
+        date::sys_time<std::chrono::seconds> epoch_time;
+        rss >> date::parse("%F %T", epoch_time);
+
+        if (rss.fail()) {
+            are_args_valid = false;
+            error_popup_message += "Route start time is not in YYYY-MM-DD HH:MM:SS format for a dynamic simulation\n";
+        }
+
+        std::istringstream ess(end_route_time_buffer);
+        ess >> date::parse("%F %T", epoch_time);
+        if (ess.fail()) {
+            are_args_valid = false;
+            error_popup_message += "Route end time is not in YYYY-MM-DD HH:MM:SS format for a dynamic simulation\n";
+        }
+    }
+    is_error_popup_open = !are_args_valid;
+
+    return are_args_valid;
+}
+
 void GUI::render_step_three_layout() {
     ImGui::Begin("Visualizations");
-    RenderUnderlinedText("See Canopy and Array");
-    std::filesystem::path path;
+
+    render_underlined_text("See Canopy and Array");
+    std::filesystem::path path;  // Dummy variable
     insert_file_dialog_button("Array Cell STL Directory", &button_size,"arraySTLDir", "Choose Directory",
                              nullptr, path, cell_stl_folder_path_v);
+    insert_tooltip("Directory that exclusively contains all the STL files for the array cells");
+
     insert_file_dialog_button("Canopy STL File", &button_size, "canopySTLFile", "Choose File",
                              ".stl", canopy_stl_file_path_v, path);
+    insert_tooltip("STL file of the canopy");
+
     insert_file_dialog_button("Sun Position CSV", &button_size, "SunCsvFile", "Choose File", ".csv", sun_positions_path, path);
+    insert_tooltip("CSV file describing the path of the sun (Step 1)");
+    
     insert_file_dialog_button("Irradiance CSV", &button_size, "csvFile", "Choose File", ".csv", irradiance_csv_file_path, path);
+    insert_tooltip("CSV file describing the effective irradiances on each cell at each sun position (Step 2). This is necessary\n"
+                    "only for visualizing shadows");
+    
     insert_file_dialog_button("Metadata CSV", &button_size, "metadataFile", "Choose File", ".csv", metadata_csv_file_path, path);
+    insert_tooltip("CSV file generated from a dynamic simulation. This is only necessary if you want to visualize shadows\n"
+                    "from a dynamic simulation");
     ImGui::SetNextItemWidth(irr_row_width);
-    ImGui::InputInt("Sun Position Row", &irr_row);
+    ImGui::InputInt("Sun Position Row", &curr_irr_row);
     insert_tooltip("The row in the irradiance csv to display. This is equivalent\n"
                     "to the desired sun position row in the sun positions csv.");
 
     ImGui::SetNextItemWidth(irr_row_width);
-    ImGui::InputInt("Cell Highlight", &cell_idx);
+    ImGui::InputInt("Cell Highlight", &curr_cell_idx);
     insert_tooltip("The cell to highlight in white");
 
     // Sun position information
-    if (irradiance_visualized && (0 < irr_row < num_csv_rows) && sun_position_lut != nullptr) {
-        time_of_day = "Time Of Day: " + sun_position_lut->get_time(irr_row);
-        azimuth = "Azimuth: " + std::to_string(sun_position_lut->get_azimuth_value(irr_row));
-        elevation = "Elevation: " + std::to_string(sun_position_lut->get_elevation_value(irr_row));
-        irradiance = "Irradiance: " + std::to_string(sun_position_lut->get_irradiance_value(irr_row));
+    if (irradiance_visualized && (0 < curr_irr_row < num_irr_csv_rows) && sun_position_lut != nullptr) {
+        time_of_day = "Time Of Day: " + sun_position_lut->get_time(curr_irr_row);
+        azimuth = "Azimuth: " + std::to_string(sun_position_lut->get_azimuth_value(curr_irr_row));
+        elevation = "Elevation: " + std::to_string(sun_position_lut->get_elevation_value(curr_irr_row));
+        irradiance = "Irradiance: " + std::to_string(sun_position_lut->get_irradiance_value(curr_irr_row));
     }
 
     // Display information if the user has requested heat map mode
-    if (irradiance_visualized && (0 < irr_row < num_csv_rows)) {
+    if (irradiance_visualized && (0 < curr_irr_row < num_irr_csv_rows)) {
         if (show_dynamic_params) {
-            size_t sun_position_idx = irradiance_csv->get_sun_position_cache_value(irr_row);
-            time_of_day = "Time Of Day: " + sun_position_lut->get_time(sun_position_idx);
+            size_t sun_position_idx = irradiance_csv->get_sun_position_cache_value(curr_irr_row);
+            time_of_day = "Time Of Day: " + irradiance_csv->get_time_string_value(curr_irr_row);
             azimuth = "Azimuth: " + std::to_string(sun_position_lut->get_azimuth_value(sun_position_idx));
             elevation = "Elevation: " + std::to_string(sun_position_lut->get_elevation_value(sun_position_idx));
             irradiance = "Irradiance: " + std::to_string(sun_position_lut->get_irradiance_value(sun_position_idx));  
-            bearing_label = "Car Bearing: " + std::to_string(irradiance_csv->get_bearing_value(irr_row));
-            Coord coord = irradiance_csv->get_coordinate_value(irr_row);
+            bearing_label = "Car Bearing: " + std::to_string(irradiance_csv->get_bearing_value(curr_irr_row));
+            Coord coord = irradiance_csv->get_coordinate_value(curr_irr_row);
             coordinate_label = "Coordinates of Car: " + std::to_string(coord.lat) + ", " + std::to_string(coord.lon) + ", " + std::to_string(coord.alt);
         } else {
-            time_of_day = "Time Of Day: " + sun_position_lut->get_time(irr_row);
-            azimuth = "Azimuth: " + std::to_string(sun_position_lut->get_azimuth_value(irr_row));
-            elevation = "Elevation: " + std::to_string(sun_position_lut->get_elevation_value(irr_row));
-            irradiance = "Irradiance: " + std::to_string(sun_position_lut->get_irradiance_value(irr_row));
+            time_of_day = "Time Of Day: " + sun_position_lut->get_time(curr_irr_row);
+            azimuth = "Azimuth: " + std::to_string(sun_position_lut->get_azimuth_value(curr_irr_row));
+            elevation = "Elevation: " + std::to_string(sun_position_lut->get_elevation_value(curr_irr_row));
+            irradiance = "Irradiance: " + std::to_string(sun_position_lut->get_irradiance_value(curr_irr_row));
         }
 
-        if (0 < cell_idx < num_cells) {
-            cell_irradiance = "Highlighted Cell Irradiance: " + std::to_string(irradiance_csv->get_irr_value(irr_row, cell_idx));
+        if (0 < curr_cell_idx < num_array_cells) {
+            cell_irradiance = "Highlighted Cell Irradiance: " + std::to_string(irradiance_csv->get_irr_value(curr_irr_row, curr_cell_idx));
         }
     }
     if (time_of_day != "") {
@@ -483,8 +677,8 @@ void GUI::render_step_three_layout() {
         std::vector<double> irradiance_values;
         std::pair<double, double> irradiance_limits = irradiance_csv->get_irradiance_limits();
         std::vector<std::vector<double>> values = irradiance_csv->get_irradiance_csv();
-        num_csv_rows = values.size();
-        for (size_t i = 0; i < num_csv_rows; i++) {
+        num_irr_csv_rows = values.size();
+        for (size_t i = 0; i < num_irr_csv_rows; i++) {
             std::vector<glm::vec3> colours;
             std::vector<double> irradiance_values = values[i];
             for (size_t j = 0; j < irradiance_values.size(); j++) {
@@ -503,7 +697,7 @@ void GUI::render_step_three_layout() {
         car_model->calc_centroid();
         car_model->center_model();
         car_model->init_camera();
-        num_cells = car_model->get_array_cell_meshes().size();
+        num_array_cells = car_model->get_array_cell_meshes().size();
         std::cout << "Finished rendering car" << std::endl;    
     }
 
@@ -517,13 +711,13 @@ void GUI::render_step_three_layout() {
         std::pair<double, double> irradiance_limits = {};
         std::vector<glm::vec3> colours = {};
         if (irradiance_csv != nullptr && irradiance_visualized) {
-            if (irr_row >= num_csv_rows || irr_row < 0) irr_row = 0;
-            irradiance_values = irradiance_csv->get_irradiance_csv()[irr_row];
+            if (curr_irr_row >= num_irr_csv_rows || curr_irr_row < 0) curr_irr_row = 0;
+            irradiance_values = irradiance_csv->get_irradiance_csv()[curr_irr_row];
             irradiance_limits = irradiance_csv->get_irradiance_limits();
-            colours = cell_colours[irr_row];
-            if (-1 > cell_idx || cell_idx >= num_cells) cell_idx = -1;
+            colours = cell_colours[curr_irr_row];
+            if (-1 > curr_cell_idx || curr_cell_idx >= num_array_cells) curr_cell_idx = -1;
         }
-        car_model->Draw(window_width, window_height, colours, cell_idx, true);
+        car_model->Draw(window_width, window_height, colours, curr_cell_idx, true);
     }
 }
 
@@ -558,15 +752,18 @@ void GUI::insert_file_dialog_button(const char* button_name,
 }
 
 void GUI::initialize_new_frame() {
+    ImGui_ImplOpenGL3_NewFrame();
+    ImGui_ImplGlfw_NewFrame();
     io = ImGui::GetIO();
 
     // Window component size and positions
     window_width = io.DisplaySize.x;
     window_height = io.DisplaySize.y;
 
-    // File dialog popup dimensions and position
+    // File dialog popup is positioned in the middle of the screen
     file_dialog_size = ImVec2(
-        window_width*file_dialog_width_fraction, window_height*file_dialog_height_fraction
+        window_width * file_dialog_width_fraction,
+        window_height * file_dialog_height_fraction
     );
     file_dialog_position = ImVec2(
         window_width * 0.5f - file_dialog_size[WIDTH_INDEX] * 0.5f,
@@ -574,6 +771,7 @@ void GUI::initialize_new_frame() {
     );
 
     // Recompute the window sizes upon the application resizing
+    window_resized = false;
     if (window_width != prev_window_width || window_height != prev_window_height) {
         window_resized = true;
         // Simulation configuration window
@@ -587,13 +785,12 @@ void GUI::initialize_new_frame() {
         step_selection_size = ImVec2(
             window_width*step_selection_width_fraction, window_height*step_selection_height_fraction
         );
-    } else {
-        window_resized = false;
     }
+
+    // Set the backgroud colour
     glClearColor(clear_color.x * clear_color.w, clear_color.y * clear_color.w, clear_color.z * clear_color.w, clear_color.w);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    ImGui_ImplOpenGL3_NewFrame();
-    ImGui_ImplGlfw_NewFrame();
+
     ImGui::NewFrame();
 }
 
@@ -628,7 +825,6 @@ void GUI::render_frame() {
     glViewport(0, 0, display_w, display_h);
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
     glfwSwapBuffers(window);
-    glfwPollEvents();  // Mouse + keyboard input
 
     // Save current frame information
     prev_window_height = window_height;
@@ -646,28 +842,27 @@ void GUI::cleanup() {
     glfwTerminate();
 }
 
-void GUI::cursor_callback_bridge(GLFWwindow* window, double xpos, double ypos) {
-    instance->cursor_callback(xpos, ypos);
-}
+void GUI::cursor_callback(GLFWwindow* window, double xpos, double ypos) {
+    GUI* app = static_cast<GUI*>(glfwGetWindowUserPointer(window));
+    if (!app) return;
 
-void GUI::cursor_callback(double xpos, double ypos) {
-    if (!car_visualized || !mouse_control) {
+    if (!app->car_visualized || !app->mouse_control) {
         return;
     }
 
-    if (first_mouse_movement)
+    if (app->first_mouse_movement)
     {
-        last_x = xpos;
-        last_y = ypos;
-        first_mouse_movement = false;
+        app->last_x = xpos;
+        app->last_y = ypos;
+        app->first_mouse_movement = false;
     }
 
-    float xoffset = xpos - last_x;
-    float yoffset = last_y - ypos; 
-    last_x = xpos;
-    last_y = ypos;
+    float xoffset = xpos - app->last_x;
+    float yoffset = app->last_y - ypos; 
+    app->last_x = xpos;
+    app->last_y = ypos;
 
-    car_model->camera->ProcessMouseMovement(xoffset, yoffset);
+    app->car_model->camera->ProcessMouseMovement(xoffset, yoffset);
 }
 
 void GUI::process_input(GLFWwindow *window)
@@ -715,7 +910,7 @@ void GUI::process_input(GLFWwindow *window)
 
             last_key_pressed = key_pressed;
             if (!perform_row_mod) return;
-            irr_row = irr_row + irr_mod;
+            curr_irr_row = curr_irr_row + irr_mod;
         }
     }
 
@@ -739,27 +934,24 @@ void GUI::process_input(GLFWwindow *window)
     }
 }
 
-void GUI::scroll_callback_bridge(GLFWwindow* window, double xpos, double ypos) {
-    instance->scroll_callback(xpos, ypos);
-}
-
-void GUI::scroll_callback(double xpos, double ypos) {
-    if (!car_visualized || !mouse_control) {
+void GUI::scroll_callback(GLFWwindow* window, double xpos, double ypos) {
+    GUI* app = static_cast<GUI*>(glfwGetWindowUserPointer(window));
+    if (!app) return;
+    if (!app->car_visualized || !app->mouse_control) {
         return;
     }
 
-    car_model->camera->ProcessMouseScroll(static_cast<float>(ypos));
+    app->car_model->camera->ProcessMouseScroll(static_cast<float>(ypos));
 }
 
-void GUI::mouse_button_callback_bridge(GLFWwindow* window, int button, int action, int mods) {
-    instance->mouse_button_callback(button, action, mods);
-}
-
-void GUI::mouse_button_callback(int button, int action, int mods) {
-    if (button == GLFW_MOUSE_BUTTON_LEFT) {
-        if (action == GLFW_PRESS)
-            is_left_click_held = true;
-        else if (action == GLFW_RELEASE)
-            is_left_click_held = false;
+void GUI::window_iconify_callback(GLFWwindow* window, int iconified)
+{
+    GUI* app = static_cast<GUI*>(glfwGetWindowUserPointer(window));
+    if (!app) return;
+    if (iconified) {
+        app->is_minimized = false;
+    }
+    else {
+        app->is_minimized = true;
     }
 }

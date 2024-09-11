@@ -4,6 +4,7 @@
 #include <iostream>
 #include <glad/glad.h> 
 #include <stb_image.h>
+#include "Globals.h"
 
 void printMat4(const glm::mat4& mat) {
     for (int i = 0; i < 4; ++i) {
@@ -43,17 +44,6 @@ void Model::Draw(double window_width, double window_height, std::vector<glm::vec
     shaders->setMat4("view", view);
     shaders->setMat4("model", model);
 
-    // Set uniform lighting variables
-    // shader.setVec3("material.specular", 0.5f, 0.5f, 0.5f);
-    // shader.setFloat("material.shininess", 32.0f);
-    // shader.setVec3("material.diffuse", 1.0f, 1.0f, 1.0f);
-    // shader.setVec3("viewPos", camera.Position);
-    // /* Set light properties */
-    // shader.setVec3("light.direction", -0.2f, -1.0f, -0.3f);
-    // shader.setVec3("light.ambient",  0.2f, 0.2f, 0.2f);
-    // shader.setVec3("light.diffuse",  0.8f, 0.8f, 0.8f); // darken diffuse light a bit
-    // shader.setVec3("light.specular", 1.0f, 1.0f, 1.0f); 
-
     // Render array cells
     size_t num_cells = array_cell_meshes.size();
     for(unsigned int i = 0; i < num_cells; i++) {
@@ -74,20 +64,13 @@ void Model::Draw(double window_width, double window_height, std::vector<glm::vec
 }
 
 void Model::loadCanopy(const std::filesystem::path& path) {
-    if (!std::filesystem::is_regular_file(path)) {
-        std::cout << "Canopy file: " << path << " is not a file" << std::endl;
-        return;
-    }
-
+    RUNTIME_ASSERT(std::filesystem::is_regular_file(path), std::string("Canopy file: ") + path.string() + " is not a file");
     canopy_mesh = std::make_shared<Mesh>(path, centroid, num_vertices);
     canopy_vertices = canopy_mesh->get_vertices();
 }
 
 void Model::loadArray(const std::filesystem::path& path) {
-    if (!std::filesystem::is_directory(path)) {
-        std::cout << "Array directory: " << path << " is not a directory" << std::endl;
-        return;
-    }
+    RUNTIME_ASSERT(std::filesystem::is_directory(path), std::string("Array directory: ") + path.string() + " is not a directory");
     // Load all stl files in the current directory
     for (const auto& entry : std::filesystem::directory_iterator(path))
     {

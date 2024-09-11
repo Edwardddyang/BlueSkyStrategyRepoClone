@@ -5,12 +5,14 @@
 #include <chrono>
 #include <date.h>
 #include "time.hpp"
+#include "Globals.h"
 
 Time::Time(std::string local_time_point) {
-	local_time = local_time_point;
 	std::istringstream iss(local_time_point);
 	std::string date_str, time_str;
 	iss >> date_str >> time_str;
+
+	RUNTIME_ASSERT(!iss.fail(), "Error while parsing time string: " + local_time_point);
 	if (time_str.empty()) {
 		/* The timestamp is in HH:MM:SS format, call the other constructor */
 		HH_MM_SS_constructor(local_time_point);
@@ -20,14 +22,11 @@ Time::Time(std::string local_time_point) {
 	std::istringstream rss(local_time_point);
     date::sys_time<std::chrono::seconds> epoch_time;
     rss >> date::parse("%F %T", epoch_time);
+	RUNTIME_ASSERT(!rss.fail(), "Error while parsing time string: " + local_time_point);
 
     // Convert sys_time to time_t
-    time_t local_time_t = std::chrono::system_clock::to_time_t(epoch_time);
-
-    t_datetime_local = local_time_t;
-
+    t_datetime_local = std::chrono::system_clock::to_time_t(epoch_time);
 	m_datetime_local = *gmtime(&t_datetime_local);
-
 	m_milliseconds = 0;
 
 	hh_mm_ss_only = false;
@@ -40,6 +39,7 @@ void Time::HH_MM_SS_constructor(std::string local_time_point) {
 
 	char delimiter;
 	iss >> hours >> delimiter >> minutes >> delimiter >> seconds;
+	RUNTIME_ASSERT(!iss.fail(), "Error while parsing HH:MM:SS only time string: " + local_time_point);
 
     time_t now = time(nullptr);
     m_datetime_local = *localtime(&now);

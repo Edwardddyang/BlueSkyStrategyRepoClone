@@ -23,43 +23,42 @@ private:
 	/* Indication for a HH:MM:SS only timestamp */
 	bool hh_mm_ss_only;
 
-	std::string local_time;
-
+	/* Constructor for a string in HH:MM:SS timestamp */
 	void HH_MM_SS_constructor(std::string local_time_point);
 	
 public:
     Time() {};
 
 	/**
-	 * Create time with specific starting time
+	 * @brief Create time with specific starting time
 	 * @param local_time_point string in YYYY-MM-DD HH:MM:SS local 24 hour time format
 	 * @param utc_adjustment Adjustment in hours from local time to utc e.g. If the time being represented is
      * 10:30am in Alice Springs which is 9.5 hours ahead of UTC, then this should be -9.5
 	*/
 	Time(std::string local_time_point);
 
-	/** Returns true if the lhs local timestamp is ahead of the rhs local timestamp */
+	/** @brief Return true if the lhs local timestamp is ahead of the rhs local timestamp */
     bool operator>(const Time& other) const;
 
-	/** Returns true if the rhs local timestamp is ahead of the lhs local timestamp */
+	/** @brief Return true if the rhs local timestamp is ahead of the lhs local timestamp */
 	bool operator<(const Time& other) const;
 
-	/** Get current hour in 24 hour format */
+	/** @brief Get current hour in 24 hour format */
     inline int get_local_hours() { return m_datetime_local.tm_hour; }
 
-	/** Get an epoch timestamp representing the local time */
+	/** @brief Get epoch timestamp representing the local time */
 	inline time_t get_local_time_point() { return t_datetime_local; }
 
-	/** Get c++ tm struct of the current local time */
+	/** @brief Get c++ tm struct of the current local time */
 	inline tm get_local_tm() { return m_datetime_local; }
 
-	/** Advances the current time by a certain number of seconds */
+	/** @brief Advance the current time by a certain number of seconds */
     void update_time_seconds(double seconds);
 
-	/** Print human readable local time */
+	/** @brief Print human readable local time */
 	void print_local_readable_time() {std::cout << get_local_readable_time() << std::endl;}
 	
-	/** Get human readable local time as a string */
+	/** @brief Get human readable local time as a string */
 	std::string get_local_readable_time();
 };
 

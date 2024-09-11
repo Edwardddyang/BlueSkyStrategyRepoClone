@@ -8,11 +8,12 @@ Row Format: |Azimuth(double)|Elevation(double)|Irradiance(double)|Time(string)|
 #include <string>
 #include <vector>
 #include <fstream>
-#include <cassert>
 #include <filesystem>
 #include <iostream>
 #include "Utilities.hpp"
+#include "Globals.h"
 
+/* Holds a single coordinate */
 struct Coord {
 	double lat;
 	double lon;
@@ -22,15 +23,24 @@ struct Coord {
 	Coord() : lat(0), lon(0), alt(0) {}
 };
 
+/* Parse and store information from a 3 column Route CSV |latitude(deg)|longitude(deg)|altitude(m)|*/
 class RouteLUT {
 private:
+    // Stores all points in the csv. The length of this vector should be equal to the number of rows
+    // in the csv
     std::vector<Coord> route_points;
+
+    // Set equal to route_points.size()
     size_t num_points;
 public:
-    std::vector<Coord> get_coords() const {return route_points;}
+    inline std::vector<Coord> get_coords() const {return route_points;}
+    
+    /** @brief Parse a route csv file
+     * @param path: Path object holding the absolute path to the route csv
+     */
     RouteLUT(const std::filesystem::path& path) {
         std::ifstream lut(path.string());
-        assert(lut.is_open() && "File not found...");
+        RUNTIME_ASSERT(lut.is_open(), "Route LUT could not be opened");
 
         std::string line;
         num_points = 0;
@@ -41,109 +51,114 @@ public:
             double lat, lon, alt;
 
             std::getline(linestream, cell, ',');
-            assert(isDouble(cell) && "Value is not a number.");
+            RUNTIME_ASSERT(isDouble(cell), "Value in Route LUT is not a number " + cell);
             lat = std::stod(cell);
             
             std::getline(linestream, cell, ',');
-            assert(isDouble(cell) && "Value is not a number.");
+            RUNTIME_ASSERT(isDouble(cell), "Value in Route LUT is not a number " + cell);
             lon = std::stod(cell);
 
             std::getline(linestream, cell, ',');
-            assert(isDouble(cell) && "Value is not a number.");
+            RUNTIME_ASSERT(isDouble(cell), "Value in Route LUT is not a number " + cell);
             alt = std::stod(cell);
 
             Coord new_coord(lat, lon, alt);
             route_points.emplace_back(new_coord);
             num_points++;
         }
-        assert(num_points == route_points.size() && "Route points not parsed correctly");
+        RUNTIME_ASSERT(num_points == route_points.size(), "Route LUT parsing has gone terribly wrong");
     }
+
+    inline size_t get_num_points() const {return num_points;}
+
+    Coord get_coord(size_t idx) const {
+        RUNTIME_ASSERT(0 <= idx < num_points, "Illegal access on coordinate in RouteLUT object");
+        return route_points[idx];
+    }
+
 };
 
+/* Parse and store data from a 4 column csv describing the path of the sun through the sky
+    |azimuth (deg)|elevation (deg)|irradiance (W/m^2)|time (24 hour)|
+ */
 class SunPositionLUT {
 protected:
-    /* Absolute path to LUT */
-    std::string lut_path;
-
-    /* LUT Values */
+    // Stores all data from the sun position csv. Each vector's length should equal
+    // the number of rows in the csv
     std::vector<double> azimuth;
     std::vector<double> elevation;
     std::vector<double> irradiance;
     std::vector<std::string> time;
 
-    /* Dimensions of the LUT */
     size_t num_rows;
-    size_t num_cols;
 public:
+    /** @brief Parse a Sun Position csv file
+     * @param path: Path object holding the absolute path to the sun position csv
+     */
     SunPositionLUT(const std::filesystem::path& path) {
         std::ifstream lut(path.string());
-        assert(lut.is_open() && "File not found...");
+        RUNTIME_ASSERT(lut.is_open(), "Sun Position LUT could not be opened");
 
         std::string line;
+        num_rows = 0;
         while (std::getline(lut, line)) {
             if (line.empty()) continue;
             std::stringstream linestream(line);
             std::string cell;
 
             std::getline(linestream, cell, ',');
-            assert(isDouble(cell) && "Value is not a number.");
+            
+            RUNTIME_ASSERT(isDouble(cell), "Value in Sun Position LUT is not a number: " + cell);
             double azimuthValue = std::stod(cell);
-            assert(azimuthValue >= 0.0 && azimuthValue <= 360.0);
+            RUNTIME_ASSERT(0.0 <= azimuthValue <= 360.0,
+                           "Azimuth value in Sun Position LUT is not in range [0.0, 360.0]");
             azimuth.emplace_back(azimuthValue);
 
             std::getline(linestream, cell, ',');
-            assert(isDouble(cell) && "Value is not a number.");
+            RUNTIME_ASSERT(isDouble(cell), "Value in Sun Position LUT is not a number: " + cell);
             double elevationValue = std::stod(cell);
-            assert(elevationValue >= 0.0 && elevationValue <= 90.0);
+            RUNTIME_ASSERT(0.0 <= elevationValue <= 360.0,
+                           "Elevation value in Sun Position LUT is not in range [0.0, 360.0]");
             elevation.emplace_back(elevationValue);
 
             std::getline(linestream, cell, ',');
-            assert(isDouble(cell) && "Value is not a number.");
+            RUNTIME_ASSERT(isDouble(cell), "Value in Sun Position LUT is not a number: " + cell);
             double irradianceValue = std::stod(cell);
-            assert(irradianceValue >= 0.0);
+            RUNTIME_ASSERT(irradianceValue >= 0.0,
+                           "Irradiance value in Sun Position LUT must be greater than or equal to 0");
             irradiance.emplace_back(irradianceValue);
 
             std::getline(linestream, cell, ',');
-            time.emplace_back(cell); // Assume time is valid without isDouble check
+            time.emplace_back(cell);
+            num_rows++;
         }
 
-        this->num_rows = azimuth.size();
-        this->num_cols = 4;
+        RUNTIME_ASSERT(num_rows == azimuth.size() &&
+                       num_rows == elevation.size() &&
+                       num_rows == irradiance.size() &&
+                       num_rows == time.size(),
+                        "SunPosition LUT parsing has gone terribly wrong");
     }
 
-    size_t get_num_rows() {return num_rows;}
-    size_t get_num_cols() {return num_cols;}
+    inline size_t get_num_rows() const {return num_rows;}
 
-    double get_azimuth_value(size_t idx) {
-        if (idx < azimuth.size() && idx >= 0) {
-            return azimuth[idx];
-        }
-        std::cout << "Index out of bounds on azimuth access, returning azimuth's last value" << std::endl;
-        return azimuth[num_rows-1];
+    double get_azimuth_value(size_t idx) const {
+        RUNTIME_ASSERT(0 <= idx < num_rows, "Illegal access on azimuth values in Sun Position LUT");
+        return azimuth[idx];
     }
 
-    double get_elevation_value(size_t idx) {
-        if (idx < elevation.size() && idx >= 0) {
-            return elevation[idx];
-        } 
-        std::cout << "Index out of bounds on elevation access, returning azimuth's last value" << std::endl;      
-        return elevation[num_rows-1];
+    double get_elevation_value(size_t idx) const {
+        RUNTIME_ASSERT(0 <= idx < num_rows, "Illegal access on elevation values in Sun Position LUT");
+        return elevation[idx];
     }
 
-    double get_irradiance_value(size_t idx) {
-        if (idx < irradiance.size() && idx >= 0) {
-            return irradiance[idx];
-        }
-        std::cout << "Index out of bounds on irradiance access, returning irradiance's last value" << std::endl;
-        return irradiance[num_rows-1];
+    double get_irradiance_value(size_t idx) const {
+        RUNTIME_ASSERT(0 <= idx < num_rows, "Illegal access on irradiance values in Sun Position LUT");
+        return irradiance[idx];
     }
 
-    std::string get_time(size_t idx) {
-        if (idx < time.size() && idx >= 0) {
-            return time[idx];
-        }
-
-        std::cout << "Index out of bounds on time access, returning time last value" << std::endl;
-        return time[num_rows-1];
+    std::string get_time(size_t idx) const {
+        RUNTIME_ASSERT(0 <= idx < num_rows, "Illegal access on time values in Sun Position LUT");
+        return time[idx];
     }
 };

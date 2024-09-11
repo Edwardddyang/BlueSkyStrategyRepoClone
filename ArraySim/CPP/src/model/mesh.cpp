@@ -22,7 +22,6 @@ void Mesh::setupMesh() {
         for (size_t i = 0; i < NUM_TRI_VERTS; ++i) {
             if (face[i] > std::numeric_limits<unsigned int>::max()) {
                 std::cerr << "Index value too large to fit in an unsigned int: " << face[i] << std::endl;
-                // Handle the error appropriately, such as exiting or continuing with a default value.
                 continue;
             }
             indices.push_back(static_cast<unsigned int>(face[i]));
@@ -99,12 +98,12 @@ Mesh::Mesh(const std::filesystem::path& path) {
         for (size_t i=0; i<vert_idx; i++) {
             vertices[i].normal = glm::normalize(vertices[i].normal);
         }
+        setupMesh();
     }
     catch (std::exception& e) {
-        std::cout << e.what() << std::endl;
+        std::string error_message = "Error when loading mesh from " + path.string() + ": " + e.what();
+        throw std::runtime_error(error_message);
     }
-
-    setupMesh();
 }
 
 Mesh::Mesh(const std::filesystem::path& path, glm::vec3& centroid, size_t& num_vertices) {
@@ -159,12 +158,12 @@ Mesh::Mesh(const std::filesystem::path& path, glm::vec3& centroid, size_t& num_v
         for (size_t i=0; i<vert_idx; i++) {
             vertices[i].normal = glm::normalize(vertices[i].normal);
         }
+        setupMesh();
     }
     catch (std::exception& e) {
         std::cout << e.what() << std::endl;
     }
 
-    setupMesh();
 }
 
 void Mesh::center_mesh(glm::vec3& centroid, bool update_min_max_values) {
