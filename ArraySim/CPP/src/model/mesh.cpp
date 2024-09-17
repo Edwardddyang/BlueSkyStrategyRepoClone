@@ -188,7 +188,7 @@ void Mesh::center_mesh(glm::vec3& centroid, bool update_min_max_values) {
     }
 }
 
-void Mesh::Draw(std::shared_ptr<Shader> &shader, glm::vec3 fill_colour, bool outline, bool highlight) 
+void Mesh::Draw(const std::unique_ptr<Shader> &shader, glm::vec3 fill_colour, bool outline, bool highlight) 
 {
     // draw mesh
     // Bind the VAO

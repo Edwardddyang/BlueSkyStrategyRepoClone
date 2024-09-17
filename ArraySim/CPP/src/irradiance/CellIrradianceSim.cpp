@@ -4,52 +4,50 @@
 #include <cmath>
 #include "Globals.h"
 
-void CellIrradianceSim::run_static_sim(const std::shared_ptr<SunPositionLUT>& sun_position_lut,
-                                        const std::shared_ptr<Model>& car_model,
+CellIrradianceSim::CellIrradianceSim(std::shared_ptr<Model> model, bool precise_shadows)
+                                    : car_model(model), partial_shadows(precise_shadows) {
+    RUNTIME_ASSERT(model != nullptr &&
+                   model->loaded_array &&
+                   model->loaded_canopy,
+                   "Car model must be loaded when initializing CellIrradianceSim");
+    if (!model->initialized_geometries) {
+        car_model->init_geometries();
+    }
+    canopy_vertices = car_model->get_canopy_mesh()->get_vertices();
+    array_cells = car_model->get_array_cell_vertices();
+}
+
+void CellIrradianceSim::run_static_sim(const std::unique_ptr<SunPositionLUT>& sun_position_lut,
                                         double bearing, std::string direction) {
-    car_model->calc_centroid();
-    car_model->center_model();
-    car_model->init_camera();  // Get bounding box characteristics
-
-    max_irradiance_value = std::numeric_limits<double>::lowest();
-    min_irradiance_value = std::numeric_limits<double>::max();
-
     size_t num_sun_positions = sun_position_lut->get_num_rows();
-    size_t num_solar_cells = (car_model->get_array_cell_meshes()).size();
-    irradiance_csv.resize(num_sun_positions);
+
+    std::vector<std::vector<double>> irr_csv(num_sun_positions);
     for (size_t i=0; i<num_sun_positions; i++) {
         // Extract information about the sun positions csv
-        irradiance_csv[i].resize(num_solar_cells);
         double azimuth = sun_position_lut->get_azimuth_value(i);
         double elevation = sun_position_lut->get_elevation_value(i);
         double irradiance = sun_position_lut->get_irradiance_value(i);
 
         // Create sun plane
-        std::shared_ptr<SunPlane> sun_plane = std::make_shared<SunPlane>(
+        std::unique_ptr<SunPlane> sun_plane = std::make_unique<SunPlane>(
             azimuth, elevation, direction, bearing, car_model->get_min_values(),
-            car_model->get_max_values()
+            car_model->get_max_values(), irradiance
         );
 
         std::cout << "INDEX: " << i << std::endl;
         // Calculate the effective irradiance for all cells given the position of the
         // sun in the sky
-        construct_csv_row(sun_plane, car_model, i, irradiance, partial_shadows);
+        irr_csv.push_back(construct_csv_row(sun_plane));
     }
+
+    cell_irradiance_csv = std::make_unique<CellIrradianceCsv>(irr_csv);
 }
 
-void CellIrradianceSim::run_dynamic_sim(const std::shared_ptr<SunPositionLUT>& sun_position_lut, 
-                                        const std::shared_ptr<Model>& car_model, const std::shared_ptr<RouteLUT>& route_lut,
-                                        double speed, std::string direction, const std::shared_ptr<Time>& start_time,
-                                        const std::shared_ptr<Time>& end_time) {
-    car_model->calc_centroid();
-    car_model->center_model();
-    car_model->init_camera();  // Get bounding box characteristics
-
-    max_irradiance_value = std::numeric_limits<double>::lowest();
-    min_irradiance_value = std::numeric_limits<double>::max();
-
+void CellIrradianceSim::run_dynamic_sim(const std::unique_ptr<SunPositionLUT>& sun_position_lut, 
+                                        const std::unique_ptr<RouteLUT>& route_lut,
+                                        double speed, std::string direction, const std::unique_ptr<Time>& start_time,
+                                        const std::unique_ptr<Time>& end_time) {
     size_t num_sun_positions = sun_position_lut->get_num_rows();
-    size_t num_solar_cells = (car_model->get_array_cell_meshes()).size();
 
     // Travel through the route
     std::vector<Coord> route_points = route_lut->get_coords();
@@ -64,7 +62,7 @@ void CellIrradianceSim::run_dynamic_sim(const std::shared_ptr<SunPositionLUT>& s
     bool found_cache_window = false;
     size_t sun_position_cache = 0;
     for (size_t idx=0; idx<num_sun_positions; idx++) {
-        sun_position_times[idx] = Time(sun_position_lut->get_time(idx));
+        sun_position_times[idx] = Time(sun_position_lut->get_time_value(idx));
         if (*start_time < sun_position_times[idx] && !found_cache_window) {
             upper_bound_cache = idx;
             lower_bound_cache = idx > 0 ? idx - 1 : idx;
@@ -89,6 +87,12 @@ void CellIrradianceSim::run_dynamic_sim(const std::shared_ptr<SunPositionLUT>& s
     }
 
     size_t i = 0;
+    std::vector<std::vector<double>> irr_csv;
+    std::vector<double> bearings;
+    std::vector<Coord> coordinates;
+    std::vector<Time> times;
+    std::vector<size_t> sun_position_caches;
+    std::vector<std::string> time_strings;
     while (*start_time < *end_time) {
         if (next_idx >= num_points) next_idx = 0;
         if (idx >= num_points) idx = 0;
@@ -97,21 +101,20 @@ void CellIrradianceSim::run_dynamic_sim(const std::shared_ptr<SunPositionLUT>& s
 
         double bearing = get_bearing(start_point, dest_point);
 
-        irradiance_csv.push_back(std::vector<double>(num_solar_cells));
         double azimuth = sun_position_lut->get_azimuth_value(sun_position_cache);
         double elevation = sun_position_lut->get_elevation_value(sun_position_cache);
         double irradiance = sun_position_lut->get_irradiance_value(sun_position_cache);
 
         // Create sun plane
-        std::shared_ptr<SunPlane> sun_plane = std::make_shared<SunPlane>(
+        std::unique_ptr<SunPlane> sun_plane = std::make_unique<SunPlane>(
             azimuth, elevation, direction, bearing, car_model->get_min_values(),
-            car_model->get_max_values()
+            car_model->get_max_values(), irradiance
         );
 
         std::cout << "INDEX: " << i << std::endl;
         // Calculate the effective irradiance for all cells given the position of the
         // sun in the sky
-        construct_csv_row(sun_plane, car_model, i, irradiance, partial_shadows);
+        irr_csv.push_back(construct_csv_row(sun_plane));
         i++;
         idx++;
         next_idx++;
@@ -136,11 +139,26 @@ void CellIrradianceSim::run_dynamic_sim(const std::shared_ptr<SunPositionLUT>& s
         coordinates.push_back(Coord(start_point));
         times.push_back(*start_time);
         sun_position_caches.push_back(sun_position_cache);
+        time_strings.push_back(start_time->get_local_readable_time());
     }
+    cell_irradiance_csv = std::make_shared<CellIrradianceCsv>(irr_csv,
+                                                        bearings,
+                                                        coordinates,
+                                                        times,
+                                                        sun_position_caches,
+                                                        time_strings);
 }
 
-double CellIrradianceSim::get_irr_value(const size_t row_idx, const size_t col_idx) const {
-    return irradiance_csv[row_idx][col_idx];
+void CellIrradianceSim::write_static_csv(const std::filesystem::path& csv_path) const {
+    RUNTIME_ASSERT(cell_irradiance_csv != nullptr, "Static cell irradiance CSV not created. Did you call run_static_sim()?");
+    cell_irradiance_csv->write_irr_csv(csv_path);
+}
+
+void CellIrradianceSim::write_dynamic_csv(const std::filesystem::path& irr_csv_path,
+                                          const std::filesystem::path& metadata_csv_path) const {
+    RUNTIME_ASSERT(cell_irradiance_csv != nullptr, "Dynamic cell irradiance CSV not created. Did you call run_dynamic_sim()?");
+    cell_irradiance_csv->write_irr_csv(irr_csv_path);
+    cell_irradiance_csv->write_metadata_csv(metadata_csv_path);
 }
 
 double CellIrradianceSim::get_bearing(Coord src_coord, Coord dst_coord) {
@@ -185,24 +203,6 @@ double CellIrradianceSim::get_distance(Coord src_coord, Coord dst_coord) {
 	return true_distance;
 }
 
-void export_to_obj(const std::vector<Triangle>& triangles, const std::string& filename) {
-    std::ofstream file(filename);
-    if (!file) {
-        std::cerr << "Cannot open file for writing: " << filename << std::endl;
-        return;
-    }
-
-    int vertex_idx = 1;
-    for (const Triangle& tri : triangles) {
-        file << "v " << tri.vertex(0).x() << " " << tri.vertex(0).y() << " " << tri.vertex(0).z() << std::endl;
-        file << "v " << tri.vertex(1).x() << " " << tri.vertex(1).y() << " " << tri.vertex(1).z() << std::endl;
-        file << "v " << tri.vertex(2).x() << " " << tri.vertex(2).y() << " " << tri.vertex(2).z() << std::endl;
-        file << "f " << vertex_idx << " " << vertex_idx + 1 << " " << vertex_idx + 2 << std::endl;
-        vertex_idx += 3;
-    }
-    file.close();
-}
-
 glm::vec3 CellIrradianceSim::compute_triangle_norm(const Triangle& triangle) {
     Point p1 = triangle[0];
     Point p2 = triangle[1];
@@ -228,10 +228,7 @@ glm::vec3 CellIrradianceSim::compute_triangle_norm(const Triangle& triangle) {
     return (glm::normalize(cross_product));
 }
 
-void CellIrradianceSim::construct_csv_row(const std::shared_ptr<SunPlane>& sun_plane, const std::shared_ptr<Model>& car_model,
-                                        const size_t& row_idx, double irradiance, bool precise_shadows) {
-    std::vector<Vertex> canopy_vertices = car_model->get_canopy_mesh()->get_vertices();
-    std::vector<std::vector<Vertex>> array_cells = car_model->get_array_cell_vertices();
+std::vector<double> CellIrradianceSim::construct_csv_row(const std::unique_ptr<SunPlane>& sun_plane) {
     glm::vec3& sun_plane_normal = sun_plane->normal;
     Direction sun_plane_direction(sun_plane_normal.x, sun_plane_normal.y, sun_plane_normal.z);
 
@@ -318,7 +315,7 @@ void CellIrradianceSim::construct_csv_row(const std::shared_ptr<SunPlane>& sun_p
             // For each partially shaded triangle, cast NUM_RAYS from the triangle towards the sun plane.
             // The numerical approximation for shaded area is given by
             // (Num rays intersecting with canopy / NUM_RAYS) * triangle area
-            if (precise_shadows && is_partially_shaded) {
+            if (partial_shadows && is_partially_shaded) {
                 auto random_gen = CGAL::Random(0);
                 CGAL::Random_points_in_triangle_3<Point> generator(array_triangle, random_gen);
 
@@ -339,11 +336,7 @@ void CellIrradianceSim::construct_csv_row(const std::shared_ptr<SunPlane>& sun_p
         }
     }
     const size_t num_array_triangles = array_triangles.size();
-
-    // Compute effective irradiances
-    for (size_t cell_idx = 0; cell_idx < num_array_cells; cell_idx++) {
-        irradiance_csv[row_idx][cell_idx] = 0.0;
-    }
+    double irradiance = sun_plane->irradiance;
     std::vector<double> triangle_powers;
     for (size_t tri_idx=0; tri_idx < num_array_triangles; tri_idx++) {
         double shaded_area = triangle_shaded_areas[tri_idx];
@@ -358,6 +351,7 @@ void CellIrradianceSim::construct_csv_row(const std::shared_ptr<SunPlane>& sun_p
         }
     }
 
+    std::vector<double> irradiance_row(num_array_cells);
     for (size_t cell_idx=0; cell_idx < num_array_cells; cell_idx++) {
         std::vector<size_t> cell_triangles = cell_to_triangle[cell_idx];
 
@@ -367,149 +361,9 @@ void CellIrradianceSim::construct_csv_row(const std::shared_ptr<SunPlane>& sun_p
             cell_power += triangle_powers[tri_idx];
             cell_area += triangle_areas[tri_idx];
         }
-        double value = cell_power / cell_area;
-        max_irradiance_value = value > max_irradiance_value ? value : max_irradiance_value;
-        min_irradiance_value = value < min_irradiance_value ? value : min_irradiance_value;
-
-        irradiance_csv[row_idx][cell_idx] = value;
-    }
-    irradiance_limits = {min_irradiance_value, max_irradiance_value};
-}
-
-void CellIrradianceSim::write_dynamic_csv(const std::string& irradiance_csv_name, const std::string& metadata_csv_name) {
-    write_static_csv(irradiance_csv_name);
-
-    std::ofstream metadata_csv_file(metadata_csv_name);
-    metadata_csv_file << std::fixed << std::setprecision(8);
-    if (!metadata_csv_file.is_open()) {
-        std::cout << "Could not open metadata csv file for writing" << std::endl;
-        return;
+        double effective_irradiance = cell_power / cell_area;
+        irradiance_row.emplace_back(effective_irradiance);
     }
 
-    size_t idx = 0;
-    for (const Coord coord : coordinates) {
-        metadata_csv_file << bearings[idx] << ','
-                          << coord.lat << ',' << coord.lon << ',' << coord.alt << ','
-                          << times[idx].get_local_readable_time() << ',' << sun_position_caches[idx] << ",\n";
-        idx++;
-    }
-    metadata_csv_file.close();
-}
-
-void CellIrradianceSim::write_static_csv(const std::string& csv_name) {
-    std::ofstream csv_file(csv_name);
-    csv_file << std::fixed << std::setprecision(8);
-
-    if (!csv_file.is_open()) {
-        std::cout << "Could not open csv file for writing" << std::endl;
-        return;
-    }
-
-    for (const std::vector<double> row : irradiance_csv) {
-        size_t num_cells = row.size();
-        for (size_t i=0; i<num_cells; i++) {
-            csv_file << row[i];
-            csv_file << ",";
-        }
-
-        csv_file << "\n";
-    }
-
-    csv_file.close();
-}
-
-CellIrradianceSim::CellIrradianceSim(std::filesystem::path csv_path) {
-    std::ifstream lut(csv_path.string()); // Use ifstream for reading
-    assert(lut.is_open() && "File not found...");
-
-    std::string line;
-
-    while (std::getline(lut, line)) {
-        std::stringstream ss(line);
-        std::vector<double> row;
-        std::string cell;
-        while (std::getline(ss, cell, ',')) {
-            try {
-                double value = std::stod(cell);
-                max_irradiance_value = value > max_irradiance_value ? value : max_irradiance_value;
-                min_irradiance_value = value < min_irradiance_value ? value : min_irradiance_value;
-                row.push_back(value);
-            } catch (const std::invalid_argument& e) {
-                std::cerr << "Invalid number in file: " << cell << std::endl;
-                return;
-            }
-        }
-        irradiance_csv.push_back(row);
-    }
-
-    irradiance_limits = {min_irradiance_value, max_irradiance_value};
-}
-
-CellIrradianceSim::CellIrradianceSim(std::filesystem::path irradiance_csv_path,
-                                    std::filesystem::path metadata_csv_path) {
-    std::ifstream irradiance_lut(irradiance_csv_path.string()); // Use ifstream for reading
-    assert(irradiance_lut.is_open() && "File not found...");
-
-    std::string line;
-
-    while (std::getline(irradiance_lut, line)) {
-        std::stringstream ss(line);
-        std::vector<double> row;
-        std::string cell;
-        while (std::getline(ss, cell, ',')) {
-            try {
-                double value = std::stod(cell);
-                max_irradiance_value = value > max_irradiance_value ? value : max_irradiance_value;
-                min_irradiance_value = value < min_irradiance_value ? value : min_irradiance_value;
-                row.push_back(value);
-            } catch (const std::invalid_argument& e) {
-                std::cerr << "Invalid number in file: " << cell << std::endl;
-                return;
-            }
-        }
-        irradiance_csv.push_back(row);
-    }
-
-    irradiance_limits = {min_irradiance_value, max_irradiance_value};
-
-    std::ifstream metadata_csv(metadata_csv_path.string());
-    assert(metadata_csv.is_open() && "Metadata file csv not found...");
-
-    while(std::getline(metadata_csv, line)) {
-        if (line.empty()) continue;
-        std::stringstream linestream(line);
-        std::string cell;
-
-        double lat, lon, alt, bearing;
-        int sun_position_cache;
-        std::string time_s;
-
-        std::getline(linestream, cell, ',');
-        assert(isDouble(cell) && "Value is not a number.");
-        bearing = std::stod(cell);
-        bearings.emplace_back(bearing);
-        
-        std::getline(linestream, cell, ',');
-        assert(isDouble(cell) && "Value is not a number.");
-        lat = std::stod(cell);
-
-        std::getline(linestream, cell, ',');
-        assert(isDouble(cell) && "Value is not a number.");
-        lon = std::stod(cell);
-
-        std::getline(linestream, cell, ',');
-        assert(isDouble(cell) && "Value is not a number.");
-        alt = std::stod(cell);
-
-        Coord new_coord(lat, lon, alt);
-        coordinates.emplace_back(new_coord);
-
-        std::getline(linestream, cell, ',');
-        time_s = cell;
-        time_strings.emplace_back(time_s);
-
-        std::getline(linestream, cell, ',');
-        sun_position_cache = std::stoi(cell);
-        sun_position_caches.emplace_back(sun_position_cache);
-    }
+    return irradiance_row;
 }

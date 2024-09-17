@@ -33,7 +33,7 @@ public:
     // Pass in a centroid and vertex count by reference. Used for visualizations
     Mesh(const std::filesystem::path& path, glm::vec3& centroid, size_t& num_vertices);
 
-    void Draw(std::shared_ptr<Shader>& shader, glm::vec3 fill_colour, bool outline, bool highlight);
+    void Draw(const std::unique_ptr<Shader> &shader, glm::vec3 fill_colour, bool outline, bool highlight);
 
     glm::vec3 get_max_values() const {return max_values;}
     glm::vec3 get_min_values() const {return min_values;}

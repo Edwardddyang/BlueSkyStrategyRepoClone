@@ -1,7 +1,3 @@
-/* Class for a sun position LUT
-Row Format: |Azimuth(double)|Elevation(double)|Irradiance(double)|Time(string)|
- */
-
 #pragma once
 
 #include <stdlib.h>
@@ -11,9 +7,10 @@ Row Format: |Azimuth(double)|Elevation(double)|Irradiance(double)|Time(string)|
 #include <filesystem>
 #include <iostream>
 #include "Utilities.hpp"
+#include "time.hpp"
 #include "Globals.h"
 
-/* Holds a single coordinate */
+/* Represent a (latitude, longitude, altitude) coordinate */
 struct Coord {
 	double lat;
 	double lon;
@@ -23,7 +20,9 @@ struct Coord {
 	Coord() : lat(0), lon(0), alt(0) {}
 };
 
-/* Parse and store information from a 3 column Route CSV |latitude(deg)|longitude(deg)|altitude(m)|*/
+/* Parse and store information from a 3 column Route CSV |latitude(deg)|longitude(deg)|altitude(m)|
+    as a vector of Coord objects
+*/
 class RouteLUT {
 private:
     // Stores all points in the csv. The length of this vector should be equal to the number of rows
@@ -33,49 +32,17 @@ private:
     // Set equal to route_points.size()
     size_t num_points;
 public:
-    inline std::vector<Coord> get_coords() const {return route_points;}
-    
     /** @brief Parse a route csv file
      * @param path: Path object holding the absolute path to the route csv
      */
-    RouteLUT(const std::filesystem::path& path) {
-        std::ifstream lut(path.string());
-        RUNTIME_ASSERT(lut.is_open(), "Route LUT could not be opened");
+    RouteLUT(const std::filesystem::path& path);
 
-        std::string line;
-        num_points = 0;
-        while (std::getline(lut, line)) {
-            if (line.empty()) continue;
-            std::stringstream linestream(line);
-            std::string cell;
-            double lat, lon, alt;
-
-            std::getline(linestream, cell, ',');
-            RUNTIME_ASSERT(isDouble(cell), "Value in Route LUT is not a number " + cell);
-            lat = std::stod(cell);
-            
-            std::getline(linestream, cell, ',');
-            RUNTIME_ASSERT(isDouble(cell), "Value in Route LUT is not a number " + cell);
-            lon = std::stod(cell);
-
-            std::getline(linestream, cell, ',');
-            RUNTIME_ASSERT(isDouble(cell), "Value in Route LUT is not a number " + cell);
-            alt = std::stod(cell);
-
-            Coord new_coord(lat, lon, alt);
-            route_points.emplace_back(new_coord);
-            num_points++;
-        }
-        RUNTIME_ASSERT(num_points == route_points.size(), "Route LUT parsing has gone terribly wrong");
-    }
-
+    inline std::vector<Coord> get_coords() const {return route_points;}
     inline size_t get_num_points() const {return num_points;}
-
-    Coord get_coord(size_t idx) const {
+    inline Coord get_coord_value(const size_t& idx) const {
         RUNTIME_ASSERT(0 <= idx < num_points, "Illegal access on coordinate in RouteLUT object");
         return route_points[idx];
     }
-
 };
 
 /* Parse and store data from a 4 column csv describing the path of the sun through the sky
@@ -95,70 +62,105 @@ public:
     /** @brief Parse a Sun Position csv file
      * @param path: Path object holding the absolute path to the sun position csv
      */
-    SunPositionLUT(const std::filesystem::path& path) {
-        std::ifstream lut(path.string());
-        RUNTIME_ASSERT(lut.is_open(), "Sun Position LUT could not be opened");
-
-        std::string line;
-        num_rows = 0;
-        while (std::getline(lut, line)) {
-            if (line.empty()) continue;
-            std::stringstream linestream(line);
-            std::string cell;
-
-            std::getline(linestream, cell, ',');
-            
-            RUNTIME_ASSERT(isDouble(cell), "Value in Sun Position LUT is not a number: " + cell);
-            double azimuthValue = std::stod(cell);
-            RUNTIME_ASSERT(0.0 <= azimuthValue <= 360.0,
-                           "Azimuth value in Sun Position LUT is not in range [0.0, 360.0]");
-            azimuth.emplace_back(azimuthValue);
-
-            std::getline(linestream, cell, ',');
-            RUNTIME_ASSERT(isDouble(cell), "Value in Sun Position LUT is not a number: " + cell);
-            double elevationValue = std::stod(cell);
-            RUNTIME_ASSERT(0.0 <= elevationValue <= 360.0,
-                           "Elevation value in Sun Position LUT is not in range [0.0, 360.0]");
-            elevation.emplace_back(elevationValue);
-
-            std::getline(linestream, cell, ',');
-            RUNTIME_ASSERT(isDouble(cell), "Value in Sun Position LUT is not a number: " + cell);
-            double irradianceValue = std::stod(cell);
-            RUNTIME_ASSERT(irradianceValue >= 0.0,
-                           "Irradiance value in Sun Position LUT must be greater than or equal to 0");
-            irradiance.emplace_back(irradianceValue);
-
-            std::getline(linestream, cell, ',');
-            time.emplace_back(cell);
-            num_rows++;
-        }
-
-        RUNTIME_ASSERT(num_rows == azimuth.size() &&
-                       num_rows == elevation.size() &&
-                       num_rows == irradiance.size() &&
-                       num_rows == time.size(),
-                        "SunPosition LUT parsing has gone terribly wrong");
-    }
+    SunPositionLUT(const std::filesystem::path& path);
 
     inline size_t get_num_rows() const {return num_rows;}
-
-    double get_azimuth_value(size_t idx) const {
+    inline double get_azimuth_value(const size_t& idx) const {
         RUNTIME_ASSERT(0 <= idx < num_rows, "Illegal access on azimuth values in Sun Position LUT");
         return azimuth[idx];
     }
-
-    double get_elevation_value(size_t idx) const {
+    inline double get_elevation_value(const size_t& idx) const {
         RUNTIME_ASSERT(0 <= idx < num_rows, "Illegal access on elevation values in Sun Position LUT");
         return elevation[idx];
     }
-
-    double get_irradiance_value(size_t idx) const {
+    inline double get_irradiance_value(const size_t& idx) const {
         RUNTIME_ASSERT(0 <= idx < num_rows, "Illegal access on irradiance values in Sun Position LUT");
         return irradiance[idx];
     }
-
-    std::string get_time(size_t idx) const {
+    inline std::string get_time_value(const size_t& idx) const {
         RUNTIME_ASSERT(0 <= idx < num_rows, "Illegal access on time values in Sun Position LUT");
         return time[idx];
     }
+};
+
+/** Holds data for the irradiance csv from the cell irradiance simulation
+ * A value at cell (i,j) is the irradiance in W/m^2 for the j-th cell
+ * at the i-th sun position
+ * 
+ * Holds data for the metadata csv from a dynamic cell irradiance simulation
+ * |bearing(deg)|latitude(deg)|longitude(deg)|altitude(m)|time strings|sun position idx|
+ */
+class CellIrradianceCsv {
+private:
+    // Storage for irradiance csv data
+    std::vector<std::vector<double>> irradiance_values;
+    size_t num_irr_rows = 0;
+    size_t num_irr_cols = 0;
+
+    // Storage for metadata csv data that is created for a dynamic cell irradiance simulation
+    std::vector<double> bearings;
+    std::vector<Coord> coordinates;
+    std::vector<Time> times;
+    std::vector<size_t> sun_position_caches;  // The "row" in the sun position csv used for each
+                                                // position of the car
+    std::vector<std::string> time_strings;
+
+    // Maximum and minimum data value
+    std::pair<double, double> irradiance_limits;
+
+public:
+    /** @brief Read and parse a created irradiance csv and its corresponding metadata csv
+     * if a dynamic simulation was run
+     * @param csv_path: Absolute path to the irradiance csv
+     */
+    CellIrradianceCsv(const std::filesystem::path irr_csv_path,
+                      const std::filesystem::path metadata_csv_path = std::filesystem::path{});
+
+    /** @brief Constructor with irradiance csv data and metadata csv data (if present)
+     * @param data: Irradiance csv data
+     */
+    CellIrradianceCsv(std::vector<std::vector<double>> irr_data,
+                      std::vector<double> bearing_data = {},
+                      std::vector<Coord> coordinate_data = {},
+                      std::vector<Time> time_data = {},
+                      std::vector<size_t> sun_position_cache_data = {},
+                      std::vector<std::string> time_string_data = {});
+
+    /** @brief Write the contents of irradiance_values to a csv file
+     * @param csv_path: Absolute path to the irradiance csv file to create
+     */
+    void write_irr_csv(const std::filesystem::path csv_path) const;
+
+    /** @brief Write the contents of the metada values to a csv file
+     * @param csv_path: Absolute path to the metadata csv file to create
+     */
+    void write_metadata_csv(const std::filesystem::path csv_path) const;
+
+    /** @brief Safe retrieval functions */
+    inline double get_irr_value(const size_t& row_idx, const size_t& col_idx) const {
+        RUNTIME_ASSERT(0 <= row_idx < num_irr_rows && 0 <= col_idx < num_irr_cols,
+                        "Illegal access on irradiance csv");
+        return irradiance_values[row_idx][col_idx];
+    }
+    inline double get_bearing_value(const size_t& idx) const {
+        RUNTIME_ASSERT(0 <= idx < num_irr_rows, "Illegal bearing access from metadata csv");
+        return bearings[idx];
+    }
+    inline Coord get_coord_value(const size_t& idx) const {
+        RUNTIME_ASSERT(0 <= idx < num_irr_rows, "Illegal coordinate access from metadata csv");
+        return coordinates[idx];
+    }
+    inline std::string get_time_string_value(const size_t& idx) const {
+        RUNTIME_ASSERT(0 <= idx < num_irr_rows, "Illegal time string access from metadata csv");
+        return time_strings[idx];
+    }
+    inline size_t get_sun_position_cache_value(const size_t& idx) const {
+        RUNTIME_ASSERT(0 <= idx < num_irr_rows, "Illegal sun position cache access from metadata csv");
+        return sun_position_caches[idx];
+    }
+    inline size_t get_num_irr_rows() const {return num_irr_rows;}
+    inline size_t get_num_irr_cols() const {return num_irr_cols;}
+
+    inline std::pair<double, double> get_irradiance_limits() const {return irradiance_limits;}
+    inline std::vector<std::vector<double>> get_csv_data() const {return irradiance_values;}
 };

@@ -7,7 +7,8 @@ constexpr double degToRad(double degrees) {
 }
 
 SunPlane::SunPlane(double azimuth, double elevation, std::string direction, double bearing, const glm::vec3 min_values,
-                  glm::vec3 max_values) {
+                  glm::vec3 max_values, double irr) {
+    irradiance = irr;
     // Get corrected azimuth which is the azimuth relative to the bearing of the car instead
     // of from true north
     double corrected_azimuth;

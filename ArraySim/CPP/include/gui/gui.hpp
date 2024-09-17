@@ -48,7 +48,7 @@ private:
     static void glfw_error_callback(int error, const char* description);
 
     // Singleton object
-    static std::shared_ptr<GUI> instance;
+    static std::unique_ptr<GUI> instance;
 
     // Application window - should be alive until the GUI object is destroyed
     static GLFWwindow* window;
@@ -139,10 +139,10 @@ private:
     const float button_height = 0.0; // Let ImGui auto-adjust
     ImVec2 button_size;
 
-    std::shared_ptr<SunPositionLUT> sun_position_lut = nullptr;
-    std::shared_ptr<Time> start_time = nullptr;
-    std::shared_ptr<Time> end_time = nullptr;
-    std::shared_ptr<CellIrradianceSim> irradiance_csv = nullptr;
+    std::unique_ptr<SunPositionLUT> sun_position_lut = nullptr;
+    std::unique_ptr<Time> start_time = nullptr;
+    std::unique_ptr<Time> end_time = nullptr;
+    std::unique_ptr<CellIrradianceSim> irradiance_sim = nullptr;
     std::filesystem::path cell_stl_folder_path;
     std::filesystem::path canopy_stl_file_path;
     std::filesystem::path sun_positions_path;
@@ -164,6 +164,7 @@ private:
     float irr_row_width;
 
     std::shared_ptr<Model> car_model = nullptr;
+    std::shared_ptr<CellIrradianceCsv> irradiance_csv = nullptr;
     std::vector<std::vector<glm::vec3>> cell_colours; // Colour for each cell mesh on a colour gradient
     size_t num_irr_csv_rows;
     size_t num_array_cells;
@@ -304,7 +305,7 @@ private:
 
 public:
     /** @brief Retrieve the singleton instance of the application */
-    static std::shared_ptr<GUI> get_instance();
+    static std::unique_ptr<GUI>& get_instance();
 
     /** @brief Initialize the application */
     void initialize();

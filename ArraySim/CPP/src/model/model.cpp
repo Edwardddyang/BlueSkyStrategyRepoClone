@@ -28,6 +28,7 @@ void printMat3(const glm::mat3& mat) {
 
 void Model::Draw(double window_width, double window_height, std::vector<glm::vec3> colours, int cell_idx, bool outline)
 {
+    RUNTIME_ASSERT(shaders != nullptr, "Shaders not created for model draw");
     shaders->use();
     
     // Create projection, view, model matrices
@@ -67,6 +68,7 @@ void Model::loadCanopy(const std::filesystem::path& path) {
     RUNTIME_ASSERT(std::filesystem::is_regular_file(path), std::string("Canopy file: ") + path.string() + " is not a file");
     canopy_mesh = std::make_shared<Mesh>(path, centroid, num_vertices);
     canopy_vertices = canopy_mesh->get_vertices();
+    loaded_canopy = true;
 }
 
 void Model::loadArray(const std::filesystem::path& path) {
@@ -78,9 +80,27 @@ void Model::loadArray(const std::filesystem::path& path) {
         array_cell_meshes.push_back(cell_mesh);
         array_cell_vertices.push_back(cell_mesh->get_vertices());
     }
+    loaded_array = true;
 }
 
-void Model::center_model() {
+void Model::init_camera() {
+    camera_distance = bsphere_radius * 1.5f;
+    camera_position = center + glm::vec3(0.0f, 0.0f, camera_distance);  // On positive z axis
+    camera_direction = glm::normalize(center - camera_position);
+
+    camera = std::make_unique<Camera>(camera_position, camera_direction,
+                                      Camera::DEFAULT_UP, Camera::DEFAULT_PHI,
+                                      Camera::DEFAULT_THETA, Camera::DEFAULT_SPEED,
+                                      Camera::DEFAULT_SENSITIVITY, Camera::DEFAULT_FOV,
+                                      camera_distance, center);
+    initialized_camera = true;
+}
+
+void Model::init_geometries() {
+    // 1. Calculate centroids
+    centroid /= static_cast<float>(num_vertices);
+
+    // 2. Center the model around the origin
     array_cell_vertices.resize(0);
     for (std::shared_ptr<Mesh>& mesh : array_cell_meshes) {
         mesh->center_mesh(centroid, true);
@@ -91,36 +111,20 @@ void Model::center_model() {
     canopy_mesh->center_mesh(centroid, true);
     canopy_vertices = canopy_mesh->get_vertices();
     update_max_min_values(canopy_mesh);
-}
 
-void Model::calc_centroid() {
-    centroid /= static_cast<float>(num_vertices);
-}
-
-void Model::init_camera() {
+    // 3. Calculate bounding box and bounding sphere lengths
     center = glm::vec3((max_values.x + min_values.x) / 2.0f,
                         (max_values.y + min_values.y) / 2.0f,
                         (max_values.z + min_values.z) / 2.0f);
     bbox_length = glm::length(max_values - min_values);
-    bsphere_radius = bbox_length / 2.0f;
-    camera_distance = bsphere_radius * 1.5f;
-    camera_position = center + glm::vec3(0.0f, 0.0f, camera_distance);  // On positive z axis
-    camera_direction = glm::normalize(center - camera_position);
+    bsphere_radius = bbox_length;
 
-    camera = std::make_shared<Camera>(camera_position, camera_direction,
-                                      Camera::DEFAULT_UP, Camera::DEFAULT_PHI,
-                                      Camera::DEFAULT_THETA, Camera::DEFAULT_SPEED,
-                                      Camera::DEFAULT_SENSITIVITY, Camera::DEFAULT_FOV,
-                                      camera_distance, center);
+    initialized_geometries = true;
 }
 
 void Model::init_shaders() {
-    // Build and compile shaders
-    // if (see_heat_map) {
-    //     shaders = std::make_shared<Shader>("../data/shaders/model_heat.vs", "../data/shaders/model_heat.fs");
-    // } else {
-        shaders = std::make_shared<Shader>("../data/shaders/model.vs", "../data/shaders/model.fs");
-    //}
+    shaders = std::make_unique<Shader>("../data/shaders/model.vs", "../data/shaders/model.fs");
+    initialized_shaders = true;
 }
 
 void Model::update_max_min_values(const std::shared_ptr<Mesh>& mesh) {

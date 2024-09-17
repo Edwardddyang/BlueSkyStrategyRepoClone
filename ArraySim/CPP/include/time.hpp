@@ -59,7 +59,7 @@ public:
 	void print_local_readable_time() {std::cout << get_local_readable_time() << std::endl;}
 	
 	/** @brief Get human readable local time as a string */
-	std::string get_local_readable_time();
+	std::string get_local_readable_time() const;
 };
 
 #endif /* CUSTOM_TIME_H */

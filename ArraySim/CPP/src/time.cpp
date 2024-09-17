@@ -151,7 +151,7 @@ bool Time::operator<(const Time& other) const {
 	return false;
 }
 
-std::string Time::get_local_readable_time() {
+std::string Time::get_local_readable_time() const {
 	if (hh_mm_ss_only) {
 		std::string time_s = std::to_string(m_datetime_local.tm_hour) + ":" 
 							 + std::to_string(m_datetime_local.tm_min) + ":" 

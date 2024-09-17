@@ -8,7 +8,14 @@
 #include <filesystem>
 #include <memory>
 
-/* Holds the 3D model CAD object formed by both the array cells and canopy */
+/* Holds the 3D model CAD object formed by both the array cells and canopy 
+ * Standard instantiation for drawing is as follows:
+ * loadCanopy()
+ * loadArray()
+ * init_geometries()
+ * init_camera()
+ * init_shaders()
+*/
 class Model {
 public:
     Model()
@@ -27,14 +34,18 @@ public:
      */
     void loadArray(const std::filesystem::path& path);
 
-    /** @brief Center the model (array and canopy) around 0,0,0 */
-    void center_model();
+    bool loaded_canopy = false;
+    bool loaded_array = false;
+    bool initialized_geometries = false;
+    bool initialized_camera = false;
+    bool initialized_shaders = false;
 
-    /** @brief Calculate the centroid of the entire model */
-    void calc_centroid();
-
-    bool loaded_canopy;
-    bool loaded_array;
+    /** @brief Initialize geometries
+     * - Calculate the centroid
+     * - Center the model around the origin
+     * - Calculate the bounding box and bounding sphere lengths
+     */
+    void init_geometries();
 
     /** @brief Initialize the camera object to view the 3D scene within an OpenGL context */
     void init_camera();
@@ -52,53 +63,61 @@ public:
      */
     void Draw(double window_width, double window_height, std::vector<glm::vec3> colours, int cell_idx = 1, bool outline = false);
 
-    /** @brief  */
+    // Getters
     glm::vec3 get_max_values() const {return max_values;}
     glm::vec3 get_min_values() const {return min_values;}
     glm::vec3 get_center() const {return center;}
     float get_bbox_length() const {return bbox_length;}
     float get_bsphere_radius() const {return bsphere_radius;}
     float get_camera_distance() const {return camera_distance;}
-
-    // For viewing and navigating the scene
-    std::shared_ptr<Camera> camera;
-
     std::shared_ptr<Mesh> get_canopy_mesh() {return canopy_mesh;}
     std::vector<std::shared_ptr<Mesh>> get_array_cell_meshes() {return array_cell_meshes;}
-
     std::vector<Vertex> get_canopy_vertices() {return canopy_mesh->get_vertices();}
     std::vector<std::vector<Vertex>> get_array_cell_vertices() {return array_cell_vertices;}
+
+    // Camera object used to navigate the CAD model within an OpenGL context
+    std::unique_ptr<Camera> camera;
 private:
-    std::shared_ptr<Shader> shaders;
-    // A model is composed of many meshes
+    // Shader used to draw the CAD model in an OpenGL context
+    std::unique_ptr<Shader> shaders;
+
+    // Mesh representations for the canopy and array cells
     std::shared_ptr<Mesh> canopy_mesh;
     std::vector<std::shared_ptr<Mesh>> array_cell_meshes;
 
-    // Max and min coordinate values along each dimension
+    // Max and min coordinate values along each cartesian dimension
     glm::vec3 max_values;
     glm::vec3 min_values;
 
-    // Vertices
+    // Vertices making up the canopy and array cells
     std::vector<std::vector<Vertex>> array_cell_vertices;
     std::vector<Vertex> canopy_vertices;
 
-    // Total number of vertices in both the array and canopy
+    // Total number of vertices from both the array and canopy
     size_t num_vertices;
 
-    // Centroid of all points from the array and canopy
+    // Centroid of the entire array+canopy model
     glm::vec3 centroid;
-    // Center of bounding box defined by max_values and min_values
+
+    // Center of the rectangular bounding box defined by max_values and min_values
     glm::vec3 center;
+
     // Diagonal length of the bounding box
     float bbox_length;
+
     // Radius of the bounding sphere
     float bsphere_radius;
-    // The distance of the camera relative to the center of the bounding box
+
+    // The scalar distance of the camera relative to the center of the bounding box
     float camera_distance;
+
     // Position of the camera
     glm::vec3 camera_position;
+
     // Direction that the camera is pointing in
     glm::vec3 camera_direction;
+
+    // Helper to update the max_values, min_values when loading a new mesh
     void update_max_min_values(const std::shared_ptr<Mesh>& mesh);
 };
 

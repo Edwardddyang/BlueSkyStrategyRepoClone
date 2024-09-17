@@ -11,7 +11,7 @@
 #include "Utilities.hpp"
 
 /* Static declarations */
-std::shared_ptr<GUI> GUI::instance = nullptr;
+std::unique_ptr<GUI> GUI::instance = nullptr;
 GLFWwindow* GUI::window = nullptr;
 
 void GUI::render_underlined_text(const char* text) {
@@ -31,9 +31,9 @@ void GUI::render_underlined_text(const char* text) {
                        IM_COL32(255, 255, 255, 255), thickness);
 }
 
-std::shared_ptr<GUI> GUI::get_instance() {
+std::unique_ptr<GUI>& GUI::get_instance() {
     if (instance == nullptr) {
-        instance = std::make_shared<GUI>(GUI());
+        instance = std::make_unique<GUI>(GUI());
     }
     return instance;
 }
@@ -450,20 +450,20 @@ void GUI::render_step_two_layout() {
             car_model = std::make_shared<Model>();
             car_model->loadCanopy(canopy_stl_file_path.string());
             car_model->loadArray(cell_stl_folder_path.string());
-            std::shared_ptr<SunPositionLUT> sun_position = std::make_shared<SunPositionLUT>(sun_positions_path);
+            std::unique_ptr<SunPositionLUT> sun_position = std::make_unique<SunPositionLUT>(sun_positions_path);
 
-            irradiance_csv = std::make_shared<CellIrradianceSim>(false);
+            irradiance_sim = std::make_unique<CellIrradianceSim>(car_model, false);
             car_speed = kph2mps(car_speed);
             if (sim_type == static_cast<int>(CellIrradianceSim::SimType::DYNAMIC)) {
-                std::shared_ptr<RouteLUT> route_lut = std::make_shared<RouteLUT>(route_path);
-                std::shared_ptr<Time> start_route_time = std::make_shared<Time>(start_route_time_buffer);
-                std::shared_ptr<Time> end_route_time = std::make_shared<Time>(end_route_time_buffer);
-                irradiance_csv->run_dynamic_sim(sun_position, car_model, route_lut, (double)car_speed, direction,
+                std::unique_ptr<RouteLUT> route_lut = std::make_unique<RouteLUT>(route_path);
+                std::unique_ptr<Time> start_route_time = std::make_unique<Time>(start_route_time_buffer);
+                std::unique_ptr<Time> end_route_time = std::make_unique<Time>(end_route_time_buffer);
+                irradiance_sim->run_dynamic_sim(sun_position, route_lut, (double)car_speed, direction,
                                                 start_route_time, end_route_time);
-                irradiance_csv->write_dynamic_csv(irradiance_csv_name, "metadata.csv");
+                irradiance_sim->write_dynamic_csv(irradiance_csv_name, "metadata.csv");
             } else {
-                irradiance_csv->run_static_sim(sun_position, car_model, (double)bearing, direction);
-                irradiance_csv->write_static_csv(irradiance_csv_name);
+                irradiance_sim->run_static_sim(sun_position, (double)bearing, direction);
+                irradiance_sim->write_static_csv(irradiance_csv_name);
             }
         } catch (const std::exception& e) {
             is_error_popup_open = true;
@@ -578,7 +578,7 @@ void GUI::render_step_three_layout() {
 
     // Sun position information
     if (irradiance_visualized && (0 < curr_irr_row < num_irr_csv_rows) && sun_position_lut != nullptr) {
-        time_of_day = "Time Of Day: " + sun_position_lut->get_time(curr_irr_row);
+        time_of_day = "Time Of Day: " + sun_position_lut->get_time_value(curr_irr_row);
         azimuth = "Azimuth: " + std::to_string(sun_position_lut->get_azimuth_value(curr_irr_row));
         elevation = "Elevation: " + std::to_string(sun_position_lut->get_elevation_value(curr_irr_row));
         irradiance = "Irradiance: " + std::to_string(sun_position_lut->get_irradiance_value(curr_irr_row));
@@ -593,10 +593,10 @@ void GUI::render_step_three_layout() {
             elevation = "Elevation: " + std::to_string(sun_position_lut->get_elevation_value(sun_position_idx));
             irradiance = "Irradiance: " + std::to_string(sun_position_lut->get_irradiance_value(sun_position_idx));  
             bearing_label = "Car Bearing: " + std::to_string(irradiance_csv->get_bearing_value(curr_irr_row));
-            Coord coord = irradiance_csv->get_coordinate_value(curr_irr_row);
+            Coord coord = irradiance_csv->get_coord_value(curr_irr_row);
             coordinate_label = "Coordinates of Car: " + std::to_string(coord.lat) + ", " + std::to_string(coord.lon) + ", " + std::to_string(coord.alt);
         } else {
-            time_of_day = "Time Of Day: " + sun_position_lut->get_time(curr_irr_row);
+            time_of_day = "Time Of Day: " + sun_position_lut->get_time_value(curr_irr_row);
             azimuth = "Azimuth: " + std::to_string(sun_position_lut->get_azimuth_value(curr_irr_row));
             elevation = "Elevation: " + std::to_string(sun_position_lut->get_elevation_value(curr_irr_row));
             irradiance = "Irradiance: " + std::to_string(sun_position_lut->get_irradiance_value(curr_irr_row));
@@ -642,8 +642,7 @@ void GUI::render_step_three_layout() {
         car_model = std::make_shared<Model>();
         car_model->loadCanopy(canopy_stl_file_path_v.string());
         car_model->loadArray(cell_stl_folder_path_v.string());
-        car_model->calc_centroid();
-        car_model->center_model();
+        car_model->init_geometries();
         car_model->init_camera();
         car_model->init_shaders();
         glm::vec3 min = car_model->get_min_values();
@@ -662,21 +661,21 @@ void GUI::render_step_three_layout() {
         last_frame = 0.0f;
 
         if (!sun_positions_path.empty()) {
-            sun_position_lut = std::make_shared<SunPositionLUT>(sun_positions_path);
+            sun_position_lut = std::make_unique<SunPositionLUT>(sun_positions_path);
         }
 
         if (!metadata_csv_file_path.empty()) {
             show_dynamic_params = true;
-            irradiance_csv = std::make_shared<CellIrradianceSim>(irradiance_csv_file_path,
+            irradiance_csv = std::make_shared<CellIrradianceCsv>(irradiance_csv_file_path,
                                                                 metadata_csv_file_path);
         } else {
             show_dynamic_params = false;
-            irradiance_csv = std::make_shared<CellIrradianceSim>(irradiance_csv_file_path);
+            irradiance_csv = std::make_shared<CellIrradianceCsv>(irradiance_csv_file_path);
         }
         
         std::vector<double> irradiance_values;
         std::pair<double, double> irradiance_limits = irradiance_csv->get_irradiance_limits();
-        std::vector<std::vector<double>> values = irradiance_csv->get_irradiance_csv();
+        std::vector<std::vector<double>> values = irradiance_csv->get_csv_data();
         num_irr_csv_rows = values.size();
         for (size_t i = 0; i < num_irr_csv_rows; i++) {
             std::vector<glm::vec3> colours;
@@ -694,8 +693,7 @@ void GUI::render_step_three_layout() {
         car_model->init_shaders();
         car_model->loadCanopy(canopy_stl_file_path_v.string());
         car_model->loadArray(cell_stl_folder_path_v.string());
-        car_model->calc_centroid();
-        car_model->center_model();
+        car_model->init_geometries();
         car_model->init_camera();
         num_array_cells = car_model->get_array_cell_meshes().size();
         std::cout << "Finished rendering car" << std::endl;    
@@ -712,7 +710,7 @@ void GUI::render_step_three_layout() {
         std::vector<glm::vec3> colours = {};
         if (irradiance_csv != nullptr && irradiance_visualized) {
             if (curr_irr_row >= num_irr_csv_rows || curr_irr_row < 0) curr_irr_row = 0;
-            irradiance_values = irradiance_csv->get_irradiance_csv()[curr_irr_row];
+            irradiance_values = irradiance_csv->get_csv_data()[curr_irr_row];
             irradiance_limits = irradiance_csv->get_irradiance_limits();
             colours = cell_colours[curr_irr_row];
             if (-1 > curr_cell_idx || curr_cell_idx >= num_array_cells) curr_cell_idx = -1;

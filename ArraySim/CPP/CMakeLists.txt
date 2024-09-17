@@ -48,6 +48,7 @@ set (PROJECT_SOURCES
     ${CMAKE_SOURCE_DIR}/src/Utilities.cpp
     ${CMAKE_SOURCE_DIR}/src/irradiance/CellIrradianceSim.cpp
     ${CMAKE_SOURCE_DIR}/src/time.cpp
+    ${CMAKE_SOURCE_DIR}/src/Luts.cpp
 )
 
 add_executable(arraySim ${PROJECT_SOURCES})
