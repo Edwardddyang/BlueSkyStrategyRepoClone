@@ -410,6 +410,10 @@ void GUI::render_step_two_layout() {
     ImGui::RadioButton("Dynamic Simulation", &sim_type, static_cast<int>(CellIrradianceSim::SimType::DYNAMIC));
     ImGui::RadioButton("Static Simulation", &sim_type, static_cast<int>(CellIrradianceSim::SimType::STATIC));
 
+    ImGui::Checkbox("Precise Shadow Calculation", &precise_shadow_calculation);
+    insert_tooltip("Whether to perform precise shadow calculations for partially shaded cells.\n"
+                    "This is significantly slower if set to true.");
+
     ImGui::SetNextItemWidth(text_field_width);
     ImGui::InputText("Direction", &direction);
     insert_tooltip("Direction of the nose of the car. Usually \"-x\". Confirm with the CAD of the car");
@@ -424,7 +428,7 @@ void GUI::render_step_two_layout() {
 
     ImGui::SetNextItemWidth(text_field_width);
     ImGui::InputFloat("Car Speed", &car_speed);
-    insert_tooltip("Speed that the car travels around the Route in m/s.\n"
+    insert_tooltip("Speed that the car travels around the Route in kph.\n"
                     "This should only be used for a dynamic simulation.");
 
     ImGui::SetNextItemWidth(text_field_width);
@@ -452,17 +456,18 @@ void GUI::render_step_two_layout() {
             car_model->loadArray(cell_stl_folder_path.string());
             std::unique_ptr<SunPositionLUT> sun_position = std::make_unique<SunPositionLUT>(sun_positions_path);
 
-            irradiance_sim = std::make_unique<CellIrradianceSim>(car_model, false);
-            car_speed = kph2mps(car_speed);
+            // Run the simulation
+            irradiance_sim = std::make_unique<CellIrradianceSim>(car_model, precise_shadow_calculation);
             if (sim_type == static_cast<int>(CellIrradianceSim::SimType::DYNAMIC)) {
                 std::unique_ptr<RouteLUT> route_lut = std::make_unique<RouteLUT>(route_path);
-                std::unique_ptr<Time> start_route_time = std::make_unique<Time>(start_route_time_buffer);
-                std::unique_ptr<Time> end_route_time = std::make_unique<Time>(end_route_time_buffer);
-                irradiance_sim->run_dynamic_sim(sun_position, route_lut, (double)car_speed, direction,
+                Time start_route_time(start_route_time_buffer);
+                Time end_route_time(end_route_time_buffer);
+                std::string metadata_csv_name = irradiance_csv_name.substr(0, irradiance_csv_name.find(".csv")) + "_metadata.csv";
+                irradiance_sim->run_dynamic_sim(sun_position, route_lut, static_cast<double>(kph2mps(car_speed)), direction,
                                                 start_route_time, end_route_time);
-                irradiance_sim->write_dynamic_csv(irradiance_csv_name, "metadata.csv");
+                irradiance_sim->write_dynamic_csv(irradiance_csv_name, metadata_csv_name);
             } else {
-                irradiance_sim->run_static_sim(sun_position, (double)bearing, direction);
+                irradiance_sim->run_static_sim(sun_position, static_cast<double>(bearing), direction);
                 irradiance_sim->write_static_csv(irradiance_csv_name);
             }
         } catch (const std::exception& e) {
@@ -489,10 +494,8 @@ bool GUI::check_irrCsv_args() {
     if (direction.empty()) {
         are_args_valid = false;
         error_popup_message += "No nose direction entered\n";
-    }
-
-    if (direction != "-x" && direction != "+x" &&
-        direction != "-y" && direction != "+y") {
+    } else if (direction != "-x" && direction != "+x" &&
+               direction != "-y" && direction != "+y") {
         are_args_valid = false;
         error_popup_message += "Nose direction must be one of {-x, +x, -y, +y}\n";
     }
@@ -510,6 +513,9 @@ bool GUI::check_irrCsv_args() {
     if (irradiance_csv_name.empty()) {
         are_args_valid = false;
         error_popup_message += "No output csv name given\n";
+    } else if (irradiance_csv_name.find(".csv") == std::string::npos) {
+        are_args_valid = false;
+        error_popup_message += "Irradiance CSV must end in .csv";
     }
 
     if (sim_type == static_cast<int>(CellIrradianceSim::SimType::DYNAMIC)) {
@@ -557,7 +563,7 @@ void GUI::render_step_three_layout() {
                              ".stl", canopy_stl_file_path_v, path);
     insert_tooltip("STL file of the canopy");
 
-    insert_file_dialog_button("Sun Position CSV", &button_size, "SunCsvFile", "Choose File", ".csv", sun_positions_path, path);
+    insert_file_dialog_button("Sun Position CSV", &button_size, "SunCsvFile", "Choose File", ".csv", sun_positions_path_v, path);
     insert_tooltip("CSV file describing the path of the sun (Step 1)");
     
     insert_file_dialog_button("Irradiance CSV", &button_size, "csvFile", "Choose File", ".csv", irradiance_csv_file_path, path);
@@ -567,21 +573,134 @@ void GUI::render_step_three_layout() {
     insert_file_dialog_button("Metadata CSV", &button_size, "metadataFile", "Choose File", ".csv", metadata_csv_file_path, path);
     insert_tooltip("CSV file generated from a dynamic simulation. This is only necessary if you want to visualize shadows\n"
                     "from a dynamic simulation");
+
     ImGui::SetNextItemWidth(irr_row_width);
     ImGui::InputInt("Sun Position Row", &curr_irr_row);
-    insert_tooltip("The row in the irradiance csv to display. This is equivalent\n"
-                    "to the desired sun position row in the sun positions csv.");
+    insert_tooltip("The row in the irradiance csv to display. For the results of\n"
+                    "a static simulation, this is equivalent to the desired sun\n"
+                    "position row in the sun positions csv.");
 
     ImGui::SetNextItemWidth(irr_row_width);
     ImGui::InputInt("Cell Highlight", &curr_cell_idx);
-    insert_tooltip("The cell to highlight in white");
+    insert_tooltip("The cell to highlight in red");
 
-    // Sun position information
-    if (irradiance_visualized && (0 < curr_irr_row < num_irr_csv_rows) && sun_position_lut != nullptr) {
-        time_of_day = "Time Of Day: " + sun_position_lut->get_time_value(curr_irr_row);
-        azimuth = "Azimuth: " + std::to_string(sun_position_lut->get_azimuth_value(curr_irr_row));
-        elevation = "Elevation: " + std::to_string(sun_position_lut->get_elevation_value(curr_irr_row));
-        irradiance = "Irradiance: " + std::to_string(sun_position_lut->get_irradiance_value(curr_irr_row));
+    ImGui::NewLine();
+
+    // User chooses to see only the array and canopy
+    if (ImGui::Button("See Car", button_size)) {
+        if (!check_visualization_args()) {
+            return;
+        }
+        try {
+            // Take input from both the mouse and keyboard
+            glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+
+            // Prepare the car model for visualization
+            car_model = std::make_shared<Model>();
+            car_model->loadCanopy(canopy_stl_file_path_v.string());
+            car_model->loadArray(cell_stl_folder_path_v.string());
+            car_model->init_geometries();
+            car_model->init_camera();
+            car_model->init_shaders();
+
+            // Reset visualization variables
+            car_visualized = true;
+            first_mouse_movement = true;
+            mouse_control = true;
+            delta_time = 0.0f;
+            last_frame = 0.0f;
+        } catch (const std::exception& e) {
+            is_error_popup_open = true;
+            error_popup_message += "Could not visualize the car. Caught error: " + std::string(e.what());
+        }
+    }
+
+    // User chooses to see the array, canopy and irradiance heat map
+    if (ImGui::Button("See Irradiance Map", button_size)) {
+        if (!check_visualization_args()) {
+            return;
+        }
+
+        if (!check_irradiance_visualization_args()) {
+            return;
+        }
+
+        try {
+            sun_position_lut = std::make_unique<SunPositionLUT>(sun_positions_path_v);
+            
+            // If a metadata csv file was selected, then show the irradiance heat map from the
+            // results of a dynamic simulation
+            if (!metadata_csv_file_path.empty()) {
+                show_dynamic_params = true;
+                irradiance_csv = std::make_shared<CellIrradianceCsv>(irradiance_csv_file_path,
+                                                                     metadata_csv_file_path);
+            } else {
+                show_dynamic_params = false;
+                irradiance_csv = std::make_shared<CellIrradianceCsv>(irradiance_csv_file_path);
+            }
+            
+            irradiance_limits = irradiance_csv->get_irradiance_limits();
+            num_irr_csv_rows = irradiance_csv->get_num_irr_rows();
+
+            // Pre-compute cell colourings for each row of the irradiance csv
+            for (size_t i = 0; i < num_irr_csv_rows; i++) {
+                std::vector<glm::vec3> row_colours;
+                std::vector<double> irradiance_values = irradiance_csv->get_csv_row(i);
+                for (size_t j = 0; j < irradiance_values.size(); j++) {
+                    double normalized_value = (irradiance_values[j] - irradiance_limits.first) /
+                                              (irradiance_limits.second - irradiance_limits.first);
+                    const tinycolormap::Color color = tinycolormap::GetColor(normalized_value, tinycolormap::ColormapType::Jet);
+                    row_colours.push_back(glm::vec3(color.r(), color.g(), color.b()));
+                }
+                cell_colours.push_back(row_colours);
+            }
+            RUNTIME_ASSERT(cell_colours.size() == num_irr_csv_rows, "Pre-computation for cell-colourings failed");
+
+            // Take input from the keyboard and mouse
+            glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+
+            // Prepare the car model for visualization
+            car_model = std::make_shared<Model>();
+            car_model->init_shaders();
+            car_model->loadCanopy(canopy_stl_file_path_v.string());
+            car_model->loadArray(cell_stl_folder_path_v.string());
+            car_model->init_geometries();
+            car_model->init_camera();
+            num_array_cells = car_model->get_array_cell_meshes().size();
+
+            // Reset visualization variables
+            car_visualized = true;
+            first_mouse_movement = true;
+            mouse_control = true;
+            irradiance_visualized = true;
+            delta_time = 0.0f;
+            last_frame = 0.0f;
+        } catch (const std::exception& e) {
+            is_error_popup_open = true;
+            error_popup_message += "Could not visualize irradiance map. Caught exception: " + std::string(e.what());
+        }
+    }
+
+    // Visualize the array and canopy
+    if (car_visualized) {
+        float current_frame = glfwGetTime();
+        delta_time = current_frame - last_frame;
+        last_frame = current_frame;
+        process_input(window);
+
+        // Visualize the irradiance map if the users wishes to see this mode
+        std::vector<double> irradiance_values = {};
+        std::pair<double, double> irradiance_limits = {};
+        std::vector<glm::vec3> colours = {};
+        if (irradiance_visualized) {
+            // Ensure that a valid irradiance row is displayed. Default to 0
+            if (curr_irr_row >= num_irr_csv_rows || curr_irr_row < 0) curr_irr_row = 0;
+            irradiance_values = irradiance_csv->get_csv_row(curr_irr_row);
+            colours = cell_colours[curr_irr_row];
+            // Ensure that a valid highlight is shown. Default to -1 which highlights nothing
+            if (-1 > curr_cell_idx || curr_cell_idx >= num_array_cells) curr_cell_idx = -1;
+        }
+        car_model->Draw(window_width, window_height, colours, curr_cell_idx, true);
     }
 
     // Display information if the user has requested heat map mode
@@ -595,128 +714,57 @@ void GUI::render_step_three_layout() {
             bearing_label = "Car Bearing: " + std::to_string(irradiance_csv->get_bearing_value(curr_irr_row));
             Coord coord = irradiance_csv->get_coord_value(curr_irr_row);
             coordinate_label = "Coordinates of Car: " + std::to_string(coord.lat) + ", " + std::to_string(coord.lon) + ", " + std::to_string(coord.alt);
+            ImGui::Text(bearing_label.c_str());
+            ImGui::Text(coordinate_label.c_str());
         } else {
-            time_of_day = "Time Of Day: " + sun_position_lut->get_time_value(curr_irr_row);
+            time_of_day = "Time Of Day: " + sun_position_lut->get_time_value(curr_irr_row).get_local_readable_time();
             azimuth = "Azimuth: " + std::to_string(sun_position_lut->get_azimuth_value(curr_irr_row));
             elevation = "Elevation: " + std::to_string(sun_position_lut->get_elevation_value(curr_irr_row));
             irradiance = "Irradiance: " + std::to_string(sun_position_lut->get_irradiance_value(curr_irr_row));
         }
+        ImGui::Text(time_of_day.c_str());
+        ImGui::Text(azimuth.c_str());
+        ImGui::Text(elevation.c_str());
+        ImGui::Text(irradiance.c_str());
 
         if (0 < curr_cell_idx < num_array_cells) {
             cell_irradiance = "Highlighted Cell Irradiance: " + std::to_string(irradiance_csv->get_irr_value(curr_irr_row, curr_cell_idx));
+            ImGui::Text(cell_irradiance.c_str());
         }
     }
-    if (time_of_day != "") {
-        ImGui::Text(time_of_day.c_str());
-    }
-    if (azimuth != "") {
-        ImGui::Text(azimuth.c_str());
-    }
-    if (elevation != "") {
-        ImGui::Text(elevation.c_str());
-    }
-    if (irradiance != "") {
-        ImGui::Text(irradiance.c_str());
-    }
-    if (bearing_label != "") {
-        ImGui::Text(bearing_label.c_str());
-    }
-    if (coordinate_label != "") {
-        ImGui::Text(coordinate_label.c_str());
-    }
-    if (cell_irradiance != "") {
-        ImGui::Text(cell_irradiance.c_str());
-    }  
+}
 
-    ImGui::NewLine();
-    // If we have both a canopy STL and the array cell stl folder, render them
-    if (ImGui::Button("See Car", button_size)) {
-        std::cout << "Rendering car..." << std::endl;
-        // Reset visualization variables
-        car_visualized = true;
-        first_mouse_movement = true;
-        mouse_control = true;
-        delta_time = 0.0f;
-        last_frame = 0.0f;
-        glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-        car_model = std::make_shared<Model>();
-        car_model->loadCanopy(canopy_stl_file_path_v.string());
-        car_model->loadArray(cell_stl_folder_path_v.string());
-        car_model->init_geometries();
-        car_model->init_camera();
-        car_model->init_shaders();
-        glm::vec3 min = car_model->get_min_values();
-        glm::vec3 max = car_model->get_max_values();
-        std::cout << "Finished rendering car" << std::endl;
+bool GUI::check_visualization_args() {
+    bool are_args_valid = true;
+    if (cell_stl_folder_path_v.empty()) {
+        are_args_valid = false;
+        error_popup_message += "No cell STL folder supplied.\n";
     }
 
-    if (ImGui::Button("See Irradiance Map", button_size)) {
-        std::cout << "Rendering car..." << std::endl;
-        // Reset visualization variables
-        car_visualized = true;
-        first_mouse_movement = true;
-        mouse_control = true;
-        irradiance_visualized = true;
-        delta_time = 0.0f;
-        last_frame = 0.0f;
-
-        if (!sun_positions_path.empty()) {
-            sun_position_lut = std::make_unique<SunPositionLUT>(sun_positions_path);
-        }
-
-        if (!metadata_csv_file_path.empty()) {
-            show_dynamic_params = true;
-            irradiance_csv = std::make_shared<CellIrradianceCsv>(irradiance_csv_file_path,
-                                                                metadata_csv_file_path);
-        } else {
-            show_dynamic_params = false;
-            irradiance_csv = std::make_shared<CellIrradianceCsv>(irradiance_csv_file_path);
-        }
-        
-        std::vector<double> irradiance_values;
-        std::pair<double, double> irradiance_limits = irradiance_csv->get_irradiance_limits();
-        std::vector<std::vector<double>> values = irradiance_csv->get_csv_data();
-        num_irr_csv_rows = values.size();
-        for (size_t i = 0; i < num_irr_csv_rows; i++) {
-            std::vector<glm::vec3> colours;
-            std::vector<double> irradiance_values = values[i];
-            for (size_t j = 0; j < irradiance_values.size(); j++) {
-                double normalized_value = (irradiance_values[j] - irradiance_limits.first) /
-                                      (irradiance_limits.second - irradiance_limits.first);
-                const tinycolormap::Color color = tinycolormap::GetColor(normalized_value, tinycolormap::ColormapType::Jet);
-                colours.push_back(glm::vec3(color.r(), color.g(), color.b()));
-            }
-            cell_colours.push_back(colours);
-        }
-        glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-        car_model = std::make_shared<Model>();
-        car_model->init_shaders();
-        car_model->loadCanopy(canopy_stl_file_path_v.string());
-        car_model->loadArray(cell_stl_folder_path_v.string());
-        car_model->init_geometries();
-        car_model->init_camera();
-        num_array_cells = car_model->get_array_cell_meshes().size();
-        std::cout << "Finished rendering car" << std::endl;    
+    if (canopy_stl_file_path_v.empty()) {
+        are_args_valid = false;
+        error_popup_message += "No canopy STL file supplied.\n";
     }
 
-    if (car_visualized) {
-        // Draw the meshes
-        float current_frame = glfwGetTime();
-        delta_time = current_frame - last_frame;
-        last_frame = current_frame;
-        process_input(window);
-        std::vector<double> irradiance_values = {};
-        std::pair<double, double> irradiance_limits = {};
-        std::vector<glm::vec3> colours = {};
-        if (irradiance_csv != nullptr && irradiance_visualized) {
-            if (curr_irr_row >= num_irr_csv_rows || curr_irr_row < 0) curr_irr_row = 0;
-            irradiance_values = irradiance_csv->get_csv_data()[curr_irr_row];
-            irradiance_limits = irradiance_csv->get_irradiance_limits();
-            colours = cell_colours[curr_irr_row];
-            if (-1 > curr_cell_idx || curr_cell_idx >= num_array_cells) curr_cell_idx = -1;
-        }
-        car_model->Draw(window_width, window_height, colours, curr_cell_idx, true);
+    is_error_popup_open = !are_args_valid;
+    return are_args_valid;
+}
+
+bool GUI::check_irradiance_visualization_args() {
+    bool are_args_valid = true;
+    
+    if (sun_positions_path_v.empty()) {
+        are_args_valid = false;
+        error_popup_message += "No sun positions csv file supplied.\n";
     }
+
+    if (irradiance_csv_file_path.empty()) {
+        are_args_valid = false;
+        error_popup_message += "No irradiance csv file supplied.\n";
+    }
+
+    is_error_popup_open = !are_args_valid;
+    return are_args_valid;
 }
 
 void GUI::insert_file_dialog_button(const char* button_name, 
@@ -869,17 +917,21 @@ void GUI::process_input(GLFWwindow *window)
         return;
     }
 
+    // Relinquish orbital control of the mouse
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
         glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
         last_key_pressed = GLFW_KEY_ESCAPE;
         mouse_control = false;
     }
+    // Allow orbital control for the mouse
     if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS) {
         glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
         last_key_pressed = GLFW_KEY_Q;
         mouse_control = true;
     }
-    
+
+    // When the irradiance heat map is visualized, arrow keys can be used to
+    // navigate the row of the irradiance csv to visualize
     if (irradiance_visualized) {
         bool perform_row_mod = false;
         bool valid_key_pressed = true;
@@ -915,19 +967,19 @@ void GUI::process_input(GLFWwindow *window)
     if (!mouse_control) return;
 
     if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
-        car_model->camera->ProcessKeyboard(Camera_Movement::FORWARD, delta_time);
+        car_model->camera->ProcessKeyboard(Camera::CameraMovement::FORWARD, delta_time);
         last_key_pressed = GLFW_KEY_W;
     }
     if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) {
-        car_model->camera->ProcessKeyboard(Camera_Movement::BACKWARD, delta_time);
+        car_model->camera->ProcessKeyboard(Camera::CameraMovement::BACKWARD, delta_time);
         last_key_pressed = GLFW_KEY_S;
     }
     if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) {
-        car_model->camera->ProcessKeyboard(Camera_Movement::LEFT, delta_time);
+        car_model->camera->ProcessKeyboard(Camera::CameraMovement::LEFT, delta_time);
         last_key_pressed = GLFW_KEY_A;
     }
     if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) {
-        car_model->camera->ProcessKeyboard(Camera_Movement::RIGHT, delta_time);
+        car_model->camera->ProcessKeyboard(Camera::CameraMovement::RIGHT, delta_time);
         last_key_pressed = GLFW_KEY_D;
     }
 }

@@ -3,6 +3,7 @@
 
 #include <string>
 #include "Shader.hpp"
+#include "Globals.h"
 #include "mesh.hpp"
 #include "camera.hpp"
 #include <filesystem>
@@ -18,6 +19,7 @@
 */
 class Model {
 public:
+    /** @brief Default constructor */
     Model()
         : loaded_canopy(false), loaded_array(false),
         max_values(glm::vec3(std::numeric_limits<float>::lowest())),
@@ -25,20 +27,17 @@ public:
         centroid(glm::vec3(0.0,0.0,0.0)), num_vertices(0) {};
     
     /** @brief Load the canopy .stl file
-     * @param path: Full path to a .stl file
+     * @param path: Absolute path to a .stl file
      */
     void loadCanopy(const std::filesystem::path& path);
 
     /** @brief Load the array .stl files
-     * @param path: Full path to a directory containing exclusively .stl files
+     * @param path: Absolute path to a directory containing exclusively cell .stl files.
+     * 
+     * Note: If the directory contains the canopy as well, then CellIrradianceSim will not
+     * work lol
      */
     void loadArray(const std::filesystem::path& path);
-
-    bool loaded_canopy = false;
-    bool loaded_array = false;
-    bool initialized_geometries = false;
-    bool initialized_camera = false;
-    bool initialized_shaders = false;
 
     /** @brief Initialize geometries
      * - Calculate the centroid
@@ -50,7 +49,7 @@ public:
     /** @brief Initialize the camera object to view the 3D scene within an OpenGL context */
     void init_camera();
 
-    /** @brief Initialize the shaders for viewing the 3D OpenGL scene */
+    /** @brief Initialize the fragment and vertex shaders for viewing the 3D OpenGL scene */
     void init_shaders();
 
     /** @brief Draw the canopy and array within an OpenGL context
@@ -64,19 +63,29 @@ public:
     void Draw(double window_width, double window_height, std::vector<glm::vec3> colours, int cell_idx = 1, bool outline = false);
 
     // Getters
-    glm::vec3 get_max_values() const {return max_values;}
-    glm::vec3 get_min_values() const {return min_values;}
-    glm::vec3 get_center() const {return center;}
-    float get_bbox_length() const {return bbox_length;}
-    float get_bsphere_radius() const {return bsphere_radius;}
-    float get_camera_distance() const {return camera_distance;}
-    std::shared_ptr<Mesh> get_canopy_mesh() {return canopy_mesh;}
-    std::vector<std::shared_ptr<Mesh>> get_array_cell_meshes() {return array_cell_meshes;}
-    std::vector<Vertex> get_canopy_vertices() {return canopy_mesh->get_vertices();}
-    std::vector<std::vector<Vertex>> get_array_cell_vertices() {return array_cell_vertices;}
+    inline glm::vec3 get_max_values() const {return max_values;}
+    inline glm::vec3 get_min_values() const {return min_values;}
+    inline glm::vec3 get_center() const {return center;}
+    inline float get_bbox_length() const {return bbox_length;}
+    inline float get_bsphere_radius() const {return bsphere_radius;}
+    inline float get_camera_distance() const {return camera_distance;}
+    inline std::shared_ptr<Mesh> get_canopy_mesh() {return canopy_mesh;}
+    inline std::vector<std::shared_ptr<Mesh>> get_array_cell_meshes() {return array_cell_meshes;}
+    inline std::vector<Vertex> get_canopy_vertices() {
+        RUNTIME_ASSERT(canopy_mesh != nullptr, "Canopy Mesh not loaded. Did you call loadCanopy()?");
+        return canopy_mesh->get_vertices();
+    }
+    inline std::vector<std::vector<Vertex>> get_array_cell_vertices() {return array_cell_vertices;}
 
     // Camera object used to navigate the CAD model within an OpenGL context
     std::unique_ptr<Camera> camera;
+
+    // Load statuses
+    bool loaded_canopy = false;
+    bool loaded_array = false;
+    bool initialized_geometries = false;
+    bool initialized_camera = false;
+    bool initialized_shaders = false;
 private:
     // Shader used to draw the CAD model in an OpenGL context
     std::unique_ptr<Shader> shaders;
@@ -116,6 +125,9 @@ private:
 
     // Direction that the camera is pointing in
     glm::vec3 camera_direction;
+
+    // Fill colour for the canopy and array (white)
+    const glm::vec3 fill_colour = glm::vec3(1.0,1.0,1.0);
 
     // Helper to update the max_values, min_values when loading a new mesh
     void update_max_min_values(const std::shared_ptr<Mesh>& mesh);

@@ -44,22 +44,25 @@ public:
 	bool operator<(const Time& other) const;
 
 	/** @brief Get current hour in 24 hour format */
-    inline int get_local_hours() { return m_datetime_local.tm_hour; }
+    inline int get_local_hours() const { return m_datetime_local.tm_hour; }
 
 	/** @brief Get epoch timestamp representing the local time */
-	inline time_t get_local_time_point() { return t_datetime_local; }
+	inline time_t get_local_time_point() const { return t_datetime_local; }
 
 	/** @brief Get c++ tm struct of the current local time */
-	inline tm get_local_tm() { return m_datetime_local; }
+	inline tm get_local_tm() const { return m_datetime_local; }
 
 	/** @brief Advance the current time by a certain number of seconds */
     void update_time_seconds(double seconds);
 
 	/** @brief Print human readable local time */
-	void print_local_readable_time() {std::cout << get_local_readable_time() << std::endl;}
+	void print_local_readable_time() const {std::cout << get_local_readable_time() << std::endl;}
 	
-	/** @brief Get human readable local time as a string */
+	/** @brief Get human readable local time (Weekday Mon Day HH:MM:SS) */
 	std::string get_local_readable_time() const;
+
+	/** @brief Get human readable local time (YYYY-MM-DD HH:MM:SS) */
+	std::string get_local_constructor_time() const;
 };
 
 #endif /* CUSTOM_TIME_H */

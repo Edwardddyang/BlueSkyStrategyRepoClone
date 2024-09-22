@@ -66,7 +66,8 @@ SunPositionLUT::SunPositionLUT(const std::filesystem::path& path)  {
         irradiance.emplace_back(irradianceValue);
 
         std::getline(linestream, cell, ',');
-        time.emplace_back(cell);
+        times.emplace_back(Time(cell));
+
         num_rows++;
     }
     RUNTIME_ASSERT(num_rows > 0, "SunPosition LUT has no data " + path.string());
@@ -74,7 +75,7 @@ SunPositionLUT::SunPositionLUT(const std::filesystem::path& path)  {
     RUNTIME_ASSERT(num_rows == azimuth.size() &&
                     num_rows == elevation.size() &&
                     num_rows == irradiance.size() &&
-                    num_rows == time.size(),
+                    num_rows == times.size(),
                     "SunPosition LUT parsing has gone terribly wrong");
 }
 
@@ -150,6 +151,7 @@ CellIrradianceCsv::CellIrradianceCsv(const std::filesystem::path irr_csv_path,
             std::getline(linestream, cell, ',');
             time_s = cell;
             time_strings.emplace_back(time_s);
+            times.emplace_back(Time(time_s));
 
             std::getline(linestream, cell, ',');
             sun_position_cache = std::stoi(cell);
@@ -240,7 +242,7 @@ void CellIrradianceCsv::write_metadata_csv(const std::filesystem::path csv_path)
     for (const Coord coord : coordinates) {
         metadata_csv << bearings[idx] << ','
                     << coord.lat << ',' << coord.lon << ',' << coord.alt << ','
-                    << times[idx].get_local_readable_time() << ',' << sun_position_caches[idx] << ",\n";
+                    << times[idx].get_local_constructor_time() << ',' << sun_position_caches[idx] << ",\n";
         idx++;
     }
     metadata_csv.close();

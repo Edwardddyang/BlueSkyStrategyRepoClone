@@ -1,7 +1,5 @@
 #include "camera.hpp"
 
-const float Camera::DEFAULT_YAW = -90.0f;
-const float Camera::DEFAULT_PITCH = 0.0f;
 const float Camera::DEFAULT_SPEED = 200.0f;
 const float Camera::DEFAULT_SENSITIVITY = 0.1f;
 const float Camera::DEFAULT_FOV = 45.0f;

@@ -8,6 +8,7 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
+#include <filesystem>
 
 class Shader
 {
@@ -17,7 +18,7 @@ public:
     unsigned int get_uid() const {return uid;};
   
     // constructor reads and builds the shader
-    Shader(const char* vertexPath, const char* fragmentPath);
+    Shader(const std::filesystem::path& vertex_shader_path, const std::filesystem::path& fragment_shader_path);
     Shader() {}
     // use/activate the shader
     void use();

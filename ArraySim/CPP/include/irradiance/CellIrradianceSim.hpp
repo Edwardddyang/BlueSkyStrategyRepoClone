@@ -68,8 +68,8 @@ public:
      * @param end_time: Ending time of the dynamic simulation
     */
     void run_dynamic_sim(const std::unique_ptr<SunPositionLUT>& sun_position_lut,
-                        const std::unique_ptr<RouteLUT>& route_lut, double speed, std::string direction,
-                        const std::unique_ptr<Time>& start_time, const std::unique_ptr<Time>& end_time);
+                        const std::unique_ptr<RouteLUT>& route_lut, double speed,
+                        std::string direction, Time start_time, Time end_time);
 
     /** @brief Run a static simulation (Car is stationary) and create an irradiance csv
      * @param sun_position_lut: SunPositionLUT csv object describing the path of the sun in the sky
@@ -91,13 +91,14 @@ private:
     std::vector<Vertex> canopy_vertices;
     std::vector<std::vector<Vertex>> array_cells;
 
-    // Type of simulation ran
+    // Type of simulation being run
     SimType sim_type;
 
     // Whether the partially shaded cells were calculated accurately or approximated
     bool partial_shadows;
 
-    // Number of rays to generate for each partially shaded triangle
+    // Number of rays to generate for each partially shaded triangle when performing the precise
+    // shadow calculation for partially shaded cells
     const int NUM_RAYS = 3000;
 
     /** @brief Create a row of the output irradiance csv
@@ -107,6 +108,12 @@ private:
      */
     std::vector<double> construct_csv_row(const std::unique_ptr<SunPlane>& sun_plane);
 
+    /** @brief Get the bearing of the car pointing from src_coord to dest_coord in degrees
+     * @param src_coord: Where the car is physically located
+     * @param dest_coord: Where the car is pointed to
+     */
     double get_bearing(Coord src_coord, Coord dest_coord);
+
+    /** @brief Get the distance from src_coord to dest_coord in meters */
     double get_distance(Coord src_coord, Coord dest_coord);
 };

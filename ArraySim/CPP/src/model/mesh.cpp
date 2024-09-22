@@ -14,9 +14,8 @@ void Mesh::setupMesh() {
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
     glBufferData(GL_ARRAY_BUFFER, vertices.size()*sizeof(Vertex), &vertices[0], GL_STATIC_DRAW);
 
-    // Load indices
+    // Load indices (flattened version of the faces vector)
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-    // Flatten faces vector for the indices vector
     indices.reserve(faces.size() * NUM_TRI_VERTS);
     for (const auto& face : faces) {
         for (size_t i = 0; i < NUM_TRI_VERTS; ++i) {
@@ -32,6 +31,7 @@ void Mesh::setupMesh() {
     // Vertex positions
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)0);
+
     // Vertex normals
     glEnableVertexAttribArray(1);
     glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, normal));
@@ -39,7 +39,7 @@ void Mesh::setupMesh() {
     glBindVertexArray(0);
 }
 
-Mesh::Mesh(const std::filesystem::path& path) {
+Mesh::Mesh(const std::filesystem::path& path, glm::vec3* centroid) {
     try {
         max_values = glm::vec3(std::numeric_limits<float>::lowest());
         min_values = glm::vec3(std::numeric_limits<float>::max());
@@ -59,6 +59,10 @@ Mesh::Mesh(const std::filesystem::path& path) {
                 vector.y = c[1];
                 vector.z = c[2];
                 vertex.position = vector;
+
+                if (centroid != nullptr) {
+                    *centroid += vector;
+                }
 
                 // Update maximum values
                 max_values.x = std::max(max_values.x, vector.x);
@@ -69,65 +73,6 @@ Mesh::Mesh(const std::filesystem::path& path) {
                 min_values.x = std::min(min_values.x, vector.x);
                 min_values.y = std::min(min_values.y, vector.y);
                 min_values.z = std::min(min_values.z, vector.z);
-
-                face[icorner] = vert_idx;
-                vertices.push_back(vertex);
-                vert_idx++;
-            }
-            faces.push_back(face);
-        
-            const float* n = mesh.tri_normal(itri);
-            face_normals.push_back(glm::vec3(n[0], n[1], n[2]));
-        }
-
-        assert(face_normals.size() == faces.size() && faces.size() == num_tris);
-
-        // Calculate the normal for each vertex
-        // For each vertex:
-        // 1. Add up the normals of the faces associated with the vertex
-        // 2. Normalize the accumulated normals at each vertex
-        size_t num_faces = faces.size();
-        for (size_t i=0; i<num_faces; i++) {
-            const std::array<size_t, NUM_TRI_VERTS> face = faces[i];
-            const glm::vec3 face_normal = face_normals[i];
-
-            vertices[face[0]].normal += face_normal;
-            vertices[face[1]].normal += face_normal;
-            vertices[face[2]].normal += face_normal;
-        }
-        for (size_t i=0; i<vert_idx; i++) {
-            vertices[i].normal = glm::normalize(vertices[i].normal);
-        }
-        setupMesh();
-    }
-    catch (std::exception& e) {
-        std::string error_message = "Error when loading mesh from " + path.string() + ": " + e.what();
-        throw std::runtime_error(error_message);
-    }
-}
-
-Mesh::Mesh(const std::filesystem::path& path, glm::vec3& centroid, size_t& num_vertices) {
-    try {
-        max_values = glm::vec3(std::numeric_limits<float>::lowest());
-        min_values = glm::vec3(std::numeric_limits<float>::max());
-        stl_reader::StlMesh <float, unsigned int> mesh (path.string());
-        size_t num_tris = mesh.num_tris();
-        size_t vert_idx = 0;
-
-        // Iterate through triangles
-        for(size_t itri = 0; itri < num_tris; ++itri) {
-            // Iterate through 3 vertices of triangle
-            std::array<size_t, NUM_TRI_VERTS> face = {};
-            for(size_t icorner = 0; icorner < NUM_TRI_VERTS; ++icorner) {
-                const float* c = mesh.tri_corner_coords(itri, icorner);
-                Vertex vertex;
-                glm::vec3 vector;
-                vector.x = c[0];
-                vector.y = c[1];
-                vector.z = c[2];
-                vertex.position = vector;
-
-                centroid += vector;
 
                 face[icorner] = vert_idx;
                 vertices.push_back(vertex);
@@ -161,9 +106,9 @@ Mesh::Mesh(const std::filesystem::path& path, glm::vec3& centroid, size_t& num_v
         setupMesh();
     }
     catch (std::exception& e) {
-        std::cout << e.what() << std::endl;
+        std::string error_message = "Error when loading mesh from " + path.string() + ": " + e.what();
+        throw std::runtime_error(error_message);
     }
-
 }
 
 void Mesh::center_mesh(glm::vec3& centroid, bool update_min_max_values) {
@@ -175,7 +120,7 @@ void Mesh::center_mesh(glm::vec3& centroid, bool update_min_max_values) {
         vert.position -= centroid;
 
         if (update_min_max_values) {
-            // Update the minimum and maximum values
+            // Update the maximum values
             max_values.x = std::max(max_values.x, vert.position.x);
             max_values.y = std::max(max_values.y, vert.position.y);
             max_values.z = std::max(max_values.z, vert.position.z);
@@ -190,11 +135,10 @@ void Mesh::center_mesh(glm::vec3& centroid, bool update_min_max_values) {
 
 void Mesh::Draw(const std::unique_ptr<Shader> &shader, glm::vec3 fill_colour, bool outline, bool highlight) 
 {
-    // draw mesh
     // Bind the VAO
     glBindVertexArray(VAO);
 
-    // 2. Draw triangle outlines (black outline)
+    // Draw triangle outlines (black outline)
     if (outline) {
         shader->setVec3("uColor", glm::vec3(0.0f, 0.0f, 0.0f));
         glLineWidth(1.0f);
@@ -202,13 +146,14 @@ void Mesh::Draw(const std::unique_ptr<Shader> &shader, glm::vec3 fill_colour, bo
         glDrawElements(GL_TRIANGLES, static_cast<unsigned int>(indices.size()), GL_UNSIGNED_INT, 0);
     }
 
+    // If the user wants to highlight, set the appropriate shader value
     if (highlight) {
-        shader->setVec3("uColor", glm::vec3(0.65, 0.16, 0.16));
+        shader->setVec3("uColor", highlight_colour);
     } else {
         shader->setVec3("uColor", fill_colour);
     }
 
-    // 1. Draw filled triangles
+    // Draw filled triangles
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);           // Set fill mode
     glDrawElements(GL_TRIANGLES, static_cast<unsigned int>(indices.size()), GL_UNSIGNED_INT, 0);
 

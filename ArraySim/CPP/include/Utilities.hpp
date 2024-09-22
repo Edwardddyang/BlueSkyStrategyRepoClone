@@ -20,4 +20,5 @@ inline double secs2mins(double seconds) {return seconds / MINUTES_TO_SECONDS; }
 inline double kph2mps(double kph) { return kph / MPS_TO_KPH; }
 inline double mps2kph(double mps) { return mps * MPS_TO_KPH; }
 
+/** @brief Check if str is a valid number that can be cast to double */
 bool isDouble(std::string str);

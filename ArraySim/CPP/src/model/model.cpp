@@ -4,6 +4,7 @@
 #include <iostream>
 #include <glad/glad.h> 
 #include <stb_image.h>
+#include <filesystem>
 #include "Globals.h"
 
 void printMat4(const glm::mat4& mat) {
@@ -28,55 +29,57 @@ void printMat3(const glm::mat3& mat) {
 
 void Model::Draw(double window_width, double window_height, std::vector<glm::vec3> colours, int cell_idx, bool outline)
 {
-    RUNTIME_ASSERT(shaders != nullptr, "Shaders not created for model draw");
+    RUNTIME_ASSERT(initialized_camera && initialized_geometries && initialized_shaders && loaded_array && loaded_canopy,
+                    "Model not completely initialized. Have you called init_camera(), init_geometries(), init_shaders(), loadArray(),"
+                    "loadCanopy() yet?");
+    size_t num_cells = array_cell_meshes.size();
+    bool colours_passed_in = colours.size() == num_cells;
     shaders->use();
     
     // Create projection, view, model matrices
     float near_plane = bsphere_radius / 10.0f;
     float far_plane = (camera_distance + bsphere_radius) * 1.2f;
-    glm::mat4 projection = glm::perspective(glm::radians(camera->Zoom),
-                                            (float)window_width / (float)window_height,
-                                            near_plane, far_plane);
+    float aspect_ratio = static_cast<float>(window_width) / static_cast<float>(window_height);
+    glm::mat4 projection = glm::perspective(glm::radians(camera->Zoom),aspect_ratio,near_plane,far_plane);
     glm::mat4 view = camera->GetViewMatrix();
     glm::mat4 model = glm::mat4(1.0f); // Identity model matrix (no change from local to world coordinates)
     
-    // Set the uniform matrices
+    // Set the uniform matrices inside the shader
     shaders->setMat4("projection", projection);
     shaders->setMat4("view", view);
     shaders->setMat4("model", model);
 
     // Render array cells
-    size_t num_cells = array_cell_meshes.size();
     for(unsigned int i = 0; i < num_cells; i++) {
-        // For each array cell, shade it according to some colour
-        glm::vec3 fill_colour = glm::vec3(1.0f, 1.0f, 1.0f);
+        // For each array cell, shade it according to some colour if the irradiance map is shown
+        glm::vec3 colour = colours_passed_in ? colours[i] : fill_colour;
+
+        // Highlight valid cells
         bool highlight = false;
         if (i == cell_idx) highlight = true;
-        if (colours.size() == num_cells) {
-            fill_colour = colours[i];
-            array_cell_meshes[i]->Draw(shaders, fill_colour, outline, highlight);
-        } else {
-            array_cell_meshes[i]->Draw(shaders, fill_colour, outline, highlight);
-        }
+
+        array_cell_meshes[i]->Draw(shaders, colour, outline, highlight);
     }
 
     // Render canopy
-    canopy_mesh->Draw(shaders, glm::vec3(1.0f, 1.0f, 1.0f), true, false);
+    canopy_mesh->Draw(shaders, fill_colour, true, false);
 }
 
 void Model::loadCanopy(const std::filesystem::path& path) {
     RUNTIME_ASSERT(std::filesystem::is_regular_file(path), std::string("Canopy file: ") + path.string() + " is not a file");
-    canopy_mesh = std::make_shared<Mesh>(path, centroid, num_vertices);
+    canopy_mesh = std::make_shared<Mesh>(path, &centroid);
+    num_vertices = num_vertices + canopy_mesh->get_num_vertices();
     canopy_vertices = canopy_mesh->get_vertices();
     loaded_canopy = true;
 }
 
 void Model::loadArray(const std::filesystem::path& path) {
     RUNTIME_ASSERT(std::filesystem::is_directory(path), std::string("Array directory: ") + path.string() + " is not a directory");
-    // Load all stl files in the current directory
+    // Load all stl files in the passed in directory
     for (const auto& entry : std::filesystem::directory_iterator(path))
     {
-        std::shared_ptr<Mesh> cell_mesh = std::make_shared<Mesh>(entry.path(), centroid, num_vertices);
+        std::shared_ptr<Mesh> cell_mesh = std::make_shared<Mesh>(entry.path(), &centroid);
+        num_vertices = num_vertices + cell_mesh->get_num_vertices();
         array_cell_meshes.push_back(cell_mesh);
         array_cell_vertices.push_back(cell_mesh->get_vertices());
     }
@@ -84,7 +87,7 @@ void Model::loadArray(const std::filesystem::path& path) {
 }
 
 void Model::init_camera() {
-    camera_distance = bsphere_radius * 1.5f;
+    camera_distance = bsphere_radius * 1.3f;
     camera_position = center + glm::vec3(0.0f, 0.0f, camera_distance);  // On positive z axis
     camera_direction = glm::normalize(center - camera_position);
 
@@ -123,7 +126,13 @@ void Model::init_geometries() {
 }
 
 void Model::init_shaders() {
-    shaders = std::make_unique<Shader>("../data/shaders/model.vs", "../data/shaders/model.fs");
+    const char* array_root = std::getenv("ARRAY_ROOT");
+    RUNTIME_ASSERT(array_root != nullptr, "ARRAY_ROOT environment variable not found when initializing shaders");
+
+    std::filesystem::path array_root_path(array_root);
+    std::filesystem::path vertex_shader_path = array_root_path / "CPP" / "data" / "shaders" / "model.vs";
+    std::filesystem::path fragment_shader_path = array_root_path / "CPP" / "data" / "shaders" / "model.fs";
+    shaders = std::make_unique<Shader>(vertex_shader_path, fragment_shader_path);
     initialized_shaders = true;
 }
 

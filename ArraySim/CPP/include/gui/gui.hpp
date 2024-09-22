@@ -154,6 +154,7 @@ private:
     std::string irradiance_csv_name;
     float bearing = 0.0;
     float car_speed = 0.0;
+    bool precise_shadow_calculation = false;
     int sim_type = static_cast<int>(CellIrradianceSim::SimType::STATIC);
 
     /** @brief Check input arguments for generating the irradiance csv */
@@ -166,10 +167,11 @@ private:
     std::shared_ptr<Model> car_model = nullptr;
     std::shared_ptr<CellIrradianceCsv> irradiance_csv = nullptr;
     std::vector<std::vector<glm::vec3>> cell_colours; // Colour for each cell mesh on a colour gradient
+    std::pair<double, double> irradiance_limits;  // Irradiance min, max limits in the irradiance csv
     size_t num_irr_csv_rows;
     size_t num_array_cells;
-    int curr_irr_row = 0;
-    int curr_cell_idx = -1;
+    int curr_irr_row = 0;  // The row of the irradiance csv to visualize
+    int curr_cell_idx = -1;  // The cell to be highlighted
     std::string time_of_day;
     std::string azimuth;
     std::string bearing_label;
@@ -179,6 +181,7 @@ private:
     std::string cell_irradiance;
     std::filesystem::path cell_stl_folder_path_v;
     std::filesystem::path canopy_stl_file_path_v;
+    std::filesystem::path sun_positions_path_v;
     std::filesystem::path irradiance_csv_file_path;
     std::filesystem::path metadata_csv_file_path;
 
@@ -203,6 +206,12 @@ private:
     double last_y;  // y position of the mouse in the last frame
     bool first_mouse_movement;  // Set to true upon visualization to set last_x and last_y for the first time
     bool mouse_control = false;  // If the mouse is controlling the visualization camera
+
+    /** @brief Check input arguments for visualizing the car */
+    bool check_visualization_args();
+
+    /** @brief Check input argument for visualization the irradiance map on the car */
+    bool check_irradiance_visualization_args();
 
     /* ----- App Internal State ----- */
     bool window_resized = true;

@@ -6,6 +6,7 @@
 #include <date.h>
 #include "time.hpp"
 #include "Globals.h"
+#include <iomanip>
 
 Time::Time(std::string local_time_point) {
 	std::istringstream iss(local_time_point);
@@ -163,6 +164,20 @@ std::string Time::get_local_readable_time() const {
 	return time.erase(time.size()-1);
 };
 
+std::string Time::get_local_constructor_time() const {
+	if (hh_mm_ss_only) {
+		std::string time_s = std::to_string(m_datetime_local.tm_hour) + ":" 
+							 + std::to_string(m_datetime_local.tm_min) + ":" 
+							 + std::to_string(m_datetime_local.tm_sec);
+		return time_s;
+	}
+
+	std::ostringstream oss;
+	oss << std::put_time(&m_datetime_local, "%Y-%m-%d %H:%M:%S");
+	RUNTIME_ASSERT(!oss.fail(), "Local time constructor has failed");
+	return oss.str();
+}
+
 void Time::update_time_seconds(double seconds) {
 	double total_seconds = seconds + 1000 * m_milliseconds;
 	t_datetime_local += (int)seconds;
@@ -171,3 +186,4 @@ void Time::update_time_seconds(double seconds) {
 	m_milliseconds = total_seconds - floor(total_seconds);
 
 }
+

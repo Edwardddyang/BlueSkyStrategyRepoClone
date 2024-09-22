@@ -21,64 +21,59 @@ void CellIrradianceSim::run_static_sim(const std::unique_ptr<SunPositionLUT>& su
                                         double bearing, std::string direction) {
     size_t num_sun_positions = sun_position_lut->get_num_rows();
 
+    // Hold the data for the irradiance csv
     std::vector<std::vector<double>> irr_csv(num_sun_positions);
     for (size_t i=0; i<num_sun_positions; i++) {
-        // Extract information about the sun positions csv
+        // Create sun plane
         double azimuth = sun_position_lut->get_azimuth_value(i);
         double elevation = sun_position_lut->get_elevation_value(i);
         double irradiance = sun_position_lut->get_irradiance_value(i);
-
-        // Create sun plane
+        glm::vec3 min_values = car_model->get_min_values();
+        glm::vec3 max_values = car_model->get_max_values();
         std::unique_ptr<SunPlane> sun_plane = std::make_unique<SunPlane>(
-            azimuth, elevation, direction, bearing, car_model->get_min_values(),
-            car_model->get_max_values(), irradiance
+            azimuth, elevation, direction, bearing, min_values, max_values, irradiance
         );
 
         std::cout << "INDEX: " << i << std::endl;
+
         // Calculate the effective irradiance for all cells given the position of the
         // sun in the sky
-        irr_csv.push_back(construct_csv_row(sun_plane));
+        irr_csv[i] = construct_csv_row(sun_plane);
     }
 
+    // Create the csv
     cell_irradiance_csv = std::make_unique<CellIrradianceCsv>(irr_csv);
 }
 
 void CellIrradianceSim::run_dynamic_sim(const std::unique_ptr<SunPositionLUT>& sun_position_lut, 
-                                        const std::unique_ptr<RouteLUT>& route_lut,
-                                        double speed, std::string direction, const std::unique_ptr<Time>& start_time,
-                                        const std::unique_ptr<Time>& end_time) {
-    size_t num_sun_positions = sun_position_lut->get_num_rows();
-
-    // Travel through the route
-    std::vector<Coord> route_points = route_lut->get_coords();
-    size_t num_points = route_points.size();
-    size_t idx = 0;
-    size_t next_idx = 1;
-
-    // Construct time objects for sun position times
-    std::vector<Time> sun_position_times(num_sun_positions);
+                                        const std::unique_ptr<RouteLUT>& route_lut, double speed,
+                                        std::string direction, Time start_time, Time end_time) {
+    // As the car travels through the route, we don't want to linear search for the right sun position row each time
+    // Therefore, we save a cache for the sun position row and check if it's time to move to the next row every time
+    // the car moves. The cache is initialized here as the sun position closest to the start time
     size_t upper_bound_cache;
     size_t lower_bound_cache;
-    bool found_cache_window = false;
     size_t sun_position_cache = 0;
+    size_t num_sun_positions = sun_position_lut->get_num_rows();
+    // Find the two rows in the sun position lut that "sandwhich" the start time
     for (size_t idx=0; idx<num_sun_positions; idx++) {
-        sun_position_times[idx] = Time(sun_position_lut->get_time_value(idx));
-        if (*start_time < sun_position_times[idx] && !found_cache_window) {
+        if (start_time < sun_position_lut->get_time_value(idx)) {
             upper_bound_cache = idx;
             lower_bound_cache = idx > 0 ? idx - 1 : idx;
-            found_cache_window = true;
+            break;
         }
     }
 
-    time_t lower_bound = sun_position_times[lower_bound_cache].get_local_time_point();
-    time_t upper_bound = sun_position_times[upper_bound_cache].get_local_time_point();
-    time_t start_time_point = start_time->get_local_time_point();
+    // Determine which of the upper or lower row is closest to the start time
+    time_t lower_bound = sun_position_lut->get_time_value(lower_bound_cache).get_local_time_point();
+    time_t upper_bound = sun_position_lut->get_time_value(upper_bound_cache).get_local_time_point();
+    time_t start_time_point = start_time.get_local_time_point();
 
     if (upper_bound == lower_bound) {
         sun_position_cache = lower_bound_cache;
     } else {
-        uint64_t diff_time_from_lower = abs((double) (lower_bound - start_time_point));
-        uint64_t diff_time_from_upper = abs((double) (upper_bound - start_time_point));
+        uint64_t diff_time_from_lower = abs(static_cast<double>(lower_bound - start_time_point));
+        uint64_t diff_time_from_upper = abs(static_cast<double>(upper_bound - start_time_point));
         if (diff_time_from_lower <= diff_time_from_upper) {
             sun_position_cache = lower_bound_cache;
         } else {
@@ -86,67 +81,80 @@ void CellIrradianceSim::run_dynamic_sim(const std::unique_ptr<SunPositionLUT>& s
         }
     }
 
-    size_t i = 0;
+    // Store dynamic simulation results
     std::vector<std::vector<double>> irr_csv;
     std::vector<double> bearings;
     std::vector<Coord> coordinates;
     std::vector<Time> times;
     std::vector<size_t> sun_position_caches;
     std::vector<std::string> time_strings;
-    while (*start_time < *end_time) {
-        if (next_idx >= num_points) next_idx = 0;
-        if (idx >= num_points) idx = 0;
-        Coord start_point = route_points[idx];
-        Coord dest_point = route_points[next_idx];
+
+    // Repeatedly travel the route until the end time is reached
+    size_t counter = 0;
+    size_t route_idx = 0;
+    size_t next_route_idx = 1;
+    size_t num_points = route_lut->get_num_points();
+    Time curr_time = start_time;
+    while (curr_time < end_time) {
+        if (next_route_idx >= num_points) next_route_idx = 0;
+        if (route_idx >= num_points) route_idx = 0;
+        Coord start_point = route_lut->get_coord_value(route_idx);
+        Coord dest_point = route_lut->get_coord_value(next_route_idx);
 
         double bearing = get_bearing(start_point, dest_point);
 
+        // Create sun plane
         double azimuth = sun_position_lut->get_azimuth_value(sun_position_cache);
         double elevation = sun_position_lut->get_elevation_value(sun_position_cache);
         double irradiance = sun_position_lut->get_irradiance_value(sun_position_cache);
-
-        // Create sun plane
+        glm::vec3 max_values = car_model->get_max_values();
+        glm::vec3 min_values = car_model->get_min_values();
         std::unique_ptr<SunPlane> sun_plane = std::make_unique<SunPlane>(
-            azimuth, elevation, direction, bearing, car_model->get_min_values(),
-            car_model->get_max_values(), irradiance
+            azimuth, elevation, direction, bearing, min_values, max_values, irradiance
         );
 
-        std::cout << "INDEX: " << i << std::endl;
+        std::cout << "INDEX: " << counter << std::endl;
+
         // Calculate the effective irradiance for all cells given the position of the
         // sun in the sky
-        irr_csv.push_back(construct_csv_row(sun_plane));
-        i++;
-        idx++;
-        next_idx++;
+        auto a = construct_csv_row(sun_plane);
+        std::cout << a.size() << std::endl;
+        irr_csv.push_back(a);
 
         // Move to the next point and update the time
         double distance = get_distance(start_point, dest_point);
-        double travel_time = distance / speed;
-        start_time->update_time_seconds(travel_time);
+        double travel_time = distance / speed;  // seconds
+        curr_time.update_time_seconds(travel_time);
 
         // Update sun position index cache
-        time_t lower_bound = sun_position_times[sun_position_cache].get_local_time_point();
-        time_t upper_bound = sun_position_times[sun_position_cache+1].get_local_time_point();
-        time_t curr_time_point = start_time->get_local_time_point();
+        if (sun_position_cache < num_sun_positions-1) {
+            time_t lower_bound = sun_position_lut->get_time_value(sun_position_cache).get_local_time_point();
+            time_t upper_bound = sun_position_lut->get_time_value(sun_position_cache+1).get_local_time_point();
+            time_t curr_time_point = curr_time.get_local_time_point();
 
-        uint64_t diff_time_from_lower = abs((double) (lower_bound - curr_time_point));
-        uint64_t diff_time_from_upper = abs((double) (upper_bound - curr_time_point));
-        if (diff_time_from_upper < diff_time_from_lower) {
-            sun_position_cache += 1;
+            uint64_t diff_time_from_lower = abs(static_cast<double>(lower_bound - curr_time_point));
+            uint64_t diff_time_from_upper = abs(static_cast<double>(upper_bound - curr_time_point));
+            if (diff_time_from_upper < diff_time_from_lower) {
+                sun_position_cache += 1;
+            }
         }
 
+        // Log all the values for the metadata csv and move to the next point in the route
         bearings.push_back(bearing);
         coordinates.push_back(Coord(start_point));
-        times.push_back(*start_time);
+        times.push_back(curr_time);
         sun_position_caches.push_back(sun_position_cache);
-        time_strings.push_back(start_time->get_local_readable_time());
+        time_strings.push_back(curr_time.get_local_readable_time());
+        counter++;
+        route_idx++;
+        next_route_idx++;
     }
     cell_irradiance_csv = std::make_shared<CellIrradianceCsv>(irr_csv,
-                                                        bearings,
-                                                        coordinates,
-                                                        times,
-                                                        sun_position_caches,
-                                                        time_strings);
+                                                            bearings,
+                                                            coordinates,
+                                                            times,
+                                                            sun_position_caches,
+                                                            time_strings);
 }
 
 void CellIrradianceSim::write_static_csv(const std::filesystem::path& csv_path) const {
@@ -362,7 +370,7 @@ std::vector<double> CellIrradianceSim::construct_csv_row(const std::unique_ptr<S
             cell_area += triangle_areas[tri_idx];
         }
         double effective_irradiance = cell_power / cell_area;
-        irradiance_row.emplace_back(effective_irradiance);
+        irradiance_row[cell_idx] = effective_irradiance;
     }
 
     return irradiance_row;

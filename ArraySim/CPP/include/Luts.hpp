@@ -55,6 +55,7 @@ protected:
     std::vector<double> azimuth;
     std::vector<double> elevation;
     std::vector<double> irradiance;
+    std::vector<Time> times;
     std::vector<std::string> time;
 
     size_t num_rows;
@@ -64,7 +65,7 @@ public:
      */
     SunPositionLUT(const std::filesystem::path& path);
 
-    inline size_t get_num_rows() const {return num_rows;}
+    // Safe retrieval functions
     inline double get_azimuth_value(const size_t& idx) const {
         RUNTIME_ASSERT(0 <= idx < num_rows, "Illegal access on azimuth values in Sun Position LUT");
         return azimuth[idx];
@@ -77,10 +78,16 @@ public:
         RUNTIME_ASSERT(0 <= idx < num_rows, "Illegal access on irradiance values in Sun Position LUT");
         return irradiance[idx];
     }
-    inline std::string get_time_value(const size_t& idx) const {
+    inline Time get_time_value(const size_t& idx) const {
         RUNTIME_ASSERT(0 <= idx < num_rows, "Illegal access on time values in Sun Position LUT");
-        return time[idx];
+        return times[idx];
     }
+
+    inline size_t get_num_rows() const {return num_rows;}
+    inline std::vector<Time> get_times() const {return times;}
+    inline std::vector<double> get_azimuths() const {return azimuth;}
+    inline std::vector<double> get_elevations() const {return elevation;}
+    inline std::vector<double> get_irradiances() const {return irradiance;}
 };
 
 /** Holds data for the irradiance csv from the cell irradiance simulation
@@ -157,6 +164,10 @@ public:
     inline size_t get_sun_position_cache_value(const size_t& idx) const {
         RUNTIME_ASSERT(0 <= idx < num_irr_rows, "Illegal sun position cache access from metadata csv");
         return sun_position_caches[idx];
+    }
+    inline std::vector<double> get_csv_row(const size_t& idx) const {
+        RUNTIME_ASSERT(0 <= idx < num_irr_rows, "Illegal row access from irradiance csv");
+        return irradiance_values[idx];
     }
     inline size_t get_num_irr_rows() const {return num_irr_rows;}
     inline size_t get_num_irr_cols() const {return num_irr_cols;}
