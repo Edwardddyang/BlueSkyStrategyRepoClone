@@ -8,7 +8,7 @@ add_definitions(-DBOOST_NO_CXX98_FUNCTION_BASE)
 add_subdirectory(${CMAKE_SOURCE_DIR}/libs/GLFW) # glfw3
 add_subdirectory(${CMAKE_SOURCE_DIR}/libs/glm) # glm
 add_subdirectory(${CMAKE_SOURCE_DIR}/libs/glad) # glad
-find_package(OpenGL REQUIRED) # OpenGL provided by Windows
+find_package(OpenGL REQUIRED)
 
 # Build ImGUI
 set(IMGUI_DIR ${CMAKE_SOURCE_DIR}/libs/imgui)
@@ -90,7 +90,13 @@ elseif (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
     endif()
 endif()
 
-find_library(GMP_LIB gmp-10 PATHS ${CMAKE_SOURCE_DIR}/build)
-find_library(MPFR_LIB mpfr-4 PATHS ${CMAKE_SOURCE_DIR}/build)
+# Todo: Make this better
+find_library(GMP_LIB gmp-10 PATHS ${CMAKE_SOURCE_DIR}/libs)
+find_library(MPFR_LIB mpfr-4 PATHS ${CMAKE_SOURCE_DIR}/libs)
 target_link_libraries(arraySim PRIVATE imgui glm glad ${MPFR_LIB} ${GMP_LIB})
 target_compile_features(arraySim PRIVATE cxx_std_17)
+add_custom_command(TARGET arraySim POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        ${CMAKE_SOURCE_DIR}/libs/libmpfr-4.dll
+        ${CMAKE_SOURCE_DIR}/libs/libgmp-10.dll
+        $<TARGET_FILE_DIR:arraySim>)

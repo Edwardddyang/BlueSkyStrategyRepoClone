@@ -319,19 +319,27 @@ void GUI::render_step_one_layout() {
         if (!check_dayAzElIrr_args()) {
             return;
         }
-        std::ostringstream oss;
-        oss << "python dayAzElIrr.py " << "--lat " << std::fixed << std::setprecision(6) << location[0]
-                                       << " --lon " << std::fixed << std::setprecision(6) << location[1]
-                                       << " --start_time \"" << start_time_buffer << "\""
-                                       << " --end_time \"" << end_time_buffer << "\""
-                                       << " --utc_adjustment " << sign << utc_adjustment
-                                       << " --num_timesteps " << num_timesteps;
-        if (output_file_buffer != "") {
-            oss << " --out_csv " << output_file_buffer;
+        try {
+            std::ostringstream oss;
+            const char* array_root = std::getenv("ARRAY_ROOT");
+            RUNTIME_ASSERT(array_root != nullptr, "ARRAY_ROOT environment variable not found. Set it to the full path to gen12_strategy/ArraySim.");
+            oss << "python $ARRAY_ROOT/GetSunPosition/dayAzElIrr.py " << "--lat " << std::fixed << std::setprecision(6) << location[0]
+                                        << " --lon " << std::fixed << std::setprecision(6) << location[1]
+                                        << " --start_time \"" << start_time_buffer << "\""
+                                        << " --end_time \"" << end_time_buffer << "\""
+                                        << " --utc_adjustment " << sign << utc_adjustment
+                                        << " --num_timesteps " << num_timesteps;
+            if (output_file_buffer != "") {
+                oss << " --out_csv " << output_file_buffer;
+            }
+            std::cout << oss.str() << std::endl;
+            
+            system(oss.str().c_str());
+        } catch (const std::exception& e) {
+            is_error_popup_open = true;
+            error_popup_message += "dayAzElIrr.py could not be run with exception: " + std::string(e.what());
+            return;
         }
-        std::cout << oss.str() << std::endl;
-        
-        system(oss.str().c_str());
     }
 }
 
@@ -612,6 +620,7 @@ void GUI::render_step_three_layout() {
         } catch (const std::exception& e) {
             is_error_popup_open = true;
             error_popup_message += "Could not visualize the car. Caught error: " + std::string(e.what());
+            return;
         }
     }
 
@@ -678,6 +687,7 @@ void GUI::render_step_three_layout() {
         } catch (const std::exception& e) {
             is_error_popup_open = true;
             error_popup_message += "Could not visualize irradiance map. Caught exception: " + std::string(e.what());
+            return;
         }
     }
 

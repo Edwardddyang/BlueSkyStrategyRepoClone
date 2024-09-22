@@ -3,7 +3,6 @@
 #include <stdlib.h>
 #include <iostream>
 #include <glad/glad.h> 
-#include <stb_image.h>
 #include <filesystem>
 #include "Globals.h"
 

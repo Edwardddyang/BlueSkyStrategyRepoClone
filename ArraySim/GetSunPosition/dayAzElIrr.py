@@ -15,7 +15,7 @@ KEVIN_API_KEY = 'EYiCk5D1-LsSyduwPHGc_QyB4pZzeBfp' # Kevin's API key
 KENNETH_API_KEY = 'Pct5qaGHC6HN6kC8WGO-7pKtj1dx2kya' # Kenneth's API key
 API_KEY = KENNETH_API_KEY
 API_URL = 'https://api.solcast.com.au/data/historic/radiation_and_weather'
-RACE_START_TIME = datetime.datetime.strptime("2023-10-13 09:00:00", '%Y-%m-%d %H:%M:%S') # Only the HH:MM:SS fields are used
+RACE_START_TIME = datetime.datetime.strptime("2023-10-13 08:59:00", '%Y-%m-%d %H:%M:%S') # Only the HH:MM:SS fields are used
 RACE_END_TIME = datetime.datetime.strptime("2023-10-13 17:00:00", '%Y-%m-%d %H:%M:%S') # Only the HH:MM:SS fields are used
 SOLCAST_KEYS_METADATA_PATH = Path(__file__).resolve().parent / "solcast_keys.json"
 
@@ -165,6 +165,9 @@ def generate_irr_csv(lat: float, lon: float, start_time: str, end_time: str, utc
     # solcast_data = None
     # with open("./solcast_data.json", 'r') as file:
     #     solcast_data = json.load(file)['data']
+    # with open("Data.json", 'w') as file:
+    #     json.dump(solcast_data, file, indent=4)
+
     timestep = (sim_end_time - sim_start_time) / num_timesteps
 
     curr_time_utc = sim_start_time_utc
