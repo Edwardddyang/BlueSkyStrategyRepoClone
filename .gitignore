@@ -14,7 +14,7 @@ assimp/
 
 # RaceSim
 Results
-*.dll
+RaceSim/*.dll
 *.dll.a
 *.exe
 install/
