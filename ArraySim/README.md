@@ -21,7 +21,7 @@ The simulation supports two different modes.
 
    Below is an example of the visualization tool for the results of a static simulation.
 
-https://github.com/user-attachments/assets/e01a5398-157c-4590-b313-feca8c591114
+https://github.com/user-attachments/assets/a1e3b0fe-b9b7-4c5d-ac96-9a4bef312d51
 
 3. Get the total power output of the entire array in W by feeding the output csv from step 2 into a custom simulink model that simulates either bypass diodes or mppt controllers. This simulink model must be custom made for each array layout in order to adhere to string configurations.
 
