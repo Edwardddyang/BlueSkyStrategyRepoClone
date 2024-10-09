@@ -43,11 +43,24 @@ int main(int argc, char* argv[]) {
 This example file is already present in the repository.
 
 ## Building
-From Gen12_Strategy/RaceSim/
+
+### Getting a Windows Compiler
+- Download Git (https://git-scm.com/downloads/win) which will also install the git bash terminal
+- Download CMake windows installer (https://cmake.org/download/)
+- Download Msys2 (https://www.msys2.org/)
+- Follow the instructions on the Msys2 home page with the following modifications to the steps:
+  - In step 5, instead of launching the UCRT64 environment which has proven to be buggy, use the MinGW64 environment. You can find this as one of the applications in the downloaded msys2/ folder.
+  - In step 6, run `pacman -S mingw-w64-x86_64-gcc` inside the MinGW64 terminal. Then install `make` with `pacman -S mingw-w64-x86_64-make` inside the same MinGW64 terminal. After installing make, re-name the ```mingw32-make``` file in msys2/mingw64/bin to ```make```
+- Add the absolute path to msys2/mingw64/bin to your PATH environment variable
+- Open git bash and ensure that ```make --version``` ```gcc --version``` run without error. If you get a command not found error. Then you most likely did not set your environment variable paths correctly
+
+### Building the executables and libraries
+
+From gen12_Strategy/RaceSim/
 ```
 1. mkdir build
 2. cd build
-3. cmake .. (May need to adjust depending on your compiler)
+3. cmake .. (May need to adjust depending on your compiler e.g. cmake .. -G "Unix Makefiles" for the windows toolchain above)
 4. make install
 5. export STRAT_ROOT=<FULL path to gen12_strategy/RaceSim>
 6. Add the FULL gen12_strategy/RaceSim/install/lib to PATH environment variable
