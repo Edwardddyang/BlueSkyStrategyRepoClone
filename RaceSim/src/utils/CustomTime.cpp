@@ -55,6 +55,7 @@ void Time::HH_MM_SS_constructor(const std::string local_time_point) {
 	m_datetime_local.tm_hour = hours;
 	m_datetime_local.tm_min = minutes;
 	m_datetime_local.tm_sec = seconds;
+	m_milliseconds = 0;
 
 	hh_mm_ss_only = true;
 	return;
@@ -62,7 +63,6 @@ void Time::HH_MM_SS_constructor(const std::string local_time_point) {
 
 /* Compare each member of the tm struct */
 bool Time::operator>(const Time& other) const {
-
 	if (!this->hh_mm_ss_only && !other.hh_mm_ss_only) {
 		if (this->m_datetime_local.tm_year > other.m_datetime_local.tm_year) {
 			return true;
@@ -108,7 +108,6 @@ bool Time::operator>(const Time& other) const {
 	}
 
 	return false;
-	
 }
 
 bool Time::gt(const Time* lhs, const Time* rhs) {
@@ -124,7 +123,6 @@ bool Time::gt(const Time* lhs, const Time* rhs) {
 }
 
 bool Time::operator<(const Time& other) const {
-
 	if (!this->hh_mm_ss_only && !other.hh_mm_ss_only) {
 		if (this->m_datetime_local.tm_year < other.m_datetime_local.tm_year) {
 			return true;
@@ -162,7 +160,6 @@ bool Time::operator<(const Time& other) const {
 	} else if (this->m_datetime_local.tm_sec > other.m_datetime_local.tm_sec) {
 		return false;
 	}
-
 	if (this->m_milliseconds < other.m_milliseconds) {
 		return true;
 	} else if (this->m_milliseconds > other.m_milliseconds) {
@@ -204,7 +201,6 @@ void Time::update_time_seconds(const double seconds) {
 	m_datetime_local = *gmtime(&t_datetime_local);
 	m_datetime_utc = *gmtime(&t_datetime_utc);
 	m_milliseconds = total_seconds - floor(total_seconds);
-
 }
 
 std::string Time::get_utc_readable_time() const {

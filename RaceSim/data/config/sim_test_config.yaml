@@ -20,7 +20,7 @@
   # All following luts are relative to gen12_strategy/RaceSim/
   base_route_path: data/luts/TestData/wsc_route.csv # 3 column csv --> latitude (degrees) | longitude (degrees) | altitude (km)
   speed_limits_path: data/luts/TestData/speed_limits.csv # Unused
-  traffic_signals_path: data/luts/TestData/static/traffic_signals.csv # Unused
+  traffic_signals_path: data/luts/TestData/traffic_signals.csv # Unused
   power_factor_path: data/luts/TestData/power_factor.csv
   roll_res_slope_path: data/luts/TestData/rr2.csv
   roll_res_yint_path: data/luts/TestData/rr1.csv

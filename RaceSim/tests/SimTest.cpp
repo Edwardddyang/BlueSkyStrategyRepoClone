@@ -140,6 +140,9 @@ TEST(SimTest, Test1) {
     std::vector<double> test_motor_power = test_result.get_motor_power();
     EXPECT_EQ(golden_motor_power.size(), test_motor_power.size());
     for (size_t i = 0; i < golden_motor_power.size(); ++i) {
+        if (std::abs(golden_motor_power[i] - test_motor_power[i]) > 2) {
+            std::cout << i << std::endl;
+        }
         EXPECT_NEAR(golden_motor_power[i], test_motor_power[i], margin);
     }
 

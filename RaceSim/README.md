@@ -48,7 +48,7 @@ This example file is already present in the repository.
 - Download Msys2 (https://www.msys2.org/)
 - Follow the instructions on the Msys2 home page with the following modifications to the steps:
   - In step 5, instead of launching the UCRT64 environment which has proven to be buggy, use the MinGW64 environment. You can find this as one of the applications in the downloaded msys2/ folder.
-  - In step 6, run `pacman -S mingw-w64-x86_64-gcc` inside the MinGW64 terminal. Then install `make` with `pacman -S mingw-w64-x86_64-make` inside the same MinGW64 terminal. After installing make, re-name the ```mingw32-make``` file in msys2/mingw64/bin to ```make```
+  - In step 6, run `pacman -S mingw-w64-x86_64-gcc` inside the MinGW64 terminal. Then install `make` with `pacman -S mingw-w64-x86_64-make` inside the same MinGW64 terminal. After installing make, re-name the ```mingw32-make``` file in msys2/mingw64/bin to ```make```. Finally, run `pacman -S mingw-w64-x86_64-clang-tools-extra` to get the c++ linter
 - Add the absolute path to msys2/mingw64/bin to your PATH environment variable
 - Open git bash and ensure that ```make --version``` ```gcc --version``` run without error. If you get a command not found error. Then you most likely did not set your environment variable paths correctly
 
@@ -96,8 +96,6 @@ area -> meters squared
 When naming variables representing a scientific unit, please include the units if it does not conform to the ones listed above and also is not in the base metric sytem e.g. ```double speed_kph = 70.2;```
 
 # TODOs
-- Add a unit test for a full scale simulation that matches against the 58.csv file
-- Separate CSVs for unit tests with actual data CSVs
 - Add a valgrind test
 - Add a linter
 - Add acceleration model

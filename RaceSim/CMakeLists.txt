@@ -150,7 +150,6 @@ add_test(SimTest SimTest)
 add_custom_target(run_tests ALL
     COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure || true)
 
-# Add test for full scale simulation and match 58.csv
 # Add valgrind test
 # Add linter test
 # ---------------------------------------------------------
