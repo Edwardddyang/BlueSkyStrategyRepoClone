@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
-#include "route.h"
-#include "config.h"
-#include "units.h"
+#include "Route.hpp"
+#include "Config.hpp"
+#include "Units.hpp"
 #include <iostream>
 #include <fstream>
 #include <string>
@@ -37,10 +37,7 @@ int main(int argc, char **argv) {
     ::testing::InitGoogleTest(&argc, argv);
     
     const char* strat_root = std::getenv("STRAT_ROOT");
-    if (strat_root == nullptr) {
-        spdlog::error("No STRAT_ROOT environment variable detected. Set it to the full path to gen12_strategy/RaceSim. Exiting.");
-        return 0;    
-    }
+    RUNTIME_EXCEPTION(strat_root != nullptr, "No STRAT_ROOT environment variable detected. Set it to the full path to gen12_strategy/RaceSim.");
 
     Config::initialize("data/config/wsc_config_route_tests.yaml", std::string(strat_root));
     return RUN_ALL_TESTS();

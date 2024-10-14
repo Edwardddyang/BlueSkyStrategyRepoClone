@@ -1,18 +1,16 @@
 #include <gtest/gtest.h>
-#include "v1_car.h"
-#include "units.h"
-#include <base_car.h>
-#include "config.h"
+#include "V1Car.hpp"
+#include "Units.hpp"
+#include <Car.hpp>
+#include "Config.hpp"
+#include "Defines.hpp"
 #include <stdlib.h>
 
 int main(int argc, char **argv) {
     ::testing::InitGoogleTest(&argc, argv);
 
     const char* strat_root = std::getenv("STRAT_ROOT");
-    if (strat_root == nullptr) {
-        spdlog::error("No STRAT_ROOT environment variable detected. Set it to the full path to gen12_strategy/RaceSim. Exiting.");
-        return 0;    
-    }
+    RUNTIME_EXCEPTION(strat_root != nullptr, "No STRAT_ROOT environment variable detected. Set it to the full path to gen12_strategy/RaceSim.");
 
     Config::initialize("data/config/wsc_config.yaml", std::string(strat_root));
     return RUN_ALL_TESTS();
@@ -20,7 +18,7 @@ int main(int argc, char **argv) {
 
 TEST(v1CarTest,  ElectricLossTest) {
 
-    V1_Car TestCar = V1_Car();
+    V1Car TestCar = V1Car();
     
     double energy_loss = TestCar.compute_electric_loss(300);
     double true_energy_loss = 0.0016667;
@@ -42,14 +40,14 @@ TEST(v1CarTest,  ElectricLossTest) {
 
 TEST(v1CarTest,  GravityLossTest) {
 
-    V1_Car TestCar = V1_Car();
+    V1Car TestCar = V1Car();
 
     //mass = 305kg
     // joules = GRAVITY_ACCELERATION*305*h
     
     //notice: uses GRAVITY +_ACCELERATION as 9.81 as defined in Globals.h
     //if using more precise g value, difference will be larger than 0.0000001
-    Energy_Change eng_change = TestCar.compute_gravitational_loss(10, 3600);
+    EnergyChange eng_change = TestCar.compute_gravitational_loss(10, 3600);
     double true_power = 8.31125;
     double true_energy = 0.00831125;
     EXPECT_NEAR(eng_change.energy, true_energy, 0.0000001);
@@ -71,13 +69,13 @@ TEST(v1CarTest,  GravityLossTest) {
 
 TEST(v1CarTest,  AeroLossTest) {
 
-    V1_Car TestCar = V1_Car();
+    V1Car TestCar = V1Car();
 
     //cda = 0.16
     //air_density = 1.17
     
     Wind w = Wind(200, 10);
-    Energy_Change eng_change = TestCar.compute_aero_loss(60, 180, w, 3600);
+    EnergyChange eng_change = TestCar.compute_aero_loss(60, 180, w, 3600);
     double true_power = 27046;
     double true_energy = 27.046;
     EXPECT_NEAR(eng_change.energy, true_energy, 0.001);
@@ -101,11 +99,11 @@ TEST(v1CarTest,  AeroLossTest) {
 
 TEST(v1CarTest,  RollingLossTest) {
 
-    V1_Car TestCar = V1_Car();
+    V1Car TestCar = V1Car();
 
     //tire_pressure = 5.5
     
-    Energy_Change eng_change = TestCar.compute_rolling_loss(16.66667, 3600);
+    EnergyChange eng_change = TestCar.compute_rolling_loss(16.66667, 3600);
     double true_power = 230.388;
     double true_energy = 0.230388;
     EXPECT_NEAR(eng_change.energy, true_energy, 0.001);

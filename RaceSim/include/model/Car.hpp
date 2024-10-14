@@ -1,0 +1,141 @@
+/*
+Base class for force balance car models
+*/
+
+#pragma once
+
+#include <memory>
+
+#include "Units.hpp"
+#include "Luts.hpp"
+#include "Config.hpp"
+
+/* Each energy loss/gain (e.g. rolling resistance, aerodynamic, gravity) is characterized by both its
+   actual energy lost/gained and the instataneous power drawn/generated
+*/
+struct EnergyChange {
+	double power;
+	double energy;
+
+	EnergyChange(double power, double energy) : power(power), energy(energy) {}
+	EnergyChange() : power(0.0), energy(0.0) {}
+};
+
+/* Unit update of the car when travelling between two coordinates */
+struct CarUpdate {
+    EnergyChange aero;
+    EnergyChange rolling;
+    EnergyChange gravitational;
+    EnergyChange array;
+    SolarAngle az_el;
+    double motor_power;
+    double motor_energy;
+    double bearing;
+    double electric;
+    double delta_energy;
+    double delta_distance;
+    double delta_time;
+
+    CarUpdate(EnergyChange aero, 
+              EnergyChange rolling, 
+              EnergyChange gravitational,
+              EnergyChange array,
+              SolarAngle az_el,
+              double motor_power,
+              double motor_energy,
+              double bearing,
+              double electric,
+              double delta_energy,
+              double delta_distance,
+              double delta_time) : aero(aero), rolling(rolling), gravitational(gravitational),
+              array(array), az_el(az_el), motor_power(motor_power), motor_energy(motor_energy),
+              bearing(bearing), electric(electric), delta_energy(delta_energy), delta_distance(delta_distance),
+              delta_time(delta_time) {}
+};
+
+class Car {
+protected:
+    /* Car parameters */
+    double mass;
+    EffLut yint_rolling_resistance;
+    EffLut slope_rolling_resistance;
+    BasicLut power_factors;
+    double cda;
+    double motor_efficiency;
+    double regen_efficiency;
+    double battery_efficiency; 
+    double passive_electric_loss;
+    double air_density;
+    double array_area;
+    double max_soc;
+    double tire_pressure;
+    double array_efficiency;
+
+public:
+    Car();
+
+    /** @brief Compute the aerodynamic loss over a time period
+     *
+     * @param speed: Speed of the car in m/s
+     * @param car_bearing: Bearing of the car in degrees cw from north
+     * @param wind: Wind direction [deg cw from north] and wind speed [m/s]
+     * @param delta_time_s: Time interval in seconds
+     */
+    virtual EnergyChange compute_aero_loss(double speed, double car_bearing, Wind wind, double delta_time_s) = 0;
+
+    /** @brief Compute the rolling resistance loss over a time period
+     *
+     * @param speed: Speed of the car in m/s
+     * @param delta_time: Time interval in seconds
+     */
+    virtual EnergyChange compute_rolling_loss(double speed, double delta_time) = 0;
+
+    /** @brief Compute the gravitational loss over a time period
+     *
+     * @param delta_altitude: Difference in altitude in metres
+     * @param delta_time: Time interval in seconds
+     */
+    virtual EnergyChange compute_gravitational_loss(double delta_altitude, double delta_time) = 0;
+
+    /** @brief Compute the electrical loss over a time period
+     *
+     * @param delta_time: Time interval in seconds
+     */
+    virtual double compute_electric_loss(double delta_time) = 0;
+
+    /** @brief Compute the array energy gains
+     *
+     * @param delta_time: Time interval in seconds
+     * @param dni: Direct normal irradiance in W/m^2
+     * @param dhi: Diffuse horizontal irradiance in W/m^2
+     * @param az: Azimuth angle in degrees from true north
+     * @param el: Elevation angle in degrees
+     */
+    virtual EnergyChange compute_array_gain(double delta_time, double dni, double dhi, double az, double el) = 0;
+
+    /** @brief Compute energy change when moving between two points in a straight line 
+     * 
+     * @param coord_one: starting coordinate
+     * @param coord_two: ending coordinate
+     * @param speed: speed of the car
+     * @param time: current time at coord_one
+     * @param Wind, Irradiance: Weather forecast taken at coord_one
+     *
+     * @return CarUpdate: State updates to the car after moving from coord_one to coord_two
+    */
+    virtual CarUpdate compute_travel_update(Coord coord_one, 
+                                            Coord coord_two, 
+                                            double speed, 
+                                            Time* time, 
+                                            Wind wind, 
+                                            Irradiance irr) = 0;
+
+    /** @brief Compute energy change during a static stop
+     *
+     * @param coord: Location of the car
+     * @param time: Time of day
+     * @param charge_time: Length of static stop in seconds
+     * @param irr: Irradiance of the sun (assumed to be constant over the entire stop)
+     */
+    virtual double compute_static_energy(Coord coord, Time* time, double charge_time, Irradiance irr) = 0;
+};

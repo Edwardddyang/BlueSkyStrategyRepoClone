@@ -1,21 +1,21 @@
-#include <Luts.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <fstream>
-#include <cassert>
-#include <assert.h>
 #include <sstream>
 #include <string.h>
-#include <geography.h>
 #include <limits>
-#include <utilities.h>
 #include <date.h>
-#include <config.h>
 #include <filesystem>
+
 #include "spdlog/spdlog.h"
+#include "Config.hpp"
+#include "Geography.hpp"
+#include "Luts.hpp"
+#include "Utilities.hpp"
+#include "Defines.hpp"
 
 template <typename T>
-Base_Lut<T>::Base_Lut(const std::string path) {
+BaseLut<T>::BaseLut(const std::string path) {
 	std::string strat_root = Config::get_strat_root();
 	if (strat_root == "") {
 		lut_path = path;
@@ -24,9 +24,9 @@ Base_Lut<T>::Base_Lut(const std::string path) {
 	}
 }
 
-void Basic_Lut::load_LUT() {
+void BasicLut::load_LUT() {
 	std::fstream lut(this->lut_path);
-	assert(lut.is_open() && "File not found...");
+	RUNTIME_EXCEPTION(lut.is_open(), "File {} not found", lut_path);
 	std::string line;
 	std::string cell;
 
@@ -38,7 +38,7 @@ void Basic_Lut::load_LUT() {
 		values.emplace_back(std::vector<double>());
 		while (!linestream.eof()) {
 			std::getline(linestream, cell, ',');
-			assert(isDouble(cell) && "Value is not a number.");
+			RUNTIME_EXCEPTION(isDouble(cell), "Value {} is not a number", cell);
 			double val = std::stod(cell);
 			values.back().emplace_back(val);
 		}
@@ -49,15 +49,15 @@ void Basic_Lut::load_LUT() {
 	spdlog::info("Loaded LUT: " + this->lut_path);
 }
 
-double Basic_Lut::get_value(size_t row_idx, size_t col_idx) {
+double BasicLut::get_value(size_t row_idx, size_t col_idx) {
 	return values[row_idx][col_idx];
 }
 
-Basic_Lut::Basic_Lut(const std::string lut_path) : Base_Lut<double>(lut_path) {
+BasicLut::BasicLut(const std::string lut_path) : BaseLut<double>(lut_path) {
 	load_LUT();
 }
 
-void Eff_Lut::load_LUT() {
+void EffLut::load_LUT() {
 	std::fstream lut(this->lut_path);
 	std::string line;
 
@@ -70,7 +70,7 @@ void Eff_Lut::load_LUT() {
 
 	while (!linestream.eof()) {
 		std::getline(linestream, cell, ',');
-		assert(isDouble(cell) && "Value is not a number.");
+		RUNTIME_EXCEPTION(isDouble(cell), "Value {} is not a number in Efficiency LUT {}", cell, lut_path);
 		double column_val = std::stod(cell);
 		column_values.push_back(column_val);
 	}
@@ -81,14 +81,14 @@ void Eff_Lut::load_LUT() {
 		std::stringstream linestream(line);
 
 		std::getline(linestream, cell, ',');
-		assert(isDouble(cell) && "Value is not a number.");
+		RUNTIME_EXCEPTION(isDouble(cell), "Value {} is not a number in Efficiency LUT {}", cell, lut_path);
 		double row_val = std::stod(cell);
 		row_values.push_back(row_val);
 
 		this->values.emplace_back(std::vector<double>());
 		while (!linestream.eof()) {
 			std::getline(linestream, cell, ',');
-			assert(isDouble(cell) && "Value is not a number.");
+			RUNTIME_EXCEPTION(isDouble(cell), "Value {} is not a number in Efficiency LUT {}", cell, lut_path);
 			double val = std::stod(cell);
 			this->values.back().emplace_back(val);
 		}
@@ -99,11 +99,11 @@ void Eff_Lut::load_LUT() {
 	spdlog::info("Loaded LUT: " + this->lut_path);
 }
 
-Eff_Lut::Eff_Lut(const std::string lut_path) : Base_Lut<double>(lut_path) {
+EffLut::EffLut(const std::string lut_path) : BaseLut<double>(lut_path) {
 	load_LUT();
 }
 
-double Eff_Lut::get_value(double row_value, double column_value) {
+double EffLut::get_value(double row_value, double column_value) {
     size_t row = 0;
     size_t col = 0;
 
@@ -119,15 +119,16 @@ double Eff_Lut::get_value(double row_value, double column_value) {
         }
     }
 
-	assert(row >= 0 && row < num_rows && col >= 0 && col < num_cols);
+	RUNTIME_EXCEPTION(row >= 0 && row < num_rows && col >= 0 && col < num_cols,
+					  "Invalid access in efficiency LUT {}", lut_path);
     return values[row][col];
 }
 
-Forecast_Lut::Forecast_Lut(std::string lut_path) : Base_Lut<double>(lut_path) {
+ForecastLut::ForecastLut(std::string lut_path) : BaseLut<double>(lut_path) {
 	load_LUT();
 }
 
-void Forecast_Lut::load_LUT() {
+void ForecastLut::load_LUT() {
 	std::fstream file(this->lut_path);
 	std::string times_line;
 	file >> times_line;
@@ -141,7 +142,7 @@ void Forecast_Lut::load_LUT() {
 	/* Create an array of the time keys */
 	while (!times_stream.eof()) {
 		std::getline(times_stream, time, ',');
-		assert(isDouble(time) && "Time is not a number.");
+		RUNTIME_EXCEPTION(isDouble(time), "Time {} is not a number in ForecastLUT {}", time, lut_path);
 		uint64_t temp_time = std::stoull(time);
 		int seconds = temp_time % 100;
 		temp_time /= 100;
@@ -176,17 +177,17 @@ void Forecast_Lut::load_LUT() {
 		std::string cell;
 		ForecastCoord coord{};
 		std::getline(file_linestream, cell, ',');
-		assert(isDouble(cell) && "Value is not a number.");
+		RUNTIME_EXCEPTION(isDouble(cell), "Value {} is not a number in Forecast LUT {}", cell, lut_path);
 		coord.lat = std::stod(cell);
 
 		std::getline(file_linestream, cell, ',');
-		assert(isDouble(cell) && "Value is not a number.");
+		RUNTIME_EXCEPTION(isDouble(cell), "Value {} is not a number in Efficiency LUT {}", cell, lut_path);
 		coord.lon = std::stod(cell);
 
 		forecast_coords.emplace_back(coord);
 
 		std::getline(file_linestream, cell, ',');
-		assert(isDouble(cell) && "Value is not a number");
+		RUNTIME_EXCEPTION(isDouble(cell), "Value {} is not a number in Efficiency LUT {}", cell, lut_path);
 		double value = std::stod(cell);
 		std::vector<double> inner_vector;
 		inner_vector.emplace_back(value);
@@ -195,7 +196,7 @@ void Forecast_Lut::load_LUT() {
 		int column_counter = 0;
 		while (!file_linestream.eof()){
 			std::getline(file_linestream, cell, ',');
-			assert(isDouble(cell) && "Value is not a number.");
+			RUNTIME_EXCEPTION(isDouble(cell), "Value {} is not a number in Efficiency LUT {}", cell, lut_path);
 			this->values[row_counter].push_back(std::stod(cell));
 			column_counter++;
 		}
@@ -211,7 +212,7 @@ void Forecast_Lut::load_LUT() {
 	spdlog::info("Loaded LUT: " + this->lut_path);
 }
 
-double Forecast_Lut::get_value(ForecastCoord coord, time_t time) {
+double ForecastLut::get_value(ForecastCoord coord, time_t time) {
 	double row_key;
 	double col_key;
 
@@ -235,11 +236,12 @@ double Forecast_Lut::get_value(ForecastCoord coord, time_t time) {
 		}
     }
 
-	assert(row_key >= 0 && row_key < num_rows && col_key >= 0 && col_key < num_cols);
+	RUNTIME_EXCEPTION(row_key >= 0 && row_key < num_rows && col_key >= 0 && col_key < num_cols,
+					  "Out of bounds access in Forecast LUT {}", lut_path);
     return this->values[row_key][col_key];
 }
 
-void Forecast_Lut::initialize_caches(ForecastCoord coord, time_t time) {
+void ForecastLut::initialize_caches(ForecastCoord coord, time_t time) {
 	/* Initialize row cache */
 	Coord forecast_coord_as_coord = Coord(coord);
 	double min_distance = std::numeric_limits<double>::max();
@@ -264,7 +266,7 @@ void Forecast_Lut::initialize_caches(ForecastCoord coord, time_t time) {
 	}
 }
 
-void Forecast_Lut::initialize_caches(Coord coord, time_t time) {
+void ForecastLut::initialize_caches(Coord coord, time_t time) {
 
 	/* Initialize row cache */
 	double min_distance = std::numeric_limits<double>::max();
@@ -290,7 +292,7 @@ void Forecast_Lut::initialize_caches(Coord coord, time_t time) {
 }
 
 /* Begins searching from the specified indices */
-void Forecast_Lut::update_index_cache(ForecastCoord coord, time_t time) {
+void ForecastLut::update_index_cache(ForecastCoord coord, time_t time) {
 
 	if (row_cache < num_rows-1) {
 		ForecastCoord next_coord = forecast_coords[row_cache+1];
@@ -317,6 +319,6 @@ void Forecast_Lut::update_index_cache(ForecastCoord coord, time_t time) {
 	}
 }
 
-double Forecast_Lut::get_value_with_cache() {
+double ForecastLut::get_value_with_cache() {
 	return this->values[row_cache][column_cache];
 }

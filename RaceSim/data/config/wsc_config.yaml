@@ -39,6 +39,7 @@
   control_stop_charge_time: 30 # in minutes
   day_start_time: 9:00:00 # Start time from second day onwards in HH:MM:SS local 24 hour format
   day_end_time: 17:00:00 # End time each day in HH:MM:SS local 24 hour format
+  race_end_time: 2023-10-28 17:00:00 # YYYY-MM-DD HH:MM:SS local 24 hour time
 
 \Telemetry: # Current state of the car
   current_soc: 5.2 # in kWh, should be <= max_soc

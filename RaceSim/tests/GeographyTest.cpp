@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
-#include "geography.h"
-#include "units.h"
 #include <stdlib.h>
+#include "Geography.hpp"
+#include "Units.hpp"
 
 TEST(TestGeography, GetDistanceEmptyCoord) {
     /* Create coordinates */
