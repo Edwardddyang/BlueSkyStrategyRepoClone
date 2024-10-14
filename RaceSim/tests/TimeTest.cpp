@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
-#include "custom_time.h"
-#include "units.h"
+#include "CustomTime.hpp"
+#include "Units.hpp"
 #include <stdlib.h>
 
 TEST(TimeTest, GetLocalReadableTime) {

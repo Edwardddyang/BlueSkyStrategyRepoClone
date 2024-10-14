@@ -4,11 +4,13 @@
 #include <iostream>
 #include <string.h>
 #include <sstream>
-#include <units.h>
-#include <utilities.h>
-#include <geography.h>
-#include <custom_time.h>
 #include <cmath>
+
+#include "Units.hpp"
+#include "Utilities.hpp"
+#include "Geography.hpp"
+#include "CustomTime.hpp"
+#include "Defines.hpp"
 
 /* TODO: Check if this function returns in metres */
 double get_distance(Coord src_coord, Coord dst_coord) {
@@ -75,9 +77,11 @@ double get_bearing(Coord src_coord, Coord dst_coord) {
     }
 }
 
-SolarAngle get_az_el_from_bearing(double bearing, Coord coord, Time time) {
+SolarAngle get_az_el_from_bearing(double bearing, Coord coord, const Time* time) {
+	RUNTIME_EXCEPTION(time != nullptr, "Time is null");
+
     SolarAngle sun = SolarAngle();
-    get_az_el(time.get_utc_time_point(), coord.lat, coord.lon, meters2km(coord.alt), &sun.Az, &sun.El);
+    get_az_el(time->get_utc_time_point(), coord.lat, coord.lon, meters2km(coord.alt), &sun.Az, &sun.El);
     // Get the relative azimuth angle based on bearing from true north. 
     // e.g. if the car was pointing south (180 degree bearing) and the azimuth of the sun was 90 degrees (east)
     // then the relative azimuth is 270 degrees

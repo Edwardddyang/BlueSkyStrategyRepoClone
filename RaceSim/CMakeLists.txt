@@ -7,6 +7,9 @@ project(RaceSim VERSION 1.0 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
+
+set(INSTALL_DIR "${CMAKE_SOURCE_DIR}/install")
+
 # -------------- Link in 3rd party libraries --------------
 set(EXTERNAL_DIR ${CMAKE_SOURCE_DIR}/libs)
 
@@ -30,29 +33,29 @@ list(APPEND EXTERNAL_DEPS yaml-cpp)
 # ---------------- RaceSim dynamic library ----------------
 # All source files
 set(MODEL_SOURCES
-    src/model/base_car.cpp
-    src/model/car_factory.cpp
-    src/model/v1_car.cpp
+    src/model/Car.cpp
+    src/model/CarFactory.cpp
+    src/model/V1Car.cpp
 )
 set(CONFIG_SOURCES
-    src/config/config.cpp
+    src/config/Config.cpp
 )
 set(OPTIMIZER_SOURCES
-    src/optimizer/base_opt.cpp
-    src/optimizer/opt_factory.cpp
-    src/optimizer/v1_opt.cpp
+    src/optimizer/Optimizer.cpp
+    src/optimizer/OptimizerFactory.cpp
+    src/optimizer/V1Optimizer.cpp
 )
 set(ROUTE_SOURCES
-    src/route/route.cpp
+    src/route/Route.cpp
 )
 set(SIMULATION_SOURCES
-    src/simulation/sim.cpp
+    src/simulation/Simulator.cpp
 )
 set(UTILS_SOURCES
-    src/utils/custom_time.cpp
-    src/utils/geography.cpp
+    src/utils/CustomTime.cpp
+    src/utils/Geography.cpp
     src/utils/Luts.cpp
-    src/utils/utilities.cpp
+    src/utils/Utilities.cpp
 )
 set(RACESIM_SOURCES
     ${CONFIG_SOURCES}
@@ -63,6 +66,7 @@ set(RACESIM_SOURCES
     ${UTILS_SOURCES}
 )
 add_library(RaceSim SHARED ${RACESIM_SOURCES})
+
 # Don't need include directories for yaml-cpp, googletest,spdlog - they set up those with INTERFACE
 target_include_directories(RaceSim PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/include
@@ -136,6 +140,8 @@ add_test(v1CarTest v1CarTest)
 add_executable(RouteTest tests/RouteTest.cpp)
 target_link_libraries(RouteTest gtest gtest_main RaceSim ${EXTERNAL_DEPS})
 add_test(RouteTest RouteTest)
+
+# Add test for full scale simulation
 # ---------------------------------------------------------
 
 # ---------------------- Installation ---------------------
@@ -147,3 +153,10 @@ install(TARGETS opt
 install(TARGETS GeographyTest TimeTest LutsTest v1CarTest RouteTest
         RUNTIME DESTINATION ${CMAKE_SOURCE_DIR}/install/tests/bin)
 # ---------------------------------------------------------
+
+# # -------------------- Clean install --------------------
+add_custom_target(clean_install
+    COMMAND ${CMAKE_COMMAND} -E rm -rf ${INSTALL_DIR}
+    COMMENT "Cleaning the install directory"
+)
+# # --------------------------------------------------------

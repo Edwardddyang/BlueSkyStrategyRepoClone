@@ -1,5 +1,4 @@
 #include <stdio.h>
-#include <utilities.h>
 #include <assert.h>
 #include <cassert>
 #include <string.h>
@@ -8,14 +7,16 @@
 #include <sstream>
 #include <date.h>
 
-bool isDouble(std::string str) {
+#include "Utilities.hpp"
+
+bool isDouble(const std::string str) {
 	if (str[0] == '-' && str.size() >= 2) {
 		return isdigit(str[1]);
 	}
 	return isdigit(str[0]);
 }
 
-std::unordered_set<size_t> convert_string_to_int_set(std::string input) {
+std::unordered_set<size_t> convert_string_to_int_set(const std::string input) {
 	std::unordered_set<size_t> result_set;
 
     std::stringstream ss(input);
@@ -30,7 +31,7 @@ std::unordered_set<size_t> convert_string_to_int_set(std::string input) {
 }
 
 // Create a coordinate struct from a lat, lon, altitude string
-Coord create_coord(std::string input) {
+Coord create_coord(const std::string input) {
     double lat, lon, alt;
     lat = lon = alt = -1.0;
 
