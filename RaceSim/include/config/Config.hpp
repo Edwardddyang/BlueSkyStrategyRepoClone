@@ -38,10 +38,9 @@
 	PARAM(motor_efficiency, double, double, 0.9) \
 	PARAM(regen_efficiency, double, double, 0.8) \
 	PARAM(battery_efficiency, double, double, 0.95) \
-	PARAM(base_dir, std::string, std::string, "wsc_2023") \
 	PARAM(base_route_path, std::string, std::string, "/static/baseroute.csv") \
 	PARAM(speed_limits_path, std::string, std::string, "/static/longDistanceSpeedLimit.csv") \
-	PARAM(traffic_signals_path, std::string, std::string, "/static/powerfactor.csv") \
+	PARAM(traffic_signals_path, std::string, std::string, "/static/longDistanceTrafficSignals.csv") \
 	PARAM(power_factor_path, std::string, std::string, "/static/powerfactor.csv") \
 	PARAM(roll_res_slope_path, std::string, std::string, "/static/rr2.csv") \
 	PARAM(roll_res_yint_path, std::string, std::string, "/static/rr1.csv") \

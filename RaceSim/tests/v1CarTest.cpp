@@ -12,7 +12,7 @@ int main(int argc, char **argv) {
     const char* strat_root = std::getenv("STRAT_ROOT");
     RUNTIME_EXCEPTION(strat_root != nullptr, "No STRAT_ROOT environment variable detected. Set it to the full path to gen12_strategy/RaceSim.");
 
-    Config::initialize("data/config/wsc_config.yaml", std::string(strat_root));
+    Config::initialize("data/config/test_config.yaml", std::string(strat_root));
     return RUN_ALL_TESTS();
 }
 
@@ -42,9 +42,6 @@ TEST(v1CarTest,  GravityLossTest) {
 
     V1Car TestCar = V1Car();
 
-    //mass = 305kg
-    // joules = GRAVITY_ACCELERATION*305*h
-    
     //notice: uses GRAVITY +_ACCELERATION as 9.81 as defined in Globals.h
     //if using more precise g value, difference will be larger than 0.0000001
     EnergyChange eng_change = TestCar.compute_gravitational_loss(10, 3600);

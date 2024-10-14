@@ -17,9 +17,7 @@
   battery_efficiency: 0.95
 
 \LutPaths:
-  base_dir: /luts/wsc_2023 # Base directory for all luts relative to gen12_strategy/RaceSim/<base_dir>
-
-  # All following luts are relative to gen12_strategy/RaceSim/luts/<base_dir>
+  # All following luts are relative to gen12_strategy/RaceSim/
   base_route_path: data/luts/wsc_2023/static/baseroute.csv # 3 column csv --> latitude (degrees) | longitude (degrees) | altitude (km)
   speed_limits_path: data/luts/wsc_2023/static/longDistanceSpeedLimit.csv # Unused
   traffic_signals_path: data/luts/wsc_2023/static/longDistanceTrafficSignals.csv # Unused

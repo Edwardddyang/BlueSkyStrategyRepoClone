@@ -322,3 +322,215 @@ void ForecastLut::update_index_cache(ForecastCoord coord, time_t time) {
 double ForecastLut::get_value_with_cache() {
 	return this->values[row_cache][column_cache];
 }
+
+ResultsLut::ResultsLut(const std::string lut_path) : BaseLut<double>(lut_path) {
+	load_LUT();
+}
+
+void ResultsLut::load_LUT() {
+	std::fstream file(this->lut_path);
+	
+	// Remove first row (header)
+	std::string header_line;
+	std::getline(file, header_line);
+
+	while (!file.eof()) {
+		std::string file_line;
+		std::getline(file, file_line);
+		std::stringstream file_linestream(file_line);
+		if (file_linestream.str().empty()) break;
+
+		std::string cell;
+		std::getline(file_linestream, cell, ',');
+		RUNTIME_EXCEPTION(isDouble(cell), "Value {} is not a number in Results csv {}", cell, lut_path);
+		battery_energy.emplace_back(std::stod(cell));
+
+		std::getline(file_linestream, cell, ',');
+		RUNTIME_EXCEPTION(isDouble(cell), "Value {} is not a number in Results csv {}", cell, lut_path);
+		accumulated_distance.emplace_back(std::stod(cell));
+
+		std::getline(file_linestream, cell, ',');
+		time.emplace_back(cell);
+
+		std::getline(file_linestream, cell, ',');
+		RUNTIME_EXCEPTION(isDouble(cell), "Value {} is not a number in Results csv {}", cell, lut_path);
+		azimuth.emplace_back(std::stod(cell));
+
+		std::getline(file_linestream, cell, ',');
+		RUNTIME_EXCEPTION(isDouble(cell), "Value {} is not a number in Results csv {}", cell, lut_path);
+		elevation.emplace_back(std::stod(cell));
+
+		std::getline(file_linestream, cell, ',');
+		RUNTIME_EXCEPTION(isDouble(cell), "Value {} is not a number in Results csv {}", cell, lut_path);
+		bearing.emplace_back(std::stod(cell));
+
+		std::getline(file_linestream, cell, ',');
+		RUNTIME_EXCEPTION(isDouble(cell), "Value {} is not a number in Results csv {}", cell, lut_path);
+		latitude.emplace_back(std::stod(cell));
+
+		std::getline(file_linestream, cell, ',');
+		RUNTIME_EXCEPTION(isDouble(cell), "Value {} is not a number in Results csv {}", cell, lut_path);
+		longitude.emplace_back(std::stod(cell));
+
+		std::getline(file_linestream, cell, ',');
+		RUNTIME_EXCEPTION(isDouble(cell), "Value {} is not a number in Results csv {}", cell, lut_path);
+		altitude.emplace_back(std::stod(cell));
+
+		std::getline(file_linestream, cell, ',');
+		RUNTIME_EXCEPTION(isDouble(cell), "Value {} is not a number in Results csv {}", cell, lut_path);
+		speed.emplace_back(std::stod(cell));
+
+		std::getline(file_linestream, cell, ',');
+		RUNTIME_EXCEPTION(isDouble(cell), "Value {} is not a number in Results csv {}", cell, lut_path);
+		array_power.emplace_back(std::stod(cell));
+
+		std::getline(file_linestream, cell, ',');
+		RUNTIME_EXCEPTION(isDouble(cell), "Value {} is not a number in Results csv {}", cell, lut_path);
+		array_energy.emplace_back(std::stod(cell));
+
+		std::getline(file_linestream, cell, ',');
+		RUNTIME_EXCEPTION(isDouble(cell), "Value {} is not a number in Results csv {}", cell, lut_path);
+		motor_power.emplace_back(std::stod(cell));
+
+		std::getline(file_linestream, cell, ',');
+		RUNTIME_EXCEPTION(isDouble(cell), "Value {} is not a number in Results csv {}", cell, lut_path);
+		motor_energy.emplace_back(std::stod(cell));
+
+		std::getline(file_linestream, cell, ',');
+		RUNTIME_EXCEPTION(isDouble(cell), "Value {} is not a number in Results csv {}", cell, lut_path);
+		aero_power.emplace_back(std::stod(cell));
+
+		std::getline(file_linestream, cell, ',');
+		RUNTIME_EXCEPTION(isDouble(cell), "Value {} is not a number in Results csv {}", cell, lut_path);
+		aero_energy.emplace_back(std::stod(cell));
+
+		std::getline(file_linestream, cell, ',');
+		RUNTIME_EXCEPTION(isDouble(cell), "Value {} is not a number in Results csv {}", cell, lut_path);
+		rolling_power.emplace_back(std::stod(cell));
+
+		std::getline(file_linestream, cell, ',');
+		RUNTIME_EXCEPTION(isDouble(cell), "Value {} is not a number in Results csv {}", cell, lut_path);
+		rolling_energy.emplace_back(std::stod(cell));
+
+		std::getline(file_linestream, cell, ',');
+		RUNTIME_EXCEPTION(isDouble(cell), "Value {} is not a number in Results csv {}", cell, lut_path);
+		gravitational_power.emplace_back(std::stod(cell));
+
+		std::getline(file_linestream, cell, ',');
+		RUNTIME_EXCEPTION(isDouble(cell), "Value {} is not a number in Results csv {}", cell, lut_path);
+		gravitational_energy.emplace_back(std::stod(cell));
+
+		std::getline(file_linestream, cell, ',');
+		RUNTIME_EXCEPTION(isDouble(cell), "Value {} is not a number in Results csv {}", cell, lut_path);
+		electric_energy.emplace_back(std::stod(cell));
+
+		std::getline(file_linestream, cell, ',');
+		RUNTIME_EXCEPTION(isDouble(cell), "Value {} is not a number in Results csv {}", cell, lut_path);
+		delta_energy.emplace_back(std::stod(cell));
+	}
+}
+
+void ResultsLut::reset_logs() {
+    battery_energy.clear();
+    accumulated_distance.clear();
+    time.clear();
+    azimuth.clear();
+    elevation.clear();
+    bearing.clear();
+    latitude.clear();
+    longitude.clear();
+    altitude.clear();
+    speed.clear();
+    array_energy.clear();
+    array_power.clear();
+    motor_power.clear();
+    motor_energy.clear();
+    aero_power.clear();
+    aero_energy.clear();
+    rolling_power.clear();
+    rolling_energy.clear();
+    gravitational_power.clear();
+    gravitational_energy.clear();
+    electric_energy.clear();
+    delta_energy.clear();
+}
+
+void ResultsLut::write_logs(const std::string lut_path) const {
+    std::ofstream output_csv(lut_path);
+    RUNTIME_EXCEPTION(output_csv.is_open(), "Unable to open csv file path for writing: {}", lut_path);
+
+    output_csv  << "Battery Charge(kWh),"
+                << "Accumulated Distance(m),"
+                << "DateTime,"
+                << "Azimuth(Degrees),"
+                << "Elevation(Degrees),"
+                << "Bearing(Degrees),"
+                << "Latitude,"
+                << "Longitude,"
+                << "Altitude(m),"
+                << "Speed(m/s),"
+                << "Array Power(W),"
+                << "Array Energy(kWh),"
+                << "Motor Power(W),"
+                << "Motor Energy(kWh),"
+                << "Aero Power(W),"
+                << "Aero Energy(kWh),"
+                << "Rolling Power(W),"
+                << "Rolling Energy(kWh),"
+                << "Gravitational Power(W),"
+                << "Gravitational Energy(kWh),"
+                << "Electric Energy(W),"
+                << "Delta Battery(kWh),\n";
+
+    int num_points = battery_energy.size();
+    for (int i=0; i<num_points; i++) {
+        output_csv << std::to_string(battery_energy[i]) + ",";
+        output_csv << std::to_string(accumulated_distance[i]) + ",";
+        output_csv << (std::string(time[i]) + ",");
+        output_csv << std::to_string(azimuth[i]) + ",";
+        output_csv << std::to_string(elevation[i]) + ",";
+        output_csv << std::to_string(bearing[i]) + ",";
+        output_csv << std::to_string(latitude[i]) + ",";
+        output_csv << std::to_string(longitude[i]) + ",";
+        output_csv << std::to_string(altitude[i]) + ",";
+        output_csv << std::to_string(speed[i]) + ",";
+        output_csv << std::to_string(array_power[i]) + ",";
+        output_csv << std::to_string(array_energy[i]) + ",";
+        output_csv << std::to_string(motor_power[i]) + ",";
+        output_csv << std::to_string(motor_energy[i]) + ",";
+        output_csv << std::to_string(aero_power[i]) + ",";
+        output_csv << std::to_string(aero_energy[i]) + ",";
+        output_csv << std::to_string(rolling_power[i]) + ",";
+        output_csv << std::to_string(rolling_energy[i]) + ",";
+        output_csv << std::to_string(gravitational_power[i]) + ",";
+        output_csv << std::to_string(gravitational_energy[i]) + ",";
+        output_csv << std::to_string(electric_energy[i]) + ",";
+        output_csv << std::to_string(delta_energy[i]) + ",\n";
+    }
+}
+
+void ResultsLut::update_logs(const CarUpdate update, double battery, double d_energy,
+							 double distance, Coord next_coord, double curr_speed, Time curr_time) {
+    battery_energy.push_back(battery);
+    delta_energy.push_back(d_energy);
+    accumulated_distance.push_back(distance);
+    azimuth.push_back(update.az_el.Az);
+    elevation.push_back(update.az_el.El);
+    bearing.push_back(update.bearing);
+    latitude.push_back(next_coord.lat);
+    longitude.push_back(next_coord.lon);
+    altitude.push_back(next_coord.alt);
+    array_energy.push_back(update.array.energy);
+    array_power.push_back(update.array.power);
+    speed.push_back(curr_speed);
+    motor_power.push_back(update.motor_power);
+    motor_energy.push_back(update.motor_energy);
+    aero_power.push_back(update.aero.power);
+    aero_energy.push_back(update.aero.energy);
+    rolling_power.push_back(update.rolling.power);
+    rolling_energy.push_back(update.rolling.energy);
+    gravitational_power.push_back(update.gravitational.power);
+    gravitational_energy.push_back(update.gravitational.energy);
+    electric_energy.push_back(update.electric);
+    time.push_back(curr_time.get_local_readable_time());
+}

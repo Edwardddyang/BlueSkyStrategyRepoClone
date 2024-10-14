@@ -17,10 +17,11 @@ bool Simulator::run_sim(const std::unique_ptr<Route>& route, std::vector<double>
     RUNTIME_EXCEPTION(route != nullptr, "Route pointer is null");
     RUNTIME_EXCEPTION(speed_profile_kph.size() == route->get_num_segments(),
                       "Speed profile and route are deformed");
+    RUNTIME_EXCEPTION(results_lut != nullptr, "Results lut is null");
 
     /* Reset variables */
     reset_vars();
-    reset_logs();
+    results_lut->reset_logs();
 
     /* Get route data */
     const size_t num_points = route->get_num_points();
@@ -128,7 +129,8 @@ bool Simulator::run_sim(const std::unique_ptr<Route>& route, std::vector<double>
         spdlog::debug("Battery Energy: {}", battery_energy);
 
         /* Update the logs */
-        update_logs(update);
+        results_lut->update_logs(update, battery_energy, delta_energy, accumulated_distance,
+                                 next_coord, curr_speed, curr_time);
 
         /* Invalid simulation if battery goes below 0 or if the end of the race has been reached */
         if (battery_energy < 0.0 || curr_time > race_end_time) {
@@ -150,114 +152,19 @@ void Simulator::reset_vars() {
     accumulated_distance = 0.0;   
 }
 
-void Simulator::reset_logs() {
-    battery_energy_log.clear();
-    accumulated_distance_log.clear();
-    time_log.clear();
-    azimuth_log.clear();
-    elevation_log.clear();
-    bearing_log.clear();
-    latitude_log.clear();
-    longitude_log.clear();
-    altitude_log.clear();
-    speed_log.clear();
-    array_energy_log.clear();
-    array_power_log.clear();
-    motor_power_log.clear();
-    motor_energy_log.clear();
-    aero_power_log.clear();
-    aero_energy_log.clear();
-    rolling_power_log.clear();
-    rolling_energy_log.clear();
-    gravitational_power_log.clear();
-    gravitational_energy_log.clear();
-    electric_energy_log.clear();
-    delta_energy_log.clear();
-}
-
-void Simulator::update_logs(CarUpdate update) {
-    battery_energy_log.push_back(battery_energy);
-    delta_energy_log.push_back(delta_energy);
-    accumulated_distance_log.push_back(accumulated_distance);
-    azimuth_log.push_back(update.az_el.Az);
-    elevation_log.push_back(update.az_el.El);
-    bearing_log.push_back(update.bearing);
-    latitude_log.push_back(next_coord.lat);
-    longitude_log.push_back(next_coord.lon);
-    altitude_log.push_back(next_coord.alt);
-    array_energy_log.push_back(update.array.energy);
-    array_power_log.push_back(update.array.power);
-    speed_log.push_back(curr_speed);
-    motor_power_log.push_back(update.motor_power);
-    motor_energy_log.push_back(update.motor_energy);
-    aero_power_log.push_back(update.aero.power);
-    aero_energy_log.push_back(update.aero.energy);
-    rolling_power_log.push_back(update.rolling.power);
-    rolling_energy_log.push_back(update.rolling.energy);
-    gravitational_power_log.push_back(update.gravitational.power);
-    gravitational_energy_log.push_back(update.gravitational.energy);
-    electric_energy_log.push_back(update.electric);
-    time_log.push_back(curr_time.get_local_readable_time());
-}
-
 void Simulator::write_result(std::string csv_path) {
-    std::ofstream output_csv(csv_path);
-    RUNTIME_EXCEPTION(output_csv.is_open(), "Unable to open csv file path: {}", csv_path);
-
-    output_csv << "Battery Charge(kWh),"
-                << "Accumulated Distance(m),"
-                << "DateTime,"
-                << "Azimuth(Degrees),"
-                << "Elevation(Degrees),"
-                << "Bearing(Degrees),"
-                << "Latitude,"
-                << "Longitude,"
-                << "Altitude(m),"
-                << "Speed(m/s),"
-                << "Array Power(W),"
-                << "Array Energy(kWh),"
-                << "Motor Power(W),"
-                << "Motor Energy(kWh),"
-                << "Aero Power(W),"
-                << "Aero Energy(kWh),"
-                << "Rolling Power(W),"
-                << "Rolling Energy(kWh),"
-                << "Gravitational Power(W),"
-                << "Gravitational Energy(kWh),"
-                << "Electric Energy(W),"
-                << "Delta Battery(kWh),\n";
-
-    int num_points = battery_energy_log.size();
-    for (int i=0; i<num_points; i++) {
-        output_csv << std::to_string(battery_energy_log[i]) + ",";
-        output_csv << std::to_string(accumulated_distance_log[i]) + ",";
-        output_csv << (std::string(time_log[i]) + ",");
-        output_csv << std::to_string(azimuth_log[i]) + ",";
-        output_csv << std::to_string(elevation_log[i]) + ",";
-        output_csv << std::to_string(bearing_log[i]) + ",";
-        output_csv << std::to_string(latitude_log[i]) + ",";
-        output_csv << std::to_string(longitude_log[i]) + ",";
-        output_csv << std::to_string(altitude_log[i]) + ",";
-        output_csv << std::to_string(speed_log[i]) + ",";
-        output_csv << std::to_string(array_power_log[i]) + ",";
-        output_csv << std::to_string(array_energy_log[i]) + ",";
-        output_csv << std::to_string(motor_power_log[i]) + ",";
-        output_csv << std::to_string(motor_energy_log[i]) + ",";
-        output_csv << std::to_string(aero_power_log[i]) + ",";
-        output_csv << std::to_string(aero_energy_log[i]) + ",";
-        output_csv << std::to_string(rolling_power_log[i]) + ",";
-        output_csv << std::to_string(rolling_energy_log[i]) + ",";
-        output_csv << std::to_string(gravitational_power_log[i]) + ",";
-        output_csv << std::to_string(gravitational_energy_log[i]) + ",";
-        output_csv << std::to_string(electric_energy_log[i]) + ",";
-        output_csv << std::to_string(delta_energy_log[i]) + ",\n";
-    }
-
+    results_lut->write_logs(csv_path);
     spdlog::info("Simulation data saved");
+}
+
+ResultsLut Simulator::get_results_lut() const {
+    if (!results_lut) return ResultsLut();
+    return *(results_lut.get());
 }
 
 Simulator::Simulator(std::unique_ptr<Car> model) :
     car(std::move(model)),
+    results_lut(std::make_unique<ResultsLut>()),
     wind_speed_lut(std::make_unique<ForecastLut>(Config::get_instance()->get_wind_speed_path())),
     wind_dir_lut(std::make_unique<ForecastLut>(Config::get_instance()->get_wind_direction_path())),
     dni_lut(std::make_unique<ForecastLut>(Config::get_instance()->get_dni_path())),

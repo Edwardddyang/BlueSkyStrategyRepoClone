@@ -78,7 +78,7 @@ Dependencies: yaml-cpp (0.8.0), spdlog (1.14.1), googletest (1.14.0)
 The .yaml configuration file specifies parameters about your car and race route. A sample configuration is given in data/config/wsc_config.yaml. Note that all LUT paths are relative to gen12_strategy/RaceSim
 
 ## Extending the Project
-You can add additional car models, and optimizers by subclassing from ```Car``` and ```Optimizer``` respectively. Implement the functions and make the relevant changes to the factories in their repsective header files. If you would like to add a new configuration parameter, follow the steps in ```config.h``` in order to define a new macro for it. The parameter names in ```config.h``` and the yaml file MUST match in order for it to work.
+You can add additional car models, and optimizers by subclassing from ```Car``` and ```Optimizer``` respectively. Implement the functions and make the relevant changes to the factories in their repsective header files. If you would like to add a new configuration parameter, follow the steps in ```Config.hpp``` in order to define a new macro for it. The parameter names in ```Config.hpp``` and the yaml file MUST match in order for it to work.
 
 # Scientific Units used 
 All units are listed below. Any others not mentioned are also in the base metric system. The configuration file specifies units and is ultimately converted to these units
@@ -96,9 +96,9 @@ area -> meters squared
 When naming variables representing a scientific unit, please include the units if it does not conform to the ones listed above and also is not in the base metric sytem e.g. ```double speed_kph = 70.2;```
 
 # TODOs
-Add a test for a full scale simulation that matches against the 58.csv file
-Separate CSVs for unit tests with actual data CSVs
-Add a valgrind test
-Add a linter
-Add acceleration model
-Profile the simulation. It's too slow
+- Add a unit test for a full scale simulation that matches against the 58.csv file
+- Separate CSVs for unit tests with actual data CSVs
+- Add a valgrind test
+- Add a linter
+- Add acceleration model
+- Profile the simulation. It's too slow

@@ -141,6 +141,15 @@ add_executable(RouteTest tests/RouteTest.cpp)
 target_link_libraries(RouteTest gtest gtest_main RaceSim ${EXTERNAL_DEPS})
 add_test(RouteTest RouteTest)
 
+# Simulator
+add_executable(SimTest tests/SimTest.cpp)
+target_link_libraries(SimTest gtest gtest_main RaceSim ${EXTERNAL_DEPS})
+add_test(SimTest SimTest)
+
+# Run tests
+add_custom_target(run_tests ALL
+    COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure || true)
+
 # Add test for full scale simulation and match 58.csv
 # Add valgrind test
 # Add linter test
@@ -152,7 +161,7 @@ install(TARGETS RaceSim
         LIBRARY DESTINATION ${CMAKE_SOURCE_DIR}/install/lib)
 install(TARGETS opt
         RUNTIME DESTINATION ${CMAKE_SOURCE_DIR}/install/bin)
-install(TARGETS GeographyTest TimeTest LutsTest v1CarTest RouteTest
+install(TARGETS GeographyTest TimeTest LutsTest v1CarTest RouteTest SimTest
         RUNTIME DESTINATION ${CMAKE_SOURCE_DIR}/install/tests/bin)
 # ---------------------------------------------------------
 

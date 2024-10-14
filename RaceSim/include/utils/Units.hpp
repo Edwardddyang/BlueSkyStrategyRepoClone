@@ -79,6 +79,49 @@ struct Irradiance {
 	Irradiance() : dni(0), dhi(0) {}
 };
 
+/* Each energy loss/gain (e.g. rolling resistance, aerodynamic, gravity) is characterized by both its
+   actual energy lost/gained and the instataneous power drawn/generated
+*/
+struct EnergyChange {
+	double power;
+	double energy;
+
+	EnergyChange(double power, double energy) : power(power), energy(energy) {}
+	EnergyChange() : power(0.0), energy(0.0) {}
+};
+
+/* Unit update of the car when travelling between two coordinates */
+struct CarUpdate {
+    EnergyChange aero;
+    EnergyChange rolling;
+    EnergyChange gravitational;
+    EnergyChange array;
+    SolarAngle az_el;
+    double motor_power;
+    double motor_energy;
+    double bearing;
+    double electric;
+    double delta_energy;
+    double delta_distance;
+    double delta_time;
+
+    CarUpdate(EnergyChange aero, 
+              EnergyChange rolling, 
+              EnergyChange gravitational,
+              EnergyChange array,
+              SolarAngle az_el,
+              double motor_power,
+              double motor_energy,
+              double bearing,
+              double electric,
+              double delta_energy,
+              double delta_distance,
+              double delta_time) : aero(aero), rolling(rolling), gravitational(gravitational),
+              array(array), az_el(az_el), motor_power(motor_power), motor_energy(motor_energy),
+              bearing(bearing), electric(electric), delta_energy(delta_energy), delta_distance(delta_distance),
+              delta_time(delta_time) {}
+};
+
 /* Unit conversions */
 inline double rad2deg(double radians) { return radians * DEGREES_IN_PI / PI; }
 inline double deg2rad(double degrees) { return degrees * PI / DEGREES_IN_PI; }
