@@ -141,7 +141,9 @@ add_executable(RouteTest tests/RouteTest.cpp)
 target_link_libraries(RouteTest gtest gtest_main RaceSim ${EXTERNAL_DEPS})
 add_test(RouteTest RouteTest)
 
-# Add test for full scale simulation
+# Add test for full scale simulation and match 58.csv
+# Add valgrind test
+# Add linter test
 # ---------------------------------------------------------
 
 # ---------------------- Installation ---------------------

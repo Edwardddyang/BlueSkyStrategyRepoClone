@@ -8,33 +8,31 @@ Modify the main.cpp file in order to run a simulation. This would involve creati
 
 ```
 int main(int argc, char* argv[]) {
-    spdlog::set_level(spdlog::level::info);
-    if (argc < 2) {
-        spdlog::error("No config file supplied. Exiting");
-        return 0;
-    }
+    spdlog::set_level(spdlog::level::debug);
+    RUNTIME_EXCEPTION(argc == 2, "Exactly one argument is required for the config file path");
 
     const char* strat_root = std::getenv("STRAT_ROOT");
-    if (strat_root == nullptr) {
-        spdlog::error("No STRAT_ROOT environment variable detected. Set it to the full path to gen12_strategy/RaceSim. Exiting.");
-        return 0;    
-    }
+    RUNTIME_EXCEPTION(strat_root != nullptr, "No STRAT_ROOT environment variable detected. Set it to the full path to gen12_strategy/RaceSim.");
 
     std::string config_file_path = argv[1];
     Config::initialize(config_file_path, std::string(strat_root));
 
     /* Create a model of the car */
-    Car* car = Car_Factory::get_car(Config::get_instance()->get_model());
+    std::unique_ptr<Car> car = CarFactory::get_car(Config::get_instance()->get_model());
     
     /* Create route */
-    Route route = Route();
+    std::unique_ptr<Route> route = std::make_unique<Route>();
 
     /* Create simulator */
-    Sim sim = Sim(car);
+    std::unique_ptr<Simulator> sim = std::make_unique<Simulator>(std::move(car));
 
     /* Create optimizer */
-    Optimizer* opt = Opt_Factory::get_optimizer(Config::get_instance()->get_optimizer(), route, sim);
-    std::vector<uint32_t> result_speed_profile_km = opt->optimize();
+    std::unique_ptr<Optimizer> opt = OptimizerFactory::get_optimizer(Config::get_instance()->get_optimizer(),
+                                                                     std::move(route), std::move(sim));
+
+    /* Run optimizer */
+    std::vector<double> result_speed_profile_km = opt->optimize();
+
     spdlog::info("Viable Speed Profile: {}", result_speed_profile_km[0]);
 
     return 0;
@@ -67,7 +65,7 @@ From gen12_Strategy/RaceSim/
 7. cd ../install/bin
 8. ./opt.exe <config file relative to gen12_strategy/RaceSim>
 ```
-Note that you will have to set STRAT_ROOT (step 5) every time you open your shell. If you're on linux, you can add it to your .bashrc in order to persist it.
+Note that you will have to set STRAT_ROOT (step 5) every time you open your shell. If you're on linux, you can add it to your .bashrc in order to persist it. If you're on windows, you can add it to ~/bash_profile in git bash
 
 This has been tested on:
 - Windows machine with make (GNU 3.81) with gcc (8.3), CMake (3.30)
@@ -96,3 +94,11 @@ force -> newton\
 area -> meters squared
 
 When naming variables representing a scientific unit, please include the units if it does not conform to the ones listed above and also is not in the base metric sytem e.g. ```double speed_kph = 70.2;```
+
+# TODOs
+Add a test for a full scale simulation that matches against the 58.csv file
+Separate CSVs for unit tests with actual data CSVs
+Add a valgrind test
+Add a linter
+Add acceleration model
+Profile the simulation. It's too slow
