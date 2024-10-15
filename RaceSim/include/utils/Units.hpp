@@ -4,14 +4,15 @@ Definitions and functions for scientific units, custom objects, conversion funct
 
 #pragma once
 
+#include <time.h>
+
 #include <vector>
 #include <string>
 #include <ctime>
 #include <iostream>
 #include <chrono>
-#include <time.h>
 
-#include "date.h"
+#include "date/date.h"
 
 /* Constants */
 #define PI (3.14159265358979323846264338327950288)
@@ -28,98 +29,98 @@ Definitions and functions for scientific units, custom objects, conversion funct
 
 /* A forecast coordinate is represented only by latitude and longitude */
 struct ForecastCoord {
-	double lat;
-	double lon;
+  double lat;
+  double lon;
 
-	ForecastCoord(double latitude, double longitude) : lat(latitude), lon(longitude) {}
-	ForecastCoord() : lat(0), lon(0) {}
+  ForecastCoord(double latitude, double longitude) : lat(latitude), lon(longitude) {}
+  ForecastCoord() : lat(0), lon(0) {}
 };
 
 struct Coord {
-	double lat;
-	double lon;
-	double alt;
+  double lat;
+  double lon;
+  double alt;
 
-	Coord(double latitude, double longitude, double altitude) : lat(latitude), lon(longitude), alt(altitude) {}
-	Coord() : lat(0), lon(0), alt(0) {}
+  Coord(double latitude, double longitude, double altitude) : lat(latitude), lon(longitude), alt(altitude) {}
+  Coord() : lat(0), lon(0), alt(0) {}
 
-	/* Conversion operator from type ForecastCoord to Coord by clearing the altitude value */
-	Coord(const struct ForecastCoord& fc) : lat(fc.lat), lon(fc.lon), alt(0.0) {}
+  /* Conversion operator from type ForecastCoord to Coord by clearing the altitude value */
+  explicit Coord(const struct ForecastCoord& fc) : lat(fc.lat), lon(fc.lon), alt(0.0) {}
 };
 
 struct Wind {
-	double bearing;
-	double speed;
+  double bearing;
+  double speed;
 
-	Wind(double b, double s) : bearing(b), speed(s) {}
-	Wind() : bearing(0), speed(0) {}
+  Wind(double b, double s) : bearing(b), speed(s) {}
+  Wind() : bearing(0), speed(0) {}
 };
 
 struct SolarAngle {
-	double Az;
-	double El;
+  double Az;
+  double El;
 
-	SolarAngle(double az_angle, double el_angle) : Az(az_angle), El(el_angle) {}
-	SolarAngle() : Az(0.0), El(0.0) {}
+  SolarAngle(double az_angle, double el_angle) : Az(az_angle), El(el_angle) {}
+  SolarAngle() : Az(0.0), El(0.0) {}
 };
 
 struct TireCoeff {
-	double yint;
-	double slope;
+  double yint;
+  double slope;
 
-	TireCoeff(double y, double s) : yint(y), slope(s) {}
-	TireCoeff() : yint(0), slope(0) {}
+  TireCoeff(double y, double s) : yint(y), slope(s) {}
+  TireCoeff() : yint(0), slope(0) {}
 };
 
 struct Irradiance {
-	double dni;
-	double dhi;
+  double dni;
+  double dhi;
 
-	Irradiance(double _dni, double _dhi) : dni(_dni), dhi(_dhi) {}
-	Irradiance() : dni(0), dhi(0) {}
+  Irradiance(double _dni, double _dhi) : dni(_dni), dhi(_dhi) {}
+  Irradiance() : dni(0), dhi(0) {}
 };
 
 /* Each energy loss/gain (e.g. rolling resistance, aerodynamic, gravity) is characterized by both its
    actual energy lost/gained and the instataneous power drawn/generated
 */
 struct EnergyChange {
-	double power;
-	double energy;
+  double power;
+  double energy;
 
-	EnergyChange(double power, double energy) : power(power), energy(energy) {}
-	EnergyChange() : power(0.0), energy(0.0) {}
+  EnergyChange(double power, double energy) : power(power), energy(energy) {}
+  EnergyChange() : power(0.0), energy(0.0) {}
 };
 
 /* Unit update of the car when travelling between two coordinates */
 struct CarUpdate {
-    EnergyChange aero;
-    EnergyChange rolling;
-    EnergyChange gravitational;
-    EnergyChange array;
-    SolarAngle az_el;
-    double motor_power;
-    double motor_energy;
-    double bearing;
-    double electric;
-    double delta_energy;
-    double delta_distance;
-    double delta_time;
+  EnergyChange aero;
+  EnergyChange rolling;
+  EnergyChange gravitational;
+  EnergyChange array;
+  SolarAngle az_el;
+  double motor_power;
+  double motor_energy;
+  double bearing;
+  double electric;
+  double delta_energy;
+  double delta_distance;
+  double delta_time;
 
-    CarUpdate(EnergyChange aero, 
-              EnergyChange rolling, 
-              EnergyChange gravitational,
-              EnergyChange array,
-              SolarAngle az_el,
-              double motor_power,
-              double motor_energy,
-              double bearing,
-              double electric,
-              double delta_energy,
-              double delta_distance,
-              double delta_time) : aero(aero), rolling(rolling), gravitational(gravitational),
-              array(array), az_el(az_el), motor_power(motor_power), motor_energy(motor_energy),
-              bearing(bearing), electric(electric), delta_energy(delta_energy), delta_distance(delta_distance),
-              delta_time(delta_time) {}
+  CarUpdate(EnergyChange aero,
+            EnergyChange rolling,
+            EnergyChange gravitational,
+            EnergyChange array,
+            SolarAngle az_el,
+            double motor_power,
+            double motor_energy,
+            double bearing,
+            double electric,
+            double delta_energy,
+            double delta_distance,
+            double delta_time) : aero(aero), rolling(rolling), gravitational(gravitational),
+            array(array), az_el(az_el), motor_power(motor_power), motor_energy(motor_energy),
+            bearing(bearing), electric(electric), delta_energy(delta_energy), delta_distance(delta_distance),
+            delta_time(delta_time) {}
 };
 
 /* Unit conversions */

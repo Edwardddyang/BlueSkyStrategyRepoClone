@@ -2,16 +2,17 @@
 
 #pragma once
 
-#include <string.h>
+#include <string>
 #include <vector>
 #include <memory>
 #include <unordered_set>
 #include <unordered_map>
+#include <filesystem>
 
-#include "Units.hpp"
-#include "Luts.hpp"
-#include "ConfigParam.hpp"
-#include "Defines.hpp"
+#include "utils/Units.hpp"
+#include "utils/Luts.hpp"
+#include "config/ConfigParam.hpp"
+#include "utils/Defines.hpp"
 
 /* Define all config parameters
    PARAM(<parameter name as it appears exactly in the .yaml configuration file>,
@@ -23,115 +24,129 @@
 	as the <data type> to avoid memory leaks. You'll also have to make relevant changes in
 	config_param.h
  */
-#define CONFIG_PARAMETERS\
-	PARAM(max_soc, double, double, 5.2)\
-	PARAM(tire_pressure, double, double, 5.5)\
-	PARAM(array_area, double, double, 3.98)\
-	PARAM(car_mass, double, double, 305)\
-	PARAM(air_density, double, double, 1.17)\
-	PARAM(passive_electric_loss, double, double, 20)\
-	PARAM(cda, double, double, 0.16) \
-	PARAM(max_motor_power, double, double, 3.5) \
-	PARAM(max_car_speed, double, double, 120) \
-	PARAM(array_power_max, double, double, 950) \
-	PARAM(array_efficiency, double, double, 0.252) \
-	PARAM(motor_efficiency, double, double, 0.9) \
-	PARAM(regen_efficiency, double, double, 0.8) \
-	PARAM(battery_efficiency, double, double, 0.95) \
-	PARAM(base_route_path, std::string, std::string, "/static/baseroute.csv") \
-	PARAM(speed_limits_path, std::string, std::string, "/static/longDistanceSpeedLimit.csv") \
-	PARAM(traffic_signals_path, std::string, std::string, "/static/longDistanceTrafficSignals.csv") \
-	PARAM(power_factor_path, std::string, std::string, "/static/powerfactor.csv") \
-	PARAM(roll_res_slope_path, std::string, std::string, "/static/rr2.csv") \
-	PARAM(roll_res_yint_path, std::string, std::string, "/static/rr1.csv") \
-	PARAM(dni_path, std::string, std::string, "/dynamic/dni.csv") \
-	PARAM(dhi_path, std::string, std::string, "/dynamic/dhi.csv") \
-	PARAM(wind_direction_path, std::string, std::string, "/dynamic/wind_direction_10m.csv") \
-	PARAM(wind_speed_path, std::string, std::string, "/dynamic/wind_speed_10m.csv") \
-	PARAM(control_stops, std::unordered_set<size_t>, std::unordered_set<size_t>, convert_string_to_int_set("2962,5559,9462,11421,14439,16990,20832,23202,25987")) \
-	PARAM(control_stop_charge_time, double, double, 30) \
-	PARAM(race_start, std::unique_ptr<Time>, Time, std::make_unique<Time>("2023-10-22 08:30:00", -9.5)) \
-	PARAM(day_start_time, std::unique_ptr<Time>, Time, std::make_unique<Time>("09:00:00")) \
-	PARAM(day_end_time, std::unique_ptr<Time>, Time, std::make_unique<Time>("17:00:00")) \
-	PARAM(race_end_time, std::unique_ptr<Time>, Time, std::make_unique<Time>("2023-10-22 08:30:00", -9.5)) \
-	PARAM(first_day, bool, bool, true) \
-	PARAM(current_soc, double, double, 100) \
-	PARAM(gps_coordinates, Coord, Coord, Coord()) \
-	PARAM(current_date_time, std::unique_ptr<Time>, Time, std::make_unique<Time>("2023-10-28 17:00:00", -9.5)) \
-	PARAM(utc_adjustment, double, double, -9.5) \
-	PARAM(model, std::string, std::string, "Gen 11.5") \
-	PARAM(optimizer, std::string, std::string, "Constant") \
-	PARAM(min_speed, double, double, 40) \
-	PARAM(max_speed, double, double, 100) \
-	PARAM(num_segments, int, int, 1) \
-	PARAM(save_csv, bool, bool, true) \
+#define CONFIG_PARAMETERS                                                                \
+  PARAM(max_soc, double, double, 5.2)                                                    \
+  PARAM(tire_pressure, double, double, 5.5)                                              \
+  PARAM(array_area, double, double, 3.98)                                                \
+  PARAM(car_mass, double, double, 305)                                                   \
+  PARAM(air_density, double, double, 1.17)                                               \
+  PARAM(passive_electric_loss, double, double, 20)                                       \
+  PARAM(cda, double, double, 0.16)                                                       \
+  PARAM(max_motor_power, double, double, 3.5)                                            \
+  PARAM(max_car_speed, double, double, 120)                                              \
+  PARAM(array_power_max, double, double, 950)                                            \
+  PARAM(array_efficiency, double, double, 0.252)                                         \
+  PARAM(motor_efficiency, double, double, 0.9)                                           \
+  PARAM(regen_efficiency, double, double, 0.8)                                           \
+  PARAM(battery_efficiency, double, double, 0.95)                                        \
+  PARAM(base_route_path, std::string, std::string,                                       \
+        "data/luts/wsc_2023/static/baseroute.csv")                                       \
+  PARAM(speed_limits_path, std::string, std::string,                                     \
+        "data/luts/wsc_2023/static/longDistanceSpeedLimit.csv")                          \
+  PARAM(traffic_signals_path, std::string, std::string,                                  \
+        "data/luts/wsc_2023/static/longDistanceTrafficSignals.csv")                      \
+  PARAM(power_factor_path, std::string, std::string,                                     \
+        "data/luts/wsc_2023/static/powerfactor.csv")                                     \
+  PARAM(roll_res_slope_path, std::string, std::string,                                   \
+        "data/luts/wsc_2023/static/rr2.csv")                                             \
+  PARAM(roll_res_yint_path, std::string, std::string,                                    \
+        "data/luts/wsc_2023/static/rr1.csv")                                             \
+  PARAM(dni_path, std::string, std::string,                                              \
+        "data/luts/wsc_2023/dynamic/dni.csv")                                            \
+  PARAM(dhi_path, std::string, std::string,                                              \
+        "data/luts/wsc_2023/dynamic/dhi.csv")                                            \
+  PARAM(wind_direction_path, std::string, std::string,                                   \
+        "data/luts/wsc_2023/dynamic/wind_direction_10m.csv")                             \
+  PARAM(wind_speed_path, std::string, std::string,                                       \
+        "data/luts/wsc_2023/dynamic/wind_speed_10m.csv")                                 \
+  PARAM(control_stops, std::unordered_set<size_t>,                                       \
+        std::unordered_set<size_t>,                                                      \
+        convert_string_to_int_set("2962,5559,9462,11421,14439,16990,20832,23202,25987")) \
+  PARAM(control_stop_charge_time, double, double, 30)                                    \
+  PARAM(race_start, std::unique_ptr<Time>, Time,                                         \
+        std::make_unique<Time>("2023-10-22 08:30:00", -9.5))                             \
+  PARAM(day_start_time, std::unique_ptr<Time>, Time, std::make_unique<Time>("09:00:00")) \
+  PARAM(day_end_time, std::unique_ptr<Time>, Time, std::make_unique<Time>("17:00:00"))   \
+  PARAM(race_end_time, std::unique_ptr<Time>, Time,                                      \
+        std::make_unique<Time>("2023-10-22 08:30:00", -9.5))                             \
+  PARAM(first_day, bool, bool, true)                                                     \
+  PARAM(current_soc, double, double, 100)                                                \
+  PARAM(gps_coordinates, Coord, Coord, Coord())                                          \
+  PARAM(current_date_time, std::unique_ptr<Time>, Time,                                  \
+        std::make_unique<Time>("2023-10-28 17:00:00", -9.5))                             \
+  PARAM(utc_adjustment, double, double, -9.5)                                            \
+  PARAM(model, std::string, std::string, "Gen 11.5")                                     \
+  PARAM(optimizer, std::string, std::string, "Constant")                                 \
+  PARAM(min_speed, double, double, 40)                                                   \
+  PARAM(max_speed, double, double, 100)                                                  \
+  PARAM(num_segments, int, int, 1)                                                       \
+  PARAM(save_csv, bool, bool, true)                                                      \
 
 /* Class that holds all information from a .yaml file storing configuration parameters for
  * a race simulation
 */
 class Config {
-private:
-	/* Parsed config */
-	static YAML::Node config;
+ private:
+  /* Parsed config */
+  static YAML::Node config;
 
-	/* Map with all parsed key-value pairs from the yaml config file */
-	static std::unordered_map<std::string, YAML::Node> key_values;
+  /* Map with all parsed key-value pairs from the yaml config file */
+  static std::unordered_map<std::string, YAML::Node> key_values;
 
-	/* Singleton pointer */
-	static std::unique_ptr<Config> instance_ptr;
+  /* Singleton pointer */
+  static std::unique_ptr<Config> instance_ptr;
 
-	/* Whether STRAT_ROOT and config_file_path have been initialized */
-	static bool initialized;
+  /* Whether STRAT_ROOT and config_file_path have been initialized */
+  static bool initialized;
 
-	/* Store the absolute path to the configuration file */
-	static std::string config_file_path;
+  /* Store the absolute path to the configuration file */
+  static std::filesystem::path config_file_path;
 
-	/* Store the path to gen12_strategy/RaceSim */
-	static std::string STRAT_ROOT;
+  /* Store the path to gen12_strategy/RaceSim */
+  static char* STRAT_ROOT;
 
-	static const int MAX_RECURSION_DEPTH = 10;
+  static const int MAX_RECURSION_DEPTH = 10;
 
-	// Dummy variable to satisfy macro syntax
-	int b;
+  // Dummy variable to satisfy macro syntax
+  int b;
 
-	/* Declare all parameters */
-	#define PARAM(name, type, return_type, default_value) \
-		Config_Param<type, return_type> name;
-		
-	CONFIG_PARAMETERS
+  /* Declare all parameters */
+  #define PARAM(name, type, return_type, default_value) \
+    Config_Param<type, return_type> name;
 
-	#undef PARAM
+  CONFIG_PARAMETERS
 
-	/* Initialize all parameters */
-	#define PARAM(name, type, return_type, default_value)\
-		name(Config_Param<type, return_type>(#name, default_value, key_values)),
+  #undef PARAM
 
-	/* Load all parameters from yaml file. Should only be called from get_instance() */
-	Config() : CONFIG_PARAMETERS b(45) {}
+  /* Initialize all parameters */
+  #define PARAM(name, type, return_type, default_value)\
+    name(Config_Param<type, return_type>(#name, default_value, key_values)),
 
-	#undef PARAM
+  /* Load all parameters from yaml file. Should only be called from get_instance() */
+  Config() : CONFIG_PARAMETERS b(45) {}
 
-	/* Extract all values from the config */
-	static void get_config_leaf_nodes(YAML::Node node, int current_depth = 0);
+  #undef PARAM
 
-public:
+  /* Extract all values from the config */
+  static void get_config_leaf_nodes(YAML::Node node, int current_depth = 0);
 
-	/* Public singleton constructor */
-	static Config* get_instance();
+ public:
+  /* Public singleton constructor */
+  static Config* get_instance();
 
-	/** Set the config file. Can only be called once in an executable's life cycle
-	 * @param file_path path to the config file relative to executable
-	 * @param strat_root_path full path to gen12_strategy/RaceSim
-	 */
-	static void initialize(std::string file_path, std::string strat_root_path);
+  /** Set the config file. Can only be called once in an executable's life cycle
+  * @param file_path path to the config file relative to executable
+  * @param strat_root_path full path to gen12_strategy/RaceSim
+  */
+  static void initialize(std::filesystem::path file_path, char* strat_root_path);
 
-	/* Getters */
-	#define PARAM(name, type, return_type, default_value) \
-		inline return_type get_##name() {return name.get_value();}
+  /* Getters */
+  #define PARAM(name, type, return_type, default_value) \
+    inline return_type get_##name() {return name.get_value();}
 
-	CONFIG_PARAMETERS
-	#undef PARAM
-	static std::string get_strat_root() {return STRAT_ROOT;}
+  CONFIG_PARAMETERS
+  #undef PARAM
+  static std::string get_strat_root() {return STRAT_ROOT;}
 
-	/* No setters since config parameters should never change after initialization */
+  /* No setters since config parameters should never change after initialization */
 };

@@ -68,16 +68,7 @@ set(RACESIM_SOURCES
 add_library(RaceSim SHARED ${RACESIM_SOURCES})
 
 # Don't need include directories for yaml-cpp, googletest,spdlog - they set up those with INTERFACE
-target_include_directories(RaceSim PUBLIC
-    ${CMAKE_CURRENT_SOURCE_DIR}/include
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/config
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/model
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/opt
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/route
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/sim
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/utils
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/date # Header only third party library
-)
+target_include_directories(RaceSim PUBLIC ${CMAKE_SOURCE_DIR}/include)
 
 target_compile_features(RaceSim PRIVATE cxx_std_17)
 
@@ -108,7 +99,7 @@ target_link_libraries(RaceSim PRIVATE ${EXTERNAL_DEPS})
 # ---------------------------------------------------------
 
 # ------------------- opt.exe executable ------------------
-add_executable(opt ./src/main.cpp)
+add_executable(opt ${CMAKE_SOURCE_DIR}/src/main.cpp)
 target_link_libraries(opt PRIVATE ${EXTERNAL_DEPS} RaceSim) 
 target_compile_features(opt PRIVATE cxx_std_17)
 # ---------------------------------------------------------
@@ -117,32 +108,32 @@ target_compile_features(opt PRIVATE cxx_std_17)
 enable_testing()
 
 # Geography functions
-add_executable(GeographyTest tests/GeographyTest.cpp)
+add_executable(GeographyTest ${CMAKE_SOURCE_DIR}/tests/GeographyTest.cpp)
 target_link_libraries(GeographyTest gtest gtest_main RaceSim ${EXTERNAL_DEPS})
 add_test(GeographyTest GeographyTest)
 
 # Custom time class
-add_executable(TimeTest tests/TimeTest.cpp)
+add_executable(TimeTest ${CMAKE_SOURCE_DIR}/tests/TimeTest.cpp)
 target_link_libraries(TimeTest gtest gtest_main RaceSim ${EXTERNAL_DEPS})
 add_test(TimeTest TimeTest)
 
 # Lookup Tables
-add_executable(LutsTest tests/LutsTest.cpp)
+add_executable(LutsTest ${CMAKE_SOURCE_DIR}/tests/LutsTest.cpp)
 target_link_libraries(LutsTest gtest gtest_main RaceSim ${EXTERNAL_DEPS})
 add_test(LutsTest LutsTest)
 
 # Gen 11.5 Car Model
-add_executable(v1CarTest tests/v1CarTest.cpp)
+add_executable(v1CarTest ${CMAKE_SOURCE_DIR}/tests/v1CarTest.cpp)
 target_link_libraries(v1CarTest gtest gtest_main RaceSim ${EXTERNAL_DEPS})
 add_test(v1CarTest v1CarTest)
 
 # Route
-add_executable(RouteTest tests/RouteTest.cpp)
+add_executable(RouteTest ${CMAKE_SOURCE_DIR}/tests/RouteTest.cpp)
 target_link_libraries(RouteTest gtest gtest_main RaceSim ${EXTERNAL_DEPS})
 add_test(RouteTest RouteTest)
 
 # Simulator
-add_executable(SimTest tests/SimTest.cpp)
+add_executable(SimTest ${CMAKE_SOURCE_DIR}/tests/SimTest.cpp)
 target_link_libraries(SimTest gtest gtest_main RaceSim ${EXTERNAL_DEPS})
 add_test(SimTest SimTest)
 
@@ -150,8 +141,27 @@ add_test(SimTest SimTest)
 add_custom_target(run_tests ALL
     COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure || true)
 
-# Add valgrind test
-# Add linter test
+# Run linter
+find_program(CPPLINT_EXE NAMES cpplint REQUIRED)
+file(GLOB_RECURSE CONFIG_HEADERS "${CMAKE_SOURCE_DIR}/include/config/*.hpp")
+file(GLOB_RECURSE MODEL_HEADERS "${CMAKE_SOURCE_DIR}/include/model/*.hpp")
+file(GLOB_RECURSE OPT_HEADERS "${CMAKE_SOURCE_DIR}/include/opt/*.hpp")
+file(GLOB_RECURSE ROUTE_HEADERS "${CMAKE_SOURCE_DIR}/include/route/*.hpp")
+file(GLOB_RECURSE SIM_HEADERS "${CMAKE_SOURCE_DIR}/include/sim/*.hpp")
+file(GLOB_RECURSE UTIL_HEADERS "${CMAKE_SOURCE_DIR}/include/utils/*.hpp")
+set(RACESIM_HEADERS ${CONFIG_HEADERS} ${MODEL_HEADERS} ${OPT_HEADERS} ${ROUTE_HEADERS} ${SIM_HEADERS} ${UTIL_HEADERS})
+set(RACESIM_TEST_SOURCES ${CMAKE_SOURCE_DIR}/tests/RouteTest.cpp ${CMAKE_SOURCE_DIR}/tests/v1CarTest.cpp
+                         ${CMAKE_SOURCE_DIR}/tests/GeographyTest.cpp ${CMAKE_SOURCE_DIR}/tests/TimeTest.cpp
+                         ${CMAKE_SOURCE_DIR}/tests/LutsTest.cpp ${CMAKE_SOURCE_DIR}/tests/SimTest.cpp)
+add_custom_target(lint ALL
+    COMMAND ${CPPLINT_EXE} --linelength=120 --filter=-build/c++17,-legal/copyright
+            ${RACESIM_SOURCES}
+            ${RACESIM_HEADERS}
+            ${CMAKE_SOURCE_DIR}/src/main.cpp
+            ${RACESIM_TEST_SOURCES} || true
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    COMMENT "Running cpplint"
+)
 # ---------------------------------------------------------
 
 # ---------------------- Installation ---------------------
@@ -161,7 +171,7 @@ install(TARGETS RaceSim
 install(TARGETS opt
         RUNTIME DESTINATION ${CMAKE_SOURCE_DIR}/install/bin)
 install(TARGETS GeographyTest TimeTest LutsTest v1CarTest RouteTest SimTest
-        RUNTIME DESTINATION ${CMAKE_SOURCE_DIR}/install/tests/bin)
+        RUNTIME DESTINATION ${CMAKE_SOURCE_DIR}/install/tests/)
 # ---------------------------------------------------------
 
 # # -------------------- Clean install --------------------

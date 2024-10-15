@@ -4,11 +4,11 @@
 
 #include <stdlib.h>
 #include <stdbool.h>
-#include <string.h>
+#include <string>
 #include <unordered_set>
 
-#include "Units.hpp"
-#include "CustomTime.hpp"
+#include "utils/Units.hpp"
+#include "utils/CustomTime.hpp"
 
 /* Determine if a string can be represented by a double */
 bool isDouble(const std::string str);

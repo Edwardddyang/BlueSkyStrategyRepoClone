@@ -48,9 +48,10 @@ This example file is already present in the repository.
 - Download Msys2 (https://www.msys2.org/)
 - Follow the instructions on the Msys2 home page with the following modifications to the steps:
   - In step 5, instead of launching the UCRT64 environment which has proven to be buggy, use the MinGW64 environment. You can find this as one of the applications in the downloaded msys2/ folder.
-  - In step 6, run `pacman -S mingw-w64-x86_64-gcc` inside the MinGW64 terminal. Then install `make` with `pacman -S mingw-w64-x86_64-make` inside the same MinGW64 terminal. After installing make, re-name the ```mingw32-make``` file in msys2/mingw64/bin to ```make```. Finally, run `pacman -S mingw-w64-x86_64-clang-tools-extra` to get the c++ linter
+  - In step 6, run `pacman -S mingw-w64-x86_64-gcc` inside the MinGW64 terminal. Then install `make` with `pacman -S mingw-w64-x86_64-make` inside the same MinGW64 terminal. After installing make, re-name the ```mingw32-make``` file in msys2/mingw64/bin to ```make```.
 - Add the absolute path to msys2/mingw64/bin to your PATH environment variable
 - Open git bash and ensure that ```make --version``` ```gcc --version``` run without error. If you get a command not found error. Then you most likely did not set your environment variable paths correctly
+- Run ```pip install cpplint```
 
 ### Building the executables and libraries
 
@@ -72,6 +73,12 @@ This has been tested on:
 - Ubuntu 20.04 with make (GNU 4.2) with gcc (9.4), CMake (3.16.3)
 
 Dependencies: yaml-cpp (0.8.0), spdlog (1.14.1), googletest (1.14.0)
+
+## Contributing
+Before pushing, please ensure that ```make install``` runs with no testing or lint errors.
+
+## Vscode Suggestions
+Add ```"editor.insertSpaces": true``` into .vscode/settings.json and set the tab size to 2
 
 ## Config File
 

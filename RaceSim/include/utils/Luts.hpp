@@ -13,162 +13,166 @@
 #pragma once
 
 #include <stdlib.h>
-#include <string.h>
-#include <date.h>
 #include <stdio.h>
+#include <string>
 #include <vector>
 
-#include "Geography.hpp"
-#include "Utilities.hpp"
-#include "Config.hpp"
-#include "Units.hpp"
+#include "utils/Geography.hpp"
+#include "utils/Utilities.hpp"
+#include "config/Config.hpp"
+#include "utils/Units.hpp"
 #include "spdlog/spdlog.h"
+#include "date/date.h"
 
 /* Base LUT */
 template <typename T>
 class BaseLut {
-protected:
-    /* Relative path to LUT */
-    std::string lut_path;
+ protected:
+  /* Relative path to LUT */
+  std::string lut_path;
 
-    /* LUT stored as a matrix */
-    std::vector<std::vector<T>> values;
+  /* LUT stored as a matrix */
+  std::vector<std::vector<T>> values;
 
-    /* Dimensions of the LUT */
-    size_t num_rows;
-    size_t num_cols;
+  /* Dimensions of the LUT */
+  size_t num_rows;
+  size_t num_cols;
 
-    virtual void load_LUT() = 0;
-public:
-    /* Only stores the relative path to the LUT */
-    BaseLut(const std::string path);
-    BaseLut() {}
+  virtual void load_LUT() = 0;
 
-    /* We let the derived LUTs implement their own lookup functionality */
+ public:
+  /* Only stores the relative path to the LUT */
+  explicit BaseLut(const std::string path);
+  BaseLut() {}
+
+  /* We let the derived LUTs implement their own lookup functionality */
 };
 
 /* Represents a standard double type lookup table */
 class BasicLut : public BaseLut<double> {
-private:
-    void load_LUT() override;
-public:
-    /* Index the LUT to retrieve a value */
-    double get_value(size_t row_idx, size_t col_idx);
+ private:
+  void load_LUT() override;
 
-    /* Load csv upon construction */
-    BasicLut(const std::string path);
+ public:
+  /* Index the LUT to retrieve a value */
+  double get_value(size_t row_idx, size_t col_idx);
+
+  /* Load csv upon construction */
+  explicit BasicLut(const std::string path);
 };
 
 /* Represents an efficiency lookup table of double values */
 class EffLut : public BaseLut<double> {
-private:
-    /* Index values that run along the first row of the csv */
-	std::vector<double> column_values;
+ private:
+  /* Index values that run along the first row of the csv */
+  std::vector<double> column_values;
 
-    /* Index values that run along the first column of the csv */
-	std::vector<double> row_values;
+  /* Index values that run along the first column of the csv */
+  std::vector<double> row_values;
 
-    void load_LUT() override;
-public:
-    /* Retrieve a value from the lookup table. Note that row_value and column_value indicate
-       a key. If there is no matching key, the indexing takes place at the largest value
-       that is smaller than both keys. */
-    double get_value(double row_value, double column_value);
+  void load_LUT() override;
 
-    /* Load a csv upon construction */
-    EffLut(const std::string lut_path);
+ public:
+  /* Retrieve a value from the lookup table. Note that row_value and column_value indicate
+  a key. If there is no matching key, the indexing takes place at the largest value
+  that is smaller than both keys. */
+  double get_value(double row_value, double column_value);
+
+  /* Load a csv upon construction */
+  explicit EffLut(const std::string lut_path);
 };
 
 /* Represents a forecast lookup table of double values */
 class ForecastLut : public BaseLut<double>{
-private:
+ private:
+  /* Coordinates used to index the lookup table */
+  std::vector<ForecastCoord> forecast_coords;
 
-    /* Coordinates used to index the lookup table */
-    std::vector<ForecastCoord> forecast_coords;
+  /* Timesteps used to index the lookup table as unix epoch times */
+  std::vector<time_t> forecast_times;
 
-    /* Timesteps used to index the lookup table as unix epoch times */
-    std::vector<time_t> forecast_times;
+  void load_LUT() override;
 
-    void load_LUT() override;
-public:
-    /* Load a csv upon construction */
-    ForecastLut(std::string lut_path);
+ public:
+  /* Load a csv upon construction */
+  explicit ForecastLut(std::string lut_path);
 
-    /* Get a certain value with lat/lon and unix time as keys. Uses the closest keys */
-    double get_value(ForecastCoord coord, time_t time);
+  /* Get a certain value with lat/lon and unix time as keys. Uses the closest keys */
+  double get_value(ForecastCoord coord, time_t time);
 
-    /* Caches for faster accessing */
-    int row_cache;
-    int column_cache;
+  /* Caches for faster accessing */
+  int row_cache;
+  int column_cache;
 
-    /* Directly indexes the csv to return a value */
-    double get_value_with_cache();
+  /* Directly indexes the csv to return a value */
+  double get_value_with_cache();
 
-    /* Updates the index_cache struct using new keys */
-    void update_index_cache(ForecastCoord coord, time_t time);
+  /* Updates the index_cache struct using new keys */
+  void update_index_cache(ForecastCoord coord, time_t time);
 
-    /* Initialize the cache variables */
-    void initialize_caches(ForecastCoord coord, time_t time);
-    void initialize_caches(Coord coord, time_t time);
+  /* Initialize the cache variables */
+  void initialize_caches(ForecastCoord coord, time_t time);
+  void initialize_caches(Coord coord, time_t time);
 };
 
 /* Represents the result file generated by the simulator */
 class ResultsLut : public BaseLut<double> {
-private:
-    std::vector<double> battery_energy;
-    std::vector<double> accumulated_distance;
-    std::vector<std::string> time;
-    std::vector<double> azimuth;
-    std::vector<double> elevation;
-    std::vector<double> bearing;
-    std::vector<double> latitude;
-    std::vector<double> longitude;
-    std::vector<double> altitude;
-    std::vector<double> speed;
-    std::vector<double> array_energy;
-    std::vector<double> array_power;
-    std::vector<double> motor_power;
-    std::vector<double> motor_energy;
-    std::vector<double> aero_power;
-    std::vector<double> aero_energy;
-    std::vector<double> rolling_power;
-    std::vector<double> rolling_energy;
-    std::vector<double> gravitational_power;
-    std::vector<double> gravitational_energy;
-    std::vector<double> electric_energy;
-    std::vector<double> delta_energy;
+ private:
+  std::vector<double> battery_energy;
+  std::vector<double> accumulated_distance;
+  std::vector<std::string> time;
+  std::vector<double> azimuth;
+  std::vector<double> elevation;
+  std::vector<double> bearing;
+  std::vector<double> latitude;
+  std::vector<double> longitude;
+  std::vector<double> altitude;
+  std::vector<double> speed;
+  std::vector<double> array_energy;
+  std::vector<double> array_power;
+  std::vector<double> motor_power;
+  std::vector<double> motor_energy;
+  std::vector<double> aero_power;
+  std::vector<double> aero_energy;
+  std::vector<double> rolling_power;
+  std::vector<double> rolling_energy;
+  std::vector<double> gravitational_power;
+  std::vector<double> gravitational_energy;
+  std::vector<double> electric_energy;
+  std::vector<double> delta_energy;
 
-    void load_LUT() override;
-public:
-    // Load a results file csv
-    ResultsLut(const std::string lut_path);
-    ResultsLut() {}
+  void load_LUT() override;
 
-    void reset_logs();
-    void write_logs(const std::string lut_path) const;
-    void update_logs(const CarUpdate update, double battery, double d_energy,
-					 double distance, Coord next_coord, double curr_speed, Time curr_time);
+ public:
+  // Load a results file csv
+  explicit ResultsLut(const std::string lut_path);
+  ResultsLut() {}
 
-   inline std::vector<double> get_battery_energy() const {return battery_energy;}
-   inline std::vector<double> get_accumulated_distance() const {return accumulated_distance;}
-   inline std::vector<std::string> get_time() const {return time;}
-   inline std::vector<double> get_azimuth() const { return azimuth; }
-   inline std::vector<double> get_elevation() const { return elevation; }
-   inline std::vector<double> get_bearing() const { return bearing; }
-   inline std::vector<double> get_latitude() const { return latitude; }
-   inline std::vector<double> get_longitude() const { return longitude; }
-   inline std::vector<double> get_altitude() const { return altitude; }
-   inline std::vector<double> get_speed() const { return speed; }
-   inline std::vector<double> get_array_energy() const { return array_energy; }
-   inline std::vector<double> get_array_power() const { return array_power; }
-   inline std::vector<double> get_motor_power() const { return motor_power; }
-   inline std::vector<double> get_motor_energy() const { return motor_energy; }
-   inline std::vector<double> get_aero_power() const { return aero_power; }
-   inline std::vector<double> get_aero_energy() const { return aero_energy; }
-   inline std::vector<double> get_rolling_power() const { return rolling_power; }
-   inline std::vector<double> get_rolling_energy() const { return rolling_energy; }
-   inline std::vector<double> get_gravitational_power() const { return gravitational_power; }
-   inline std::vector<double> get_gravitational_energy() const { return gravitational_energy; }
-   inline std::vector<double> get_electric_energy() const { return electric_energy; }
-   inline std::vector<double> get_delta_energy() const { return delta_energy; }
+  void reset_logs();
+  void write_logs(const std::string lut_path) const;
+  void update_logs(const CarUpdate update, double battery, double d_energy,
+                   double distance, Coord next_coord, double curr_speed, Time curr_time);
+
+  inline std::vector<double> get_battery_energy() const {return battery_energy;}
+  inline std::vector<double> get_accumulated_distance() const {return accumulated_distance;}
+  inline std::vector<std::string> get_time() const {return time;}
+  inline std::vector<double> get_azimuth() const { return azimuth; }
+  inline std::vector<double> get_elevation() const { return elevation; }
+  inline std::vector<double> get_bearing() const { return bearing; }
+  inline std::vector<double> get_latitude() const { return latitude; }
+  inline std::vector<double> get_longitude() const { return longitude; }
+  inline std::vector<double> get_altitude() const { return altitude; }
+  inline std::vector<double> get_speed() const { return speed; }
+  inline std::vector<double> get_array_energy() const { return array_energy; }
+  inline std::vector<double> get_array_power() const { return array_power; }
+  inline std::vector<double> get_motor_power() const { return motor_power; }
+  inline std::vector<double> get_motor_energy() const { return motor_energy; }
+  inline std::vector<double> get_aero_power() const { return aero_power; }
+  inline std::vector<double> get_aero_energy() const { return aero_energy; }
+  inline std::vector<double> get_rolling_power() const { return rolling_power; }
+  inline std::vector<double> get_rolling_energy() const { return rolling_energy; }
+  inline std::vector<double> get_gravitational_power() const { return gravitational_power; }
+  inline std::vector<double> get_gravitational_energy() const { return gravitational_energy; }
+  inline std::vector<double> get_electric_energy() const { return electric_energy; }
+  inline std::vector<double> get_delta_energy() const { return delta_energy; }
 };

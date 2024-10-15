@@ -6,8 +6,8 @@
 #include <stdbool.h>
 #include <string.h>
 
-#include "Units.hpp"
-#include "CustomTime.hpp"
+#include "utils/Units.hpp"
+#include "utils/CustomTime.hpp"
 
 /* Calculate haversine distance between two lat/lon/alt points */
 /** @brief Calculate haversine distance between two lat/lon/alt points
@@ -86,4 +86,4 @@ OR TORT(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 */
-void get_az_el(time_t utc_time_point, double Lat, double Lon, double Alt, double* Az, double* El); 
+void get_az_el(time_t utc_time_point, double Lat, double Lon, double Alt, double* Az, double* El);
