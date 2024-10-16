@@ -18,6 +18,8 @@
 #include "opt/OptimizerFactory.hpp"
 #include "utils/Defines.hpp"
 
+#include "libIntegrate/Integrate.hpp"
+
 int main(int argc, char* argv[]) {
   spdlog::set_level(spdlog::level::debug);
   RUNTIME_EXCEPTION(argc == 2, "Exactly one argument is required for the config file path");
