@@ -19,25 +19,11 @@ The simulation supports two different modes.
    - Escape to exit out of mouse control orbiting.
    - Q to enter into mouse control orbiting.
 
-   Below is an example of the visualization tool for the results of a static simulation.
+   Below is an example of the visualization tool for the results of a static simulation. Build examples can be found inside CPP/
 
 https://github.com/user-attachments/assets/a1e3b0fe-b9b7-4c5d-ac96-9a4bef312d51
 
 3. Get the total power output of the entire array in W by feeding the output csv from step 2 into a custom simulink model that simulates either bypass diodes or mppt controllers. This simulink model must be custom made for each array layout in order to adhere to string configurations.
-
-# C++ GUI Application
-
-Requirements:
-- Windows 64-bit
-- OpenGL
-- Boost (For CGAL)
-
-1. Get boost: https://archives.boost.io/release/1.86.0/source/ . Boost is a header only library. Modify line 66 of the CMakeLists.txt file to link to the boost library.
-2. ```export ARRAY_ROOT=<absolute path to the ArraySim folder>```
-3. mkdir CPP/build
-4. cd CPP/build
-5. cmake ..
-6. make
 
 # Limitations
 
