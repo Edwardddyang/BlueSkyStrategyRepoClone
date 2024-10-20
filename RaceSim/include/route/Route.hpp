@@ -1,16 +1,19 @@
-/*
-Class for representing the route
-*/
+/**
+ * Classes used to represent a race route and proposed race plans
+ */
 
 #pragma once
 
-#include <string.h>
 #include <stdlib.h>
+
+#include <string>
+#include <filesystem>
 #include <vector>
 #include <unordered_set>
 
 #include "utils/Units.hpp"
 
+/** Holds all coordinates in a race route */
 class Route {
  protected:
   /* Number of segments to split the route up into */
@@ -35,8 +38,12 @@ class Route {
   double route_length;
 
  public:
-  /* Initialize the vector of route points */
-  Route();
+  /* Read a CSV with columns |latitude|longitude|altitude| */
+  explicit Route(const std::string route_path);
+  explicit Route(const std::filesystem::path route_path);
+
+  void init_route(const std::filesystem::path route_path);
+  Route() {}
 
   /* Segment the route into uniform lengths */
   void segment_route_uniform(double length);

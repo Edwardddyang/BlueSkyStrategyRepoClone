@@ -5,7 +5,6 @@
 #include <cassert>
 #include <fstream>
 #include <limits>
-#include <filesystem>
 #include <string>
 #include <utility>
 
@@ -15,25 +14,22 @@
 #include "utils/Utilities.hpp"
 #include "utils/Geography.hpp"
 
-/* Load the base route */
-Route::Route() {
-  Config* params = Config::get_instance();
-  std::string strat_root = Config::get_strat_root();
-  std::string route_path;
-  if (strat_root == "") {
-    route_path = params->get_base_route_path();
-  } else {
-    route_path = (std::filesystem::path(strat_root) / params->get_base_route_path()).string();
-  }
-  std::fstream base_route(route_path);
+Route::Route(const std::string lut_path) {
+  init_route(std::filesystem::path(lut_path));
+}
 
-  RUNTIME_EXCEPTION(base_route.is_open(), "Base route file not found {}", route_path);
+Route::Route(const std::filesystem::path lut_path) {
+  init_route(lut_path);
+}
+
+void Route::init_route(const std::filesystem::path route_path) {
+  std::fstream base_route(route_path);
+  RUNTIME_EXCEPTION(base_route.is_open(), "Base route file not found {}", route_path.string());
 
   route_length = 0.0;
   Coord last_coord;
 
   bool first_coord = true;
-
   // Read and parse the file
   while (!base_route.eof()) {
     std::string line;
@@ -45,15 +41,15 @@ Route::Route() {
       Coord coord{};
 
       std::getline(linestream, cell, ',');
-      RUNTIME_EXCEPTION(isDouble(cell), "Value {} in route file {} is not a number", cell, route_path);
+      RUNTIME_EXCEPTION(isDouble(cell), "Value {} in route file {} is not a number", cell, route_path.string());
       coord.lat = std::stod(cell);
 
       std::getline(linestream, cell, ',');
-      RUNTIME_EXCEPTION(isDouble(cell), "Value {} in route file {} is not a number", cell, route_path);
+      RUNTIME_EXCEPTION(isDouble(cell), "Value {} in route file {} is not a number", cell, route_path.string());
       coord.lon = std::stod(cell);
 
       std::getline(linestream, cell, ',');
-      RUNTIME_EXCEPTION(isDouble(cell), "Value {} in route file {} is not a number", cell, route_path);
+      RUNTIME_EXCEPTION(isDouble(cell), "Value {} in route file {} is not a number", cell, route_path.string());
       coord.alt = std::stod(cell);
 
       route_points.emplace_back(coord);
@@ -67,15 +63,12 @@ Route::Route() {
       last_coord = coord;
     }
   }
-
-  /* Segment the route */
   num_points = route_points.size();
   if (Config::get_instance()->get_optimizer() == "Constant") {
     segment_route_uniform(route_length);
   }
-
   control_stops = Config::get_instance()->get_control_stops();
-  spdlog::info("Loaded base route {} with {} coordinates", route_path, std::to_string(num_points));
+  spdlog::info("Loaded base route {} with {} coordinates", route_path.string(), std::to_string(num_points));
 }
 
 /* Segment a route into uniform lengths */

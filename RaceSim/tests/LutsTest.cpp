@@ -5,20 +5,22 @@
 #include "utils/Luts.hpp"
 #include "utils/Units.hpp"
 
-int main(int argc, char **argv) {
-  ::testing::InitGoogleTest(&argc, argv);
+class LutsTest : public ::testing::Test {
+ protected:
+  static std::filesystem::path strat_root_path;
 
-  char* strat_root = std::getenv("STRAT_ROOT");
-  RUNTIME_EXCEPTION(strat_root != nullptr, "No STRAT_ROOT environment variable detected."
-                                           "Set it to the full path to gen12_strategy/RaceSim.");
-
-  std::filesystem::path config_path("data/config/test_config.yaml");
-  Config::initialize(config_path, strat_root);
-  return RUN_ALL_TESTS();
-}
+  static void SetUpTestSuite() {
+    char* strat_root = std::getenv("STRAT_ROOT");
+    RUNTIME_EXCEPTION(strat_root != nullptr, "No STRAT_ROOT environment variable detected."
+                                            "Set it to the full path to gen12_strategy/RaceSim.");
+    strat_root_path = std::filesystem::path(strat_root);
+  }
+};
+std::filesystem::path strat_root_path;
 
 TEST(LutsTest, BasicLutTest) {
-  BasicLut TestBaseLut = BasicLut(Config::get_instance()->get_power_factor_path());
+  std::filesystem::path power_factor_path = strat_root_path / "data/luts/TestData/power_factor.csv";
+  BasicLut TestBaseLut = BasicLut(power_factor_path);
 
   double value = TestBaseLut.get_value(1, 1);
   double true_val = 0.033922205865;
@@ -34,7 +36,8 @@ TEST(LutsTest, BasicLutTest) {
 }
 
 TEST(LutsTest, EffLutTest) {
-  EffLut TestEffLut = EffLut(Config::get_instance()->get_roll_res_yint_path());
+  std::filesystem::path roll_res_yint_path = strat_root_path / "data/luts/TestData/rr1.csv";
+  EffLut TestEffLut = EffLut(roll_res_yint_path);
 
   double value = TestEffLut.get_value(5, 0);
   double true_val = 0.002574815;
@@ -64,7 +67,8 @@ TEST(LutsTest, EffLutTest) {
 }
 
 TEST(LutsTest, ForecastLutTest) {
-  ForecastLut TestForecastLut = ForecastLut(Config::get_instance()->get_dni_path());
+  std::filesystem::path dni_path = strat_root_path / "data/luts/TestData/dni.csv";
+  ForecastLut TestForecastLut = ForecastLut(dni_path);
   ForecastCoord testCoord = ForecastCoord(-12.46322, 130.84618);
   EXPECT_NEAR(testCoord.lat, -12.46322, 0.0001);
 

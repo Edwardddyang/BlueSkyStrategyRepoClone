@@ -12,16 +12,19 @@
 #include "config/Config.hpp"
 #include "utils/Defines.hpp"
 
-int main(int argc, char **argv) {
-  ::testing::InitGoogleTest(&argc, argv);
-
-  char* strat_root = std::getenv("STRAT_ROOT");
-  RUNTIME_EXCEPTION(strat_root != nullptr, "No STRAT_ROOT environment variable detected."
-                                            "Set it to the full path to gen12_strategy/RaceSim.");
-  std::filesystem::path config_path("data/config/sim_test_config.yaml");
-  Config::initialize(config_path, strat_root);
-  return RUN_ALL_TESTS();
-}
+class SimTest : public ::testing::Test {
+ protected:
+  static std::filesystem::path strat_root_path;
+  static void SetUpTestSuite() {
+    char* strat_root = std::getenv("STRAT_ROOT");
+    RUNTIME_EXCEPTION(strat_root != nullptr, "No STRAT_ROOT environment variable detected."
+                                              "Set it to the full path to gen12_strategy/RaceSim.");
+    strat_root_path = std::filesystem::path(strat_root);
+    std::filesystem::path config_path("data/config/sim_test_config.yaml");
+    Config::initialize(config_path, strat_root);
+  }
+};
+std::filesystem::path strat_root_path;
 
 TEST(SimTest, Test1) {
   /* Create a model of the car */
@@ -37,8 +40,7 @@ TEST(SimTest, Test1) {
   EXPECT_EQ(result, true);
 
   /* Parse the logs and ensure that all values match */
-  const char* strat_root = std::getenv("STRAT_ROOT");
-  std::string results_file = (std::filesystem::path(strat_root) / "data/luts/TestData/58.csv").string();
+  std::filesystem::path results_file = strat_root_path / "data/luts/TestData/58.csv";
 
   ResultsLut golden_result(results_file);
   ResultsLut test_result = sim->get_results_lut();

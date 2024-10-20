@@ -6,24 +6,16 @@
 #include <string>
 
 #include "route/Route.hpp"
-#include "config/Config.hpp"
 #include "utils/Units.hpp"
+#include "utils/Defines.hpp"
 
-int main(int argc, char **argv) {
-  ::testing::InitGoogleTest(&argc, argv);
-
+TEST(routeTest, UniformSegmentTestNewRoute) {
   char* strat_root = std::getenv("STRAT_ROOT");
   RUNTIME_EXCEPTION(strat_root != nullptr, "No STRAT_ROOT environment variable detected."
                                            "Set it to the full path to gen12_strategy/RaceSim.");
-
-  std::filesystem::path config_path("data/config/test_config.yaml");
-  Config::initialize(config_path, strat_root);
-  return RUN_ALL_TESTS();
-}
-
-
-TEST(routeTest, UniformSegmentTestNewRoute) {
-  Route new_route = Route();
+  std::filesystem::path base_route_path = std::filesystem::path(strat_root) /
+                                          "data/TestData/uniform_segment_testing.csv";
+  Route new_route = Route(base_route_path);
   int num_points = new_route.get_num_points();
   int true_num_points = 10;
   EXPECT_EQ(num_points, true_num_points);
