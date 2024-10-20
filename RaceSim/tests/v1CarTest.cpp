@@ -8,18 +8,16 @@
 #include "config/Config.hpp"
 #include "utils/Defines.hpp"
 
-int main(int argc, char **argv) {
-  ::testing::InitGoogleTest(&argc, argv);
-
-  char* strat_root = std::getenv("STRAT_ROOT");
-  RUNTIME_EXCEPTION(strat_root != nullptr, "No STRAT_ROOT environment variable detected."
-                                           "Set it to the full path to gen12_strategy/RaceSim.");
-
-  std::filesystem::path config_path("data/config/test_config.yaml");
-  Config::initialize(config_path, strat_root);
-
-  return RUN_ALL_TESTS();
-}
+class v1CarTest : public ::testing::Test {
+ protected:
+  static void SetUpTestSuite() {
+    char* strat_root = std::getenv("STRAT_ROOT");
+    RUNTIME_EXCEPTION(strat_root != nullptr, "No STRAT_ROOT environment variable detected."
+                                              "Set it to the full path to gen12_strategy/RaceSim.");
+    std::filesystem::path config_path("data/config/sim_test_config.yaml");
+    Config::initialize(config_path, strat_root);
+  }
+};
 
 TEST(v1CarTest, ElectricLossTest) {
   V1Car TestCar = V1Car();

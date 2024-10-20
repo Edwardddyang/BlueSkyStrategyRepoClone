@@ -18,6 +18,8 @@
 #include "opt/OptimizerFactory.hpp"
 #include "utils/Defines.hpp"
 
+#include "libIntegrate/Integrate.hpp"
+
 int main(int argc, char* argv[]) {
   spdlog::set_level(spdlog::level::debug);
   RUNTIME_EXCEPTION(argc == 2, "Exactly one argument is required for the config file path");
@@ -33,7 +35,7 @@ int main(int argc, char* argv[]) {
   std::unique_ptr<Car> car = CarFactory::get_car(Config::get_instance()->get_model());
 
   /* Create route */
-  std::unique_ptr<Route> route = std::make_unique<Route>();
+  std::unique_ptr<Route> route = std::make_unique<Route>(Config::get_instance()->get_base_route_path());
 
   /* Create simulator */
   std::unique_ptr<Simulator> sim = std::make_unique<Simulator>(std::move(car));

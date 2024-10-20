@@ -29,7 +29,7 @@ template <typename T>
 class BaseLut {
  protected:
   /* Relative path to LUT */
-  std::string lut_path;
+  std::filesystem::path lut_path;
 
   /* LUT stored as a matrix */
   std::vector<std::vector<T>> values;
@@ -42,7 +42,7 @@ class BaseLut {
 
  public:
   /* Only stores the relative path to the LUT */
-  explicit BaseLut(const std::string path);
+  explicit BaseLut(const std::filesystem::path path);
   BaseLut() {}
 
   /* We let the derived LUTs implement their own lookup functionality */
@@ -58,7 +58,7 @@ class BasicLut : public BaseLut<double> {
   double get_value(size_t row_idx, size_t col_idx);
 
   /* Load csv upon construction */
-  explicit BasicLut(const std::string path);
+  explicit BasicLut(const std::filesystem::path path);
 };
 
 /* Represents an efficiency lookup table of double values */
@@ -79,7 +79,7 @@ class EffLut : public BaseLut<double> {
   double get_value(double row_value, double column_value);
 
   /* Load a csv upon construction */
-  explicit EffLut(const std::string lut_path);
+  explicit EffLut(const std::filesystem::path lut_path);
 };
 
 /* Represents a forecast lookup table of double values */
@@ -95,7 +95,7 @@ class ForecastLut : public BaseLut<double>{
 
  public:
   /* Load a csv upon construction */
-  explicit ForecastLut(std::string lut_path);
+  explicit ForecastLut(const std::filesystem::path lut_path);
 
   /* Get a certain value with lat/lon and unix time as keys. Uses the closest keys */
   double get_value(ForecastCoord coord, time_t time);
@@ -145,7 +145,7 @@ class ResultsLut : public BaseLut<double> {
 
  public:
   // Load a results file csv
-  explicit ResultsLut(const std::string lut_path);
+  explicit ResultsLut(const std::filesystem::path lut_path);
   ResultsLut() {}
 
   void reset_logs();

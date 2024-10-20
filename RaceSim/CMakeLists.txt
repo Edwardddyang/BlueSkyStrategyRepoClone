@@ -22,6 +22,11 @@ set(INSTALL_GTEST OFF)
 add_subdirectory(${EXTERNAL_DIR}/googletest)
 list(APPEND EXTERNAL_DEPS gtest gtest_main)
 
+# libIntegrate
+set(BUILD_TESTS OFF CACHE BOOL "Disable building tests" FORCE)
+add_subdirectory(${EXTERNAL_DIR}/libIntegrate)
+list(APPEND EXTERNAL_DEPS libIntegrate)
+
 # yaml-cpp
 set(YAML_CPP_BUILD_TESTS OFF CACHE BOOL "Enable testing in yaml-cpp" FORCE)
 set(YAML_CPP_BUILD_TOOLS OFF CACHE BOOL "Build yaml-cpp tools" FORCE)

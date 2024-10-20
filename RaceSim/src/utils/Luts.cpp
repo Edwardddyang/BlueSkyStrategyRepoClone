@@ -12,18 +12,13 @@
 #include "utils/Defines.hpp"
 
 template <typename T>
-BaseLut<T>::BaseLut(const std::string path) {
-  std::string strat_root = Config::get_strat_root();
-  if (strat_root == "") {
-    lut_path = path;
-  } else {
-    lut_path = (std::filesystem::path(strat_root) / path).string();
-  }
+BaseLut<T>::BaseLut(const std::filesystem::path path) {
+  lut_path = path;
 }
 
 void BasicLut::load_LUT() {
   std::fstream lut(this->lut_path);
-  RUNTIME_EXCEPTION(lut.is_open(), "File {} not found", lut_path);
+  RUNTIME_EXCEPTION(lut.is_open(), "File {} not found", lut_path.string());
   std::string line;
   std::string cell;
 
@@ -43,14 +38,14 @@ void BasicLut::load_LUT() {
 
   this->num_rows = values.size();
   this->num_cols = values[0].size();
-  spdlog::info("Loaded LUT: " + this->lut_path);
+  spdlog::info("Loaded LUT: {}", lut_path.string());
 }
 
 double BasicLut::get_value(size_t row_idx, size_t col_idx) {
   return values[row_idx][col_idx];
 }
 
-BasicLut::BasicLut(const std::string lut_path) : BaseLut<double>(lut_path) {
+BasicLut::BasicLut(const std::filesystem::path lut_path) : BaseLut<double>(lut_path) {
   load_LUT();
 }
 
@@ -67,7 +62,7 @@ void EffLut::load_LUT() {
 
   while (!linestream.eof()) {
     std::getline(linestream, cell, ',');
-    RUNTIME_EXCEPTION(isDouble(cell), "Value {} is not a number in Efficiency LUT {}", cell, lut_path);
+    RUNTIME_EXCEPTION(isDouble(cell), "Value {} is not a number in Efficiency LUT {}", cell, lut_path.string());
     double column_val = std::stod(cell);
     column_values.push_back(column_val);
   }
@@ -78,14 +73,14 @@ void EffLut::load_LUT() {
     std::stringstream linestream(line);
 
     std::getline(linestream, cell, ',');
-    RUNTIME_EXCEPTION(isDouble(cell), "Value {} is not a number in Efficiency LUT {}", cell, lut_path);
+    RUNTIME_EXCEPTION(isDouble(cell), "Value {} is not a number in Efficiency LUT {}", cell, lut_path.string());
     double row_val = std::stod(cell);
     row_values.push_back(row_val);
 
     this->values.emplace_back(std::vector<double>());
     while (!linestream.eof()) {
       std::getline(linestream, cell, ',');
-      RUNTIME_EXCEPTION(isDouble(cell), "Value {} is not a number in Efficiency LUT {}", cell, lut_path);
+      RUNTIME_EXCEPTION(isDouble(cell), "Value {} is not a number in Efficiency LUT {}", cell, lut_path.string());
       double val = std::stod(cell);
       this->values.back().emplace_back(val);
     }
@@ -93,10 +88,10 @@ void EffLut::load_LUT() {
 
   this->num_cols = column_values.size();
   this->num_rows = row_values.size();
-  spdlog::info("Loaded LUT: " + this->lut_path);
+  spdlog::info("Loaded LUT: {}", lut_path.string());
 }
 
-EffLut::EffLut(const std::string lut_path) : BaseLut<double>(lut_path) {
+EffLut::EffLut(const std::filesystem::path lut_path) : BaseLut<double>(lut_path) {
   load_LUT();
 }
 
@@ -117,16 +112,16 @@ double EffLut::get_value(double row_value, double column_value) {
   }
 
   RUNTIME_EXCEPTION(row >= 0 && row < num_rows && col >= 0 && col < num_cols,
-                    "Invalid access in efficiency LUT {}", lut_path);
+                    "Invalid access in efficiency LUT {}", lut_path.string());
   return values[row][col];
 }
 
-ForecastLut::ForecastLut(std::string lut_path) : BaseLut<double>(lut_path) {
+ForecastLut::ForecastLut(const std::filesystem::path lut_path) : BaseLut<double>(lut_path) {
   load_LUT();
 }
 
 void ForecastLut::load_LUT() {
-  std::fstream file(this->lut_path);
+  std::fstream file(lut_path);
   std::string times_line;
   file >> times_line;
   std::stringstream times_stream(times_line);
@@ -139,7 +134,7 @@ void ForecastLut::load_LUT() {
   /* Create an array of the time keys */
   while (!times_stream.eof()) {
     std::getline(times_stream, time, ',');
-    RUNTIME_EXCEPTION(isDouble(time), "Time {} is not a number in ForecastLUT {}", time, lut_path);
+    RUNTIME_EXCEPTION(isDouble(time), "Time {} is not a number in ForecastLUT {}", time, lut_path.string());
     uint64_t temp_time = std::stoull(time);
     int seconds = temp_time % 100;
     temp_time /= 100;
@@ -176,17 +171,17 @@ void ForecastLut::load_LUT() {
     std::string cell;
     ForecastCoord coord{};
     std::getline(file_linestream, cell, ',');
-    RUNTIME_EXCEPTION(isDouble(cell), "Value {} is not a number in Forecast LUT {}", cell, lut_path);
+    RUNTIME_EXCEPTION(isDouble(cell), "Value {} is not a number in Forecast LUT {}", cell, lut_path.string());
     coord.lat = std::stod(cell);
 
     std::getline(file_linestream, cell, ',');
-    RUNTIME_EXCEPTION(isDouble(cell), "Value {} is not a number in Efficiency LUT {}", cell, lut_path);
+    RUNTIME_EXCEPTION(isDouble(cell), "Value {} is not a number in Efficiency LUT {}", cell, lut_path.string());
     coord.lon = std::stod(cell);
 
     forecast_coords.emplace_back(coord);
 
     std::getline(file_linestream, cell, ',');
-    RUNTIME_EXCEPTION(isDouble(cell), "Value {} is not a number in Efficiency LUT {}", cell, lut_path);
+    RUNTIME_EXCEPTION(isDouble(cell), "Value {} is not a number in Efficiency LUT {}", cell, lut_path.string());
     double value = std::stod(cell);
     std::vector<double> inner_vector;
     inner_vector.emplace_back(value);
@@ -195,7 +190,7 @@ void ForecastLut::load_LUT() {
     int column_counter = 0;
     while (!file_linestream.eof()) {
       std::getline(file_linestream, cell, ',');
-      RUNTIME_EXCEPTION(isDouble(cell), "Value {} is not a number in Efficiency LUT {}", cell, lut_path);
+      RUNTIME_EXCEPTION(isDouble(cell), "Value {} is not a number in Efficiency LUT {}", cell, lut_path.string());
       this->values[row_counter].push_back(std::stod(cell));
       column_counter++;
     }
@@ -208,7 +203,7 @@ void ForecastLut::load_LUT() {
 
   row_cache = 0;
   column_cache = 0;
-  spdlog::info("Loaded LUT: " + this->lut_path);
+  spdlog::info("Loaded LUT: {}", lut_path.string());
 }
 
 double ForecastLut::get_value(ForecastCoord coord, time_t time) {
@@ -236,7 +231,7 @@ double ForecastLut::get_value(ForecastCoord coord, time_t time) {
   }
 
   RUNTIME_EXCEPTION(row_key >= 0 && row_key < num_rows && col_key >= 0 && col_key < num_cols,
-                    "Out of bounds access in Forecast LUT {}", lut_path);
+                    "Out of bounds access in Forecast LUT {}", lut_path.string());
   return this->values[row_key][col_key];
 }
 
@@ -320,7 +315,7 @@ double ForecastLut::get_value_with_cache() {
   return this->values[row_cache][column_cache];
 }
 
-ResultsLut::ResultsLut(const std::string lut_path) : BaseLut<double>(lut_path) {
+ResultsLut::ResultsLut(const std::filesystem::path lut_path) : BaseLut<double>(lut_path) {
   load_LUT();
 }
 
@@ -339,90 +334,90 @@ void ResultsLut::load_LUT() {
 
     std::string cell;
     std::getline(file_linestream, cell, ',');
-    RUNTIME_EXCEPTION(isDouble(cell), "Value {} is not a number in Results csv {}", cell, lut_path);
+    RUNTIME_EXCEPTION(isDouble(cell), "Value {} is not a number in Results csv {}", cell, lut_path.string());
     battery_energy.emplace_back(std::stod(cell));
 
     std::getline(file_linestream, cell, ',');
-    RUNTIME_EXCEPTION(isDouble(cell), "Value {} is not a number in Results csv {}", cell, lut_path);
+    RUNTIME_EXCEPTION(isDouble(cell), "Value {} is not a number in Results csv {}", cell, lut_path.string());
     accumulated_distance.emplace_back(std::stod(cell));
 
     std::getline(file_linestream, cell, ',');
     time.emplace_back(cell);
 
     std::getline(file_linestream, cell, ',');
-    RUNTIME_EXCEPTION(isDouble(cell), "Value {} is not a number in Results csv {}", cell, lut_path);
+    RUNTIME_EXCEPTION(isDouble(cell), "Value {} is not a number in Results csv {}", cell, lut_path.string());
     azimuth.emplace_back(std::stod(cell));
 
     std::getline(file_linestream, cell, ',');
-    RUNTIME_EXCEPTION(isDouble(cell), "Value {} is not a number in Results csv {}", cell, lut_path);
+    RUNTIME_EXCEPTION(isDouble(cell), "Value {} is not a number in Results csv {}", cell, lut_path.string());
     elevation.emplace_back(std::stod(cell));
 
     std::getline(file_linestream, cell, ',');
-    RUNTIME_EXCEPTION(isDouble(cell), "Value {} is not a number in Results csv {}", cell, lut_path);
+    RUNTIME_EXCEPTION(isDouble(cell), "Value {} is not a number in Results csv {}", cell, lut_path.string());
     bearing.emplace_back(std::stod(cell));
 
     std::getline(file_linestream, cell, ',');
-    RUNTIME_EXCEPTION(isDouble(cell), "Value {} is not a number in Results csv {}", cell, lut_path);
+    RUNTIME_EXCEPTION(isDouble(cell), "Value {} is not a number in Results csv {}", cell, lut_path.string());
     latitude.emplace_back(std::stod(cell));
 
     std::getline(file_linestream, cell, ',');
-    RUNTIME_EXCEPTION(isDouble(cell), "Value {} is not a number in Results csv {}", cell, lut_path);
+    RUNTIME_EXCEPTION(isDouble(cell), "Value {} is not a number in Results csv {}", cell, lut_path.string());
     longitude.emplace_back(std::stod(cell));
 
     std::getline(file_linestream, cell, ',');
-    RUNTIME_EXCEPTION(isDouble(cell), "Value {} is not a number in Results csv {}", cell, lut_path);
+    RUNTIME_EXCEPTION(isDouble(cell), "Value {} is not a number in Results csv {}", cell, lut_path.string());
     altitude.emplace_back(std::stod(cell));
 
     std::getline(file_linestream, cell, ',');
-    RUNTIME_EXCEPTION(isDouble(cell), "Value {} is not a number in Results csv {}", cell, lut_path);
+    RUNTIME_EXCEPTION(isDouble(cell), "Value {} is not a number in Results csv {}", cell, lut_path.string());
     speed.emplace_back(std::stod(cell));
 
     std::getline(file_linestream, cell, ',');
-    RUNTIME_EXCEPTION(isDouble(cell), "Value {} is not a number in Results csv {}", cell, lut_path);
+    RUNTIME_EXCEPTION(isDouble(cell), "Value {} is not a number in Results csv {}", cell, lut_path.string());
     array_power.emplace_back(std::stod(cell));
 
     std::getline(file_linestream, cell, ',');
-    RUNTIME_EXCEPTION(isDouble(cell), "Value {} is not a number in Results csv {}", cell, lut_path);
+    RUNTIME_EXCEPTION(isDouble(cell), "Value {} is not a number in Results csv {}", cell, lut_path.string());
     array_energy.emplace_back(std::stod(cell));
 
     std::getline(file_linestream, cell, ',');
-    RUNTIME_EXCEPTION(isDouble(cell), "Value {} is not a number in Results csv {}", cell, lut_path);
+    RUNTIME_EXCEPTION(isDouble(cell), "Value {} is not a number in Results csv {}", cell, lut_path.string());
     motor_power.emplace_back(std::stod(cell));
 
     std::getline(file_linestream, cell, ',');
-    RUNTIME_EXCEPTION(isDouble(cell), "Value {} is not a number in Results csv {}", cell, lut_path);
+    RUNTIME_EXCEPTION(isDouble(cell), "Value {} is not a number in Results csv {}", cell, lut_path.string());
     motor_energy.emplace_back(std::stod(cell));
 
     std::getline(file_linestream, cell, ',');
-    RUNTIME_EXCEPTION(isDouble(cell), "Value {} is not a number in Results csv {}", cell, lut_path);
+    RUNTIME_EXCEPTION(isDouble(cell), "Value {} is not a number in Results csv {}", cell, lut_path.string());
     aero_power.emplace_back(std::stod(cell));
 
     std::getline(file_linestream, cell, ',');
-    RUNTIME_EXCEPTION(isDouble(cell), "Value {} is not a number in Results csv {}", cell, lut_path);
+    RUNTIME_EXCEPTION(isDouble(cell), "Value {} is not a number in Results csv {}", cell, lut_path.string());
     aero_energy.emplace_back(std::stod(cell));
 
     std::getline(file_linestream, cell, ',');
-    RUNTIME_EXCEPTION(isDouble(cell), "Value {} is not a number in Results csv {}", cell, lut_path);
+    RUNTIME_EXCEPTION(isDouble(cell), "Value {} is not a number in Results csv {}", cell, lut_path.string());
     rolling_power.emplace_back(std::stod(cell));
 
     std::getline(file_linestream, cell, ',');
-    RUNTIME_EXCEPTION(isDouble(cell), "Value {} is not a number in Results csv {}", cell, lut_path);
+    RUNTIME_EXCEPTION(isDouble(cell), "Value {} is not a number in Results csv {}", cell, lut_path.string());
     rolling_energy.emplace_back(std::stod(cell));
 
     std::getline(file_linestream, cell, ',');
-    RUNTIME_EXCEPTION(isDouble(cell), "Value {} is not a number in Results csv {}", cell, lut_path);
+    RUNTIME_EXCEPTION(isDouble(cell), "Value {} is not a number in Results csv {}", cell, lut_path.string());
     gravitational_power.emplace_back(std::stod(cell));
 
     std::getline(file_linestream, cell, ',');
-    RUNTIME_EXCEPTION(isDouble(cell), "Value {} is not a number in Results csv {}", cell, lut_path);
+    RUNTIME_EXCEPTION(isDouble(cell), "Value {} is not a number in Results csv {}", cell, lut_path.string());
     gravitational_energy.emplace_back(std::stod(cell));
 
     std::getline(file_linestream, cell, ',');
-    RUNTIME_EXCEPTION(isDouble(cell), "Value {} is not a number in Results csv {}", cell, lut_path);
+    RUNTIME_EXCEPTION(isDouble(cell), "Value {} is not a number in Results csv {}", cell, lut_path.string());
     electric_energy.emplace_back(std::stod(cell));
 
     std::getline(file_linestream, cell, ',');
-    RUNTIME_EXCEPTION(isDouble(cell), "Value {} is not a number in Results csv {}", cell, lut_path);
+    RUNTIME_EXCEPTION(isDouble(cell), "Value {} is not a number in Results csv {}", cell, lut_path.string());
     delta_energy.emplace_back(std::stod(cell));
   }
 }

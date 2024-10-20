@@ -22,65 +22,66 @@
 
 	If the parameter you're introducing is a pointer of some type, please use unique_ptr
 	as the <data type> to avoid memory leaks. You'll also have to make relevant changes in
-	config_param.h
+	config_param.h. Note that for all variables of type std::filesystem::path, they will be
+  pre-pended by STRAT_ROOT
  */
-#define CONFIG_PARAMETERS                                                                \
-  PARAM(max_soc, double, double, 5.2)                                                    \
-  PARAM(tire_pressure, double, double, 5.5)                                              \
-  PARAM(array_area, double, double, 3.98)                                                \
-  PARAM(car_mass, double, double, 305)                                                   \
-  PARAM(air_density, double, double, 1.17)                                               \
-  PARAM(passive_electric_loss, double, double, 20)                                       \
-  PARAM(cda, double, double, 0.16)                                                       \
-  PARAM(max_motor_power, double, double, 3.5)                                            \
-  PARAM(max_car_speed, double, double, 120)                                              \
-  PARAM(array_power_max, double, double, 950)                                            \
-  PARAM(array_efficiency, double, double, 0.252)                                         \
-  PARAM(motor_efficiency, double, double, 0.9)                                           \
-  PARAM(regen_efficiency, double, double, 0.8)                                           \
-  PARAM(battery_efficiency, double, double, 0.95)                                        \
-  PARAM(base_route_path, std::string, std::string,                                       \
-        "data/luts/wsc_2023/static/baseroute.csv")                                       \
-  PARAM(speed_limits_path, std::string, std::string,                                     \
-        "data/luts/wsc_2023/static/longDistanceSpeedLimit.csv")                          \
-  PARAM(traffic_signals_path, std::string, std::string,                                  \
-        "data/luts/wsc_2023/static/longDistanceTrafficSignals.csv")                      \
-  PARAM(power_factor_path, std::string, std::string,                                     \
-        "data/luts/wsc_2023/static/powerfactor.csv")                                     \
-  PARAM(roll_res_slope_path, std::string, std::string,                                   \
-        "data/luts/wsc_2023/static/rr2.csv")                                             \
-  PARAM(roll_res_yint_path, std::string, std::string,                                    \
-        "data/luts/wsc_2023/static/rr1.csv")                                             \
-  PARAM(dni_path, std::string, std::string,                                              \
-        "data/luts/wsc_2023/dynamic/dni.csv")                                            \
-  PARAM(dhi_path, std::string, std::string,                                              \
-        "data/luts/wsc_2023/dynamic/dhi.csv")                                            \
-  PARAM(wind_direction_path, std::string, std::string,                                   \
-        "data/luts/wsc_2023/dynamic/wind_direction_10m.csv")                             \
-  PARAM(wind_speed_path, std::string, std::string,                                       \
-        "data/luts/wsc_2023/dynamic/wind_speed_10m.csv")                                 \
-  PARAM(control_stops, std::unordered_set<size_t>,                                       \
-        std::unordered_set<size_t>,                                                      \
-        convert_string_to_int_set("2962,5559,9462,11421,14439,16990,20832,23202,25987")) \
-  PARAM(control_stop_charge_time, double, double, 30)                                    \
-  PARAM(race_start, std::unique_ptr<Time>, Time,                                         \
-        std::make_unique<Time>("2023-10-22 08:30:00", -9.5))                             \
-  PARAM(day_start_time, std::unique_ptr<Time>, Time, std::make_unique<Time>("09:00:00")) \
-  PARAM(day_end_time, std::unique_ptr<Time>, Time, std::make_unique<Time>("17:00:00"))   \
-  PARAM(race_end_time, std::unique_ptr<Time>, Time,                                      \
-        std::make_unique<Time>("2023-10-22 08:30:00", -9.5))                             \
-  PARAM(first_day, bool, bool, true)                                                     \
-  PARAM(current_soc, double, double, 100)                                                \
-  PARAM(gps_coordinates, Coord, Coord, Coord())                                          \
-  PARAM(current_date_time, std::unique_ptr<Time>, Time,                                  \
-        std::make_unique<Time>("2023-10-28 17:00:00", -9.5))                             \
-  PARAM(utc_adjustment, double, double, -9.5)                                            \
-  PARAM(model, std::string, std::string, "Gen 11.5")                                     \
-  PARAM(optimizer, std::string, std::string, "Constant")                                 \
-  PARAM(min_speed, double, double, 40)                                                   \
-  PARAM(max_speed, double, double, 100)                                                  \
-  PARAM(num_segments, int, int, 1)                                                       \
-  PARAM(save_csv, bool, bool, true)                                                      \
+#define CONFIG_PARAMETERS                                                                   \
+  PARAM(max_soc, double, double, 5.2)                                                       \
+  PARAM(tire_pressure, double, double, 5.5)                                                 \
+  PARAM(array_area, double, double, 3.98)                                                   \
+  PARAM(car_mass, double, double, 305)                                                      \
+  PARAM(air_density, double, double, 1.17)                                                  \
+  PARAM(passive_electric_loss, double, double, 20)                                          \
+  PARAM(cda, double, double, 0.16)                                                          \
+  PARAM(max_motor_power, double, double, 3.5)                                               \
+  PARAM(max_car_speed, double, double, 120)                                                 \
+  PARAM(array_power_max, double, double, 950)                                               \
+  PARAM(array_efficiency, double, double, 0.252)                                            \
+  PARAM(motor_efficiency, double, double, 0.9)                                              \
+  PARAM(regen_efficiency, double, double, 0.8)                                              \
+  PARAM(battery_efficiency, double, double, 0.95)                                           \
+  PARAM(base_route_path, std::filesystem::path, std::filesystem::path,                      \
+        std::filesystem::path("data/luts/wsc_2023/static/baseroute.csv"))                   \
+  PARAM(speed_limits_path, std::filesystem::path, std::filesystem::path,                    \
+        std::filesystem::path("data/luts/wsc_2023/static/longDistanceSpeedLimit.csv"))      \
+  PARAM(traffic_signals_path, std::filesystem::path, std::filesystem::path,                 \
+        std::filesystem::path("data/luts/wsc_2023/static/longDistanceTrafficSignals.csv"))  \
+  PARAM(power_factor_path, std::filesystem::path, std::filesystem::path,                    \
+        std::filesystem::path("data/luts/wsc_2023/static/powerfactor.csv"))                 \
+  PARAM(roll_res_slope_path, std::filesystem::path, std::filesystem::path,                  \
+        std::filesystem::path("data/luts/wsc_2023/static/rr2.csv"))                         \
+  PARAM(roll_res_yint_path, std::filesystem::path, std::filesystem::path,                   \
+        std::filesystem::path("data/luts/wsc_2023/static/rr1.csv"))                         \
+  PARAM(dni_path, std::filesystem::path, std::filesystem::path,                             \
+        std::filesystem::path("data/luts/wsc_2023/dynamic/dni.csv"))                        \
+  PARAM(dhi_path, std::filesystem::path, std::filesystem::path,                             \
+        std::filesystem::path("data/luts/wsc_2023/dynamic/dhi.csv"))                        \
+  PARAM(wind_direction_path, std::filesystem::path, std::filesystem::path,                  \
+        std::filesystem::path("data/luts/wsc_2023/dynamic/wind_direction_10m.csv"))         \
+  PARAM(wind_speed_path, std::filesystem::path, std::filesystem::path,                      \
+        std::filesystem::path("data/luts/wsc_2023/dynamic/wind_speed_10m.csv"))             \
+  PARAM(control_stops, std::unordered_set<size_t>,                                          \
+        std::unordered_set<size_t>,                                                         \
+        convert_string_to_int_set("2962,5559,9462,11421,14439,16990,20832,23202,25987"))    \
+  PARAM(control_stop_charge_time, double, double, 30)                                       \
+  PARAM(race_start, std::unique_ptr<Time>, Time,                                            \
+        std::make_unique<Time>("2023-10-22 08:30:00", -9.5))                                \
+  PARAM(day_start_time, std::unique_ptr<Time>, Time, std::make_unique<Time>("09:00:00"))    \
+  PARAM(day_end_time, std::unique_ptr<Time>, Time, std::make_unique<Time>("17:00:00"))      \
+  PARAM(race_end_time, std::unique_ptr<Time>, Time,                                         \
+        std::make_unique<Time>("2023-10-22 08:30:00", -9.5))                                \
+  PARAM(first_day, bool, bool, true)                                                        \
+  PARAM(current_soc, double, double, 100)                                                   \
+  PARAM(gps_coordinates, Coord, Coord, Coord())                                             \
+  PARAM(current_date_time, std::unique_ptr<Time>, Time,                                     \
+        std::make_unique<Time>("2023-10-28 17:00:00", -9.5))                                \
+  PARAM(utc_adjustment, double, double, -9.5)                                               \
+  PARAM(model, std::string, std::string, "Gen 11.5")                                        \
+  PARAM(optimizer, std::string, std::string, "Constant")                                    \
+  PARAM(min_speed, double, double, 40)                                                      \
+  PARAM(max_speed, double, double, 100)                                                     \
+  PARAM(num_segments, int, int, 1)                                                          \
+  PARAM(save_csv, bool, bool, true)                                                         \
 
 /* Class that holds all information from a .yaml file storing configuration parameters for
  * a race simulation
@@ -120,7 +121,7 @@ class Config {
 
   /* Initialize all parameters */
   #define PARAM(name, type, return_type, default_value)\
-    name(Config_Param<type, return_type>(#name, default_value, key_values)),
+    name(Config_Param<type, return_type>(#name, default_value, key_values, STRAT_ROOT)),
 
   /* Load all parameters from yaml file. Should only be called from get_instance() */
   Config() : CONFIG_PARAMETERS b(45) {}
@@ -146,7 +147,7 @@ class Config {
 
   CONFIG_PARAMETERS
   #undef PARAM
-  static std::string get_strat_root() {return STRAT_ROOT;}
+  static inline std::string get_strat_root() {return STRAT_ROOT;}
 
   /* No setters since config parameters should never change after initialization */
 };
