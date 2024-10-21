@@ -14,6 +14,6 @@
                 << ", file " << __FILE__ << ", line " << __LINE__   \
                 << ". Message: " << msg;                            \
             spdlog::critical(oss.str(), ##__VA_ARGS__);             \
-            exit(0);                                                \
+            exit(1);                                                \
         }                                                           \
     } while (false)

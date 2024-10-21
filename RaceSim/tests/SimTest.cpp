@@ -13,31 +13,35 @@
 #include "utils/Defines.hpp"
 
 class SimTest : public ::testing::Test {
- protected:
+ public:
   static std::filesystem::path strat_root_path;
+ protected:
   static void SetUpTestSuite() {
     char* strat_root = std::getenv("STRAT_ROOT");
     RUNTIME_EXCEPTION(strat_root != nullptr, "No STRAT_ROOT environment variable detected."
-                                              "Set it to the full path to gen12_strategy/RaceSim.");
+                                            "Set it to the full path to gen12_strategy/RaceSim.");
+    Config::initialize("data/config/sim_test_config.yaml", strat_root);
     strat_root_path = std::filesystem::path(strat_root);
-    std::filesystem::path config_path("data/config/sim_test_config.yaml");
-    Config::initialize(config_path, strat_root);
   }
 };
-std::filesystem::path strat_root_path;
+std::filesystem::path SimTest::strat_root_path;
 
-TEST(SimTest, Test1) {
+TEST_F(SimTest, Test1) {
   /* Create a model of the car */
   std::unique_ptr<Car> car = CarFactory::get_car(Config::get_instance()->get_model());
 
   /* Create route */
-  std::unique_ptr<Route> route = std::make_unique<Route>();
+  std::unique_ptr<Route> route = std::make_unique<Route>(Config::get_instance()->get_base_route_path());
+  route->init_control_stops();
 
   /* Create simulator */
   std::unique_ptr<Simulator> sim = std::make_unique<Simulator>(std::move(car));
-  bool result = sim->run_sim(route, {58.0});
 
-  EXPECT_EQ(result, true);
+  std::vector<std::pair<size_t, size_t>> segments = {{0, route->get_num_points() - 1}};
+  RacePlan race_plan(segments, {58.0}, {});
+  sim->run_sim(route, &race_plan);
+
+  EXPECT_EQ(true, race_plan.is_viable());
 
   /* Parse the logs and ensure that all values match */
   std::filesystem::path results_file = strat_root_path / "data/luts/TestData/58.csv";

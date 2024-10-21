@@ -19,7 +19,7 @@ class v1CarTest : public ::testing::Test {
   }
 };
 
-TEST(v1CarTest, ElectricLossTest) {
+TEST_F(v1CarTest, ElectricLossTest) {
   V1Car TestCar = V1Car();
 
   double energy_loss = TestCar.compute_electric_loss(300);
@@ -39,7 +39,7 @@ TEST(v1CarTest, ElectricLossTest) {
   EXPECT_NEAR(energy_loss, true_energy_loss, 0.0000001);
 }
 
-TEST(v1CarTest, GravityLossTest) {
+TEST_F(v1CarTest, GravityLossTest) {
   V1Car TestCar = V1Car();
 
   // Notice: uses GRAVITY +_ACCELERATION as 9.81 as defined in Globals.h
@@ -63,7 +63,7 @@ TEST(v1CarTest, GravityLossTest) {
   EXPECT_NEAR(eng_change.power, true_power, 0.00000001);
 }
 
-TEST(v1CarTest, AeroLossTest) {
+TEST_F(v1CarTest, AeroLossTest) {
   V1Car TestCar = V1Car();
 
   Wind w = Wind(200, 10);
@@ -88,7 +88,7 @@ TEST(v1CarTest, AeroLossTest) {
   EXPECT_NEAR(eng_change.power, true_power, 0.5);
 }
 
-TEST(v1CarTest, RollingLossTest) {
+TEST_F(v1CarTest, RollingLossTest) {
   V1Car TestCar = V1Car();
 
   EnergyChange eng_change = TestCar.compute_rolling_loss(16.66667, 3600);

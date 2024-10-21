@@ -14,10 +14,8 @@
 #include "utils/Geography.hpp"
 #include "utils/Defines.hpp"
 
-bool Simulator::run_sim(const std::unique_ptr<Route>& route, std::vector<double> speed_profile_kph) {
+void Simulator::run_sim(const std::unique_ptr<Route>& route, RacePlan* race_plan) {
   RUNTIME_EXCEPTION(route != nullptr, "Route pointer is null");
-  RUNTIME_EXCEPTION(speed_profile_kph.size() == route->get_num_segments(),
-                    "Speed profile and route are deformed");
   RUNTIME_EXCEPTION(results_lut != nullptr, "Results lut is null");
 
   /* Reset variables */
@@ -27,11 +25,9 @@ bool Simulator::run_sim(const std::unique_ptr<Route>& route, std::vector<double>
   /* Get route data */
   const size_t num_points = route->get_num_points();
   const std::vector<Coord> route_points = route->get_route_points();
-  const std::vector<std::pair<size_t, size_t>> segments = route->get_segments();
+  const std::vector<std::pair<size_t, size_t>> segments = race_plan->get_segments();
   const std::unordered_set<size_t> control_stops = route->get_control_stops();
-
-  RUNTIME_EXCEPTION(segments.size() == speed_profile_kph.size(),
-                    "Route was not segmented properly");
+  const std::vector<double> speed_profile_kph = race_plan->get_speed_profile();
 
   size_t segment_counter = 0;
   std::pair<size_t, size_t> current_segment = segments[segment_counter];
@@ -132,10 +128,11 @@ bool Simulator::run_sim(const std::unique_ptr<Route>& route, std::vector<double>
 
     /* Invalid simulation if battery goes below 0 or if the end of the race has been reached */
     if (battery_energy < 0.0 || curr_time > race_end_time) {
-      return false;
+      race_plan->set_viability(false);
+      return;
     }
   }
-  return true;
+  race_plan->set_viability(true);
 }
 
 void Simulator::reset_vars() {

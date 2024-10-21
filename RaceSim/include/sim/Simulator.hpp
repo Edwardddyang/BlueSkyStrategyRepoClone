@@ -61,7 +61,7 @@ class Simulator {
   * @param route: The Route to simulate on
   * @param speed_profile_kph: The speed to use for each segment
   */
-  bool run_sim(const std::unique_ptr<Route>& route, std::vector<double> speed_profile_kph);
+  void run_sim(const std::unique_ptr<Route>& route, RacePlan* speed_profile_kph);
 
   /* Write all logs to a csv */
   void write_result(std::string csv_path);

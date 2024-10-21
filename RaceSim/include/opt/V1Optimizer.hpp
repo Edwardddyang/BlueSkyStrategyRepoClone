@@ -1,7 +1,4 @@
-/*
-Optimizer that calculates a single speed for the entire route
-*/
-
+/** Basic optimizer that exhaustively searches for a single speed for the entire race */
 #pragma once
 
 #include <memory>
@@ -14,5 +11,5 @@ Optimizer that calculates a single speed for the entire route
 class V1Optimizer : public Optimizer {
  public:
   V1Optimizer(std::unique_ptr<Simulator> simulator, std::unique_ptr<Route> route);
-  std::vector<double> optimize() override;
+  RacePlan optimize() override;
 };
