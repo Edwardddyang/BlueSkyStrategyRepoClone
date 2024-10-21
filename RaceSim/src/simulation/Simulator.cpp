@@ -47,6 +47,7 @@ void Simulator::run_sim(const std::unique_ptr<Route>& route, RacePlan* race_plan
   spdlog::debug("Starting SOC: {}", max_soc);
 
   bool is_first_day = Config::get_instance()->get_first_day();
+  Time race_start_time(curr_time);
   for (size_t idx=starting_route_index; idx < num_points-1; idx++) {
     current_coord = route_points[idx];
     next_coord = route_points[idx+1];
@@ -133,6 +134,7 @@ void Simulator::run_sim(const std::unique_ptr<Route>& route, RacePlan* race_plan
     }
   }
   race_plan->set_viability(true);
+  race_plan->set_time_taken(curr_time.get_local_time_point() - race_start_time.get_local_time_point());
 }
 
 void Simulator::reset_vars() {

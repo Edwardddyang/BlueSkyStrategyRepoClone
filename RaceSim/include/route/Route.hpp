@@ -60,7 +60,7 @@ class RacePlan {
   bool viable = false;
 
   /* Time taken to complete the race in seconds using this plan */
-  double time_taken;
+  time_t time_taken;
 
   /* Segments of the route split into a series of {start index, end index} */
   std::vector<std::pair<size_t, size_t>> segments;
@@ -88,5 +88,6 @@ class RacePlan {
   void set_segments(std::vector<std::pair<size_t, size_t>> new_segments);
   void set_speed_profile(std::vector<double> new_speed_profile);
   void set_acceleration_segments(std::vector<bool> new_acceleration_segments);
+  inline void set_time_taken(time_t new_time_taken) {time_taken = new_time_taken;}
   inline void set_viability(bool viability) {viable = viability;}
 };
