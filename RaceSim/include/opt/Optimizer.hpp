@@ -27,5 +27,5 @@ class Optimizer {
   /* Apply the optimization algorithm, output a speed profile over
       the segments of the race
   */
-  virtual std::vector<double> optimize() = 0;
+  virtual RacePlan optimize() = 0;
 };

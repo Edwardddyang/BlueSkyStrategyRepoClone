@@ -15,7 +15,7 @@
 class Time {
  private:
   /* C++ tm structs for both the local time and utc timepoint */
-    tm m_datetime_local;
+  tm m_datetime_local;
   tm m_datetime_utc;
 
   /* Seconds since epoch beginning for both the local time and utc timepoint */

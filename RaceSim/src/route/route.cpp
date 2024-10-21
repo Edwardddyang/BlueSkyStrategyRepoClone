@@ -7,6 +7,7 @@
 #include <limits>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "utils/Defines.hpp"
 #include "route/Route.hpp"
@@ -64,20 +65,18 @@ void Route::init_route(const std::filesystem::path route_path) {
     }
   }
   num_points = route_points.size();
-  if (Config::get_instance()->get_optimizer() == "Constant") {
-    segment_route_uniform(route_length);
-  }
-  control_stops = Config::get_instance()->get_control_stops();
   spdlog::info("Loaded base route {} with {} coordinates", route_path.string(), std::to_string(num_points));
 }
 
+void Route::init_control_stops() {
+  control_stops = Config::get_instance()->get_control_stops();
+}
+
 /* Segment a route into uniform lengths */
-void Route::segment_route_uniform(double length) {
+std::vector<std::pair<size_t, size_t>> Route::segment_route_uniform(double length) {
   RUNTIME_EXCEPTION(route_points.size() > 0, "Route not yet loaded");
 
-  // Clear segments data
-  segment_lengths.clear();
-  segments.clear();
+  std::vector<std::pair<size_t, size_t>> segments;
 
   // Create segments
   double current_segment_distance = 0.0;
@@ -98,14 +97,12 @@ void Route::segment_route_uniform(double length) {
     if (difference > last_difference) {  // Is this condition ever met?
       segment_indices.second = idx;
       segments.push_back(segment_indices);
-      segment_lengths.push_back(current_segment_distance);
 
       segment_indices = {idx, idx+1};
       current_segment_distance = distance;
       difference = std::abs(length - current_segment_distance);
     } else if (current_segment_distance > length) {
       segments.push_back(segment_indices);
-      segment_lengths.push_back(current_segment_distance);
 
       segment_indices = {idx, idx};
       current_segment_distance = 0;
@@ -117,9 +114,48 @@ void Route::segment_route_uniform(double length) {
 
   if (segment_indices.first != segment_indices.second) {
     segments.push_back(segment_indices);
-    segment_lengths.push_back(current_segment_distance);
   }
 
-  num_segments = segments.size();
-  return;
+  return segments;
+}
+
+void RacePlan::validate_members() const {
+  RUNTIME_EXCEPTION(segments.size() == speed_profile.size() && segments.size() == acceleration_segments.size(),
+                    "RacePlan not properly created. Speed profile, route segments and acceleration segments"
+                    "have unequal lengths");
+  const size_t num_segments = segments.size();
+  for (size_t i=0; i < num_segments; i++) {
+    RUNTIME_EXCEPTION(speed_profile[i] > 0.0 || acceleration_segments[i], "Speed profile must have >0 speeds");
+  }
+
+  RUNTIME_EXCEPTION(segments[0].first == 0, "Segments must start at index 0");
+  for (size_t i=0; i < num_segments - 1; i++) {
+    RUNTIME_EXCEPTION(segments[i].first < segments[i].second &&
+                      segments[i].second == segments[i+1].first-1,
+                      "Segments must cover all indices of the route and segment.first < segment.second");
+  }
+}
+
+RacePlan::RacePlan(std::vector<std::pair<size_t, size_t>> segments, std::vector<double> speed_profile,
+                   std::vector<bool> acceleration_segments)
+                  : segments(segments), speed_profile(speed_profile) {
+  if (acceleration_segments.size() == 0) {
+    this->acceleration_segments = std::vector<bool>(segments.size(), false);
+  }
+  validate_members();
+}
+
+void RacePlan::set_segments(std::vector<std::pair<size_t, size_t>> new_segments) {
+  segments = new_segments;
+  validate_members();
+}
+
+void RacePlan::set_speed_profile(std::vector<double> new_speed_profile) {
+  speed_profile = new_speed_profile;
+  validate_members();
+}
+
+void RacePlan::set_acceleration_segments(std::vector<bool> new_acceleration_segments) {
+  acceleration_segments = new_acceleration_segments;
+  validate_members();
 }

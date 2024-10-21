@@ -36,6 +36,7 @@ int main(int argc, char* argv[]) {
 
   /* Create route */
   std::unique_ptr<Route> route = std::make_unique<Route>(Config::get_instance()->get_base_route_path());
+  route->init_control_stops();
 
   /* Create simulator */
   std::unique_ptr<Simulator> sim = std::make_unique<Simulator>(std::move(car));
@@ -45,9 +46,9 @@ int main(int argc, char* argv[]) {
                                                                     std::move(route), std::move(sim));
 
   /* Run optimizer */
-  std::vector<double> result_speed_profile_km = opt->optimize();
+  RacePlan viable_race_plan = opt->optimize();
 
-  spdlog::info("Viable Speed Profile: {}", result_speed_profile_km[0]);
+  spdlog::info("Viable Speed Profile: {}", viable_race_plan.get_speed_profile()[0]);
 
   return 0;
 }

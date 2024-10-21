@@ -6,9 +6,9 @@
 #include "utils/Units.hpp"
 
 class LutsTest : public ::testing::Test {
- protected:
+ public:
   static std::filesystem::path strat_root_path;
-
+ protected:
   static void SetUpTestSuite() {
     char* strat_root = std::getenv("STRAT_ROOT");
     RUNTIME_EXCEPTION(strat_root != nullptr, "No STRAT_ROOT environment variable detected."
@@ -16,10 +16,10 @@ class LutsTest : public ::testing::Test {
     strat_root_path = std::filesystem::path(strat_root);
   }
 };
-std::filesystem::path strat_root_path;
+std::filesystem::path LutsTest::strat_root_path;
 
-TEST(LutsTest, BasicLutTest) {
-  std::filesystem::path power_factor_path = strat_root_path / "data/luts/TestData/power_factor.csv";
+TEST_F(LutsTest, BasicLutTest) {
+  std::filesystem::path power_factor_path = LutsTest::strat_root_path / "data/luts/TestData/power_factor.csv";
   BasicLut TestBaseLut = BasicLut(power_factor_path);
 
   double value = TestBaseLut.get_value(1, 1);
@@ -35,8 +35,8 @@ TEST(LutsTest, BasicLutTest) {
   EXPECT_NEAR(value, true_val, 0.0001);
 }
 
-TEST(LutsTest, EffLutTest) {
-  std::filesystem::path roll_res_yint_path = strat_root_path / "data/luts/TestData/rr1.csv";
+TEST_F(LutsTest, EffLutTest) {
+  std::filesystem::path roll_res_yint_path = LutsTest::strat_root_path / "data/luts/TestData/rr1.csv";
   EffLut TestEffLut = EffLut(roll_res_yint_path);
 
   double value = TestEffLut.get_value(5, 0);
@@ -51,7 +51,8 @@ TEST(LutsTest, EffLutTest) {
   true_val = 0.00252506;
   EXPECT_NEAR(value, true_val, 0.0001);
 
-  TestEffLut = EffLut(Config::get_instance()->get_roll_res_slope_path());
+  std::filesystem::path roll_res_slope_path = LutsTest::strat_root_path / "data/luts/TestData/rr2.csv";
+  TestEffLut = EffLut(roll_res_slope_path);
 
   value = TestEffLut.get_value(5, 0);
   true_val = 0.0000318442;
@@ -66,8 +67,8 @@ TEST(LutsTest, EffLutTest) {
   EXPECT_NEAR(value, true_val, 0.0001);
 }
 
-TEST(LutsTest, ForecastLutTest) {
-  std::filesystem::path dni_path = strat_root_path / "data/luts/TestData/dni.csv";
+TEST_F(LutsTest, ForecastLutTest) {
+  std::filesystem::path dni_path = LutsTest::strat_root_path / "data/luts/TestData/dni.csv";
   ForecastLut TestForecastLut = ForecastLut(dni_path);
   ForecastCoord testCoord = ForecastCoord(-12.46322, 130.84618);
   EXPECT_NEAR(testCoord.lat, -12.46322, 0.0001);
@@ -113,7 +114,8 @@ TEST(LutsTest, ForecastLutTest) {
   true_val = 0;
   EXPECT_NEAR(value, true_val, 0.0001);
 
-  TestForecastLut = ForecastLut(Config::get_instance()->get_dhi_path());
+  std::filesystem::path dhi_path = LutsTest::strat_root_path / "data/luts/TestData/dhi.csv";
+  TestForecastLut = ForecastLut(dhi_path);
   testCoord = ForecastCoord(-14.211745, 132.03927);
 
   // 231021223000 - actual value from dhi table
