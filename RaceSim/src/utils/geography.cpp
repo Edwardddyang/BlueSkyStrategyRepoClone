@@ -122,17 +122,18 @@ double get_speed_relative_to_wind(double car_speed, double car_bearing, Wind win
 
 double julian_day(time_t utc_time_point) {
   // Extract UTC Time
-  struct tm* tm = localtime(&utc_time_point);
-  double year = tm->tm_year + 1900;
-  double month = tm->tm_mon + 1;
-  double day = tm->tm_mday;
-  double hour = tm->tm_hour;
-  double min = tm->tm_min;
-  double sec = tm->tm_sec;
+  struct tm tm;
+  LOCALTIME_SAFE(&utc_time_point, &tm);
+  double year = tm.tm_year + 1900;
+  double month = tm.tm_mon + 1;
+  double day = tm.tm_mday;
+  double hour = tm.tm_hour;
+  double min = tm.tm_min;
+  double sec = tm.tm_sec;
 
   if (month <= 2) {
-      year -= 1;
-      month += 12;
+    year -= 1;
+    month += 12;
   }
 
   double jd = floor(365.25*(year + 4716.0)) + floor(30.6001*(month + 1.0)) + 2.0 -
@@ -304,8 +305,9 @@ void get_az_el(time_t utc_time_point, double Lat, double Lon, double Alt, double
   // UTH = hourvec(:, 4) + hourvec(:, 5) / 60 + hourvec(:, 6) / 3600;
 
   // Get UTC representation of time / C++ Specific
-  tm *ptm;
-  ptm = gmtime(&utc_time_point);
+  tm tm_obj;
+  tm *ptm = &tm_obj;
+  GMTIME_SAFE(&utc_time_point, ptm);
   double UTH = static_cast<double>(ptm->tm_hour) + static_cast<double>(ptm->tm_min) / 60 +
                static_cast<double>(ptm->tm_sec / 3600);
 

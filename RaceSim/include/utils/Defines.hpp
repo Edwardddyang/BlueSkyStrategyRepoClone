@@ -1,6 +1,7 @@
 #include <stdexcept>
 #include <sstream>
 #include <string>
+#include <ctime>
 
 #include "spdlog/spdlog.h"
 
@@ -17,3 +18,13 @@
             exit(1);                                                \
         }                                                           \
     } while (false)
+
+#ifdef _WIN32
+  #define GMTIME_SAFE(time_t_ptr, tm_ptr) gmtime_s(tm_ptr, time_t_ptr)
+  #define LOCALTIME_SAFE(time_t_ptr, tm_ptr) localtime_s(tm_ptr, time_t_ptr)
+  #define ASCTIME_SAFE(char_ptr, tm_ptr) asctime_s(char_ptr, 26, tm_ptr)
+#else
+  #define GMTIME_SAFE(time_t_ptr, tm_ptr) gmtime_r(time_t_ptr, tm_ptr)
+  #define LOCALTIME_SAFE(time_t_ptr, tm_ptr) localtime_r(time_t_ptr, tm_ptr)
+  #define ASCTIME_SAFE(tm_ptr, char_ptr) asctime_r(tm_ptr, char_ptr)
+#endif

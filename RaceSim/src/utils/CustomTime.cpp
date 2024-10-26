@@ -30,8 +30,8 @@ Time::Time(std::string local_time_point, double utc_adjustment) {
 
   t_datetime_utc = t_datetime_local + hours2secs(utc_adjustment);
 
-  m_datetime_local = *gmtime(&t_datetime_local);
-  m_datetime_utc = *gmtime(&t_datetime_utc);
+  GMTIME_SAFE(&t_datetime_local, &m_datetime_local);
+  GMTIME_SAFE(&t_datetime_utc, &m_datetime_utc);
 
   m_milliseconds = 0;
 
@@ -51,7 +51,7 @@ void Time::HH_MM_SS_constructor(const std::string local_time_point) {
   iss >> hours >> delimiter >> minutes >> delimiter >> seconds;
 
   time_t now = time(nullptr);
-  m_datetime_local = *localtime(&now);
+  LOCALTIME_SAFE(&now, &m_datetime_local);
   m_datetime_local.tm_hour = hours;
   m_datetime_local.tm_min = minutes;
   m_datetime_local.tm_sec = seconds;
@@ -189,7 +189,13 @@ std::string Time::get_local_readable_time() const {
     return time_s;
   }
 
-  std::string time = asctime(&m_datetime_local);
+  // https://en.cppreference.com/w/cpp/chrono/c/asctime -> size 26 buffer for the
+  // "Www Mmm dd hh:mm:ss yyyy\n\0" string
+  char buffer[26];
+  ASCTIME_SAFE(buffer, &m_datetime_local);
+  std::string time(buffer);
+
+  // Get rid of newline character
   return time.erase(time.size()-1);
 }
 
@@ -198,8 +204,8 @@ void Time::update_time_seconds(const double seconds) {
   t_datetime_local += static_cast<int>(seconds);
   t_datetime_utc += static_cast<int>(seconds);
 
-  m_datetime_local = *gmtime(&t_datetime_local);
-  m_datetime_utc = *gmtime(&t_datetime_utc);
+  GMTIME_SAFE(&t_datetime_local, &m_datetime_local);
+  GMTIME_SAFE(&t_datetime_utc, &m_datetime_utc);
   m_milliseconds = total_seconds - floor(total_seconds);
 }
 
@@ -210,7 +216,10 @@ std::string Time::get_utc_readable_time() const {
                 + std::to_string(m_datetime_utc.tm_sec);
     return time_s;
   }
-  std::string time = asctime(&m_datetime_utc);
+
+  char buffer[26];
+  ASCTIME_SAFE(buffer, &m_datetime_utc);
+  std::string time(buffer);
   return time.erase(time.size()-1);
 }
 
