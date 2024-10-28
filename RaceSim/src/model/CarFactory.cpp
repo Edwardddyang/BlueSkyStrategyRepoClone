@@ -8,6 +8,7 @@
 
 std::unordered_map<std::string, CarModels> CarFactory::config_to_car_model = {
   {"Gen 11.5", CarModels::V1_CAR},
+  {"Acceleration", CarModels::V2_CAR},
 };
 const char CarFactory::DEFAULT_CAR[] = "Gen 11.5";
 
@@ -23,6 +24,9 @@ std::unique_ptr<Car> CarFactory::get_car(const std::string car_type) {
   if (model == CarModels::V1_CAR) {
     spdlog::info("Using V1 Car Model");
     return std::make_unique<V1Car>();
+  } else if (model == CarModels::V2_CAR) {
+    spdlog::info("Using V2 Car Model (Acceleration)");
+    return std::make_unique<V2Car>();
   } else {
     RUNTIME_EXCEPTION(false, "No valid car requested. Check the DEFAULT_CAR variable");
   }

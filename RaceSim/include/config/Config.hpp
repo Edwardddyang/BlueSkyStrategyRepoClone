@@ -40,6 +40,9 @@
   PARAM(motor_efficiency, double, double, 0.9)                                              \
   PARAM(regen_efficiency, double, double, 0.8)                                              \
   PARAM(battery_efficiency, double, double, 0.95)                                           \
+  PARAM(tire_inertia, double, double, 0.00125)                                              \
+  PARAM(tire_radius, double, double, 0.508)                                                 \
+  PARAM(num_tires, int, int, 3)                                                             \
   PARAM(base_route_path, std::filesystem::path, std::filesystem::path,                      \
         std::filesystem::path("data/luts/wsc_2023/static/baseroute.csv"))                   \
   PARAM(speed_limits_path, std::filesystem::path, std::filesystem::path,                    \

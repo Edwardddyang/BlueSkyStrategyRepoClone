@@ -40,6 +40,7 @@ class Simulator {
   double accumulated_distance;
   double delta_energy;
   double curr_speed;
+  bool is_accelerating;
   Coord current_coord;
   Coord next_coord;
 

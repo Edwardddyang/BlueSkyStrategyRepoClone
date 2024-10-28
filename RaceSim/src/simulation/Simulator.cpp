@@ -26,12 +26,15 @@ void Simulator::run_sim(const std::unique_ptr<Route>& route, RacePlan* race_plan
   const size_t num_points = route->get_num_points();
   const std::vector<Coord> route_points = route->get_route_points();
   const std::vector<std::pair<size_t, size_t>> segments = race_plan->get_segments();
+  const std::vector<bool> acceleration_profile = race_plan->get_acceleration_segments();
   const std::unordered_set<size_t> control_stops = route->get_control_stops();
   const std::vector<double> speed_profile_kph = race_plan->get_speed_profile();
 
   size_t segment_counter = 0;
   std::pair<size_t, size_t> current_segment = segments[segment_counter];
   curr_speed = kph2mps(speed_profile_kph[segment_counter]);
+  is_accelerating = acceleration_profile[segment_counter];
+  double acceleration = 0.0;
 
   /* Get starting position in the route */
   size_t starting_route_index = 0;
@@ -52,6 +55,21 @@ void Simulator::run_sim(const std::unique_ptr<Route>& route, RacePlan* race_plan
     current_coord = route_points[idx];
     next_coord = route_points[idx+1];
     delta_energy = 0.0;
+
+    // Update segment counter
+    if (segment_counter > current_segment.second) {
+      segment_counter++;
+      current_segment = segments[segment_counter];
+      curr_speed = kph2mps(speed_profile_kph[segment_counter]);
+      is_accelerating = acceleration_profile[segment_counter];
+
+      if (is_accelerating) {
+        const size_t starting_idx = current_segment.first;
+        const size_t ending_idx = current_segment.second;
+        acceleration = get_distance(route_points[starting_idx], route_points[ending_idx]);
+      }
+    }
+
 
     /* Get forecasting data - wind and irradiance */
     ForecastCoord coord_one_forecast(current_coord.lat, current_coord.lon);
@@ -108,7 +126,8 @@ void Simulator::run_sim(const std::unique_ptr<Route>& route, RacePlan* race_plan
     }
 
     /* Compute state update of the car */
-    CarUpdate update = car->compute_travel_update(current_coord, next_coord, curr_speed, &curr_time, wind, irr);
+    CarUpdate update = car->compute_travel_update(current_coord, next_coord, curr_speed, acceleration,
+                                                  &curr_time, wind, irr);
 
     /* Update the running state of the simulation */
     delta_energy += update.delta_energy;

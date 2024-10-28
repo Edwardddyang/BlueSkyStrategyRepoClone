@@ -41,6 +41,7 @@ set(MODEL_SOURCES
     src/model/Car.cpp
     src/model/CarFactory.cpp
     src/model/V1Car.cpp
+    src/model/V2Car.cpp
 )
 set(CONFIG_SOURCES
     src/config/Config.cpp

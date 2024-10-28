@@ -74,7 +74,8 @@ class Car {
    * 
    * @param coord_one: starting coordinate
    * @param coord_two: ending coordinate
-   * @param speed: speed of the car
+   * @param init_speed: initial speed of the car
+   * @param acceleration: acceleration of the car
    * @param time: current time at coord_one
    * @param Wind, Irradiance: Weather forecast taken at coord_one
    *
@@ -82,7 +83,8 @@ class Car {
   */
   virtual CarUpdate compute_travel_update(Coord coord_one,
                                           Coord coord_two,
-                                          double speed,
+                                          double init_speed,
+                                          double acceleration,
                                           Time* time,
                                           Wind wind,
                                           Irradiance irr) = 0;

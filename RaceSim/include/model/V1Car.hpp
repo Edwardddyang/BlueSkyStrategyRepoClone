@@ -7,7 +7,7 @@ Model of the car implemented for gen 11.5
 #include "utils/Units.hpp"
 
 class V1Car : public Car {
- private:
+ protected:
   /* Maximum power of the battery pack in kwh */
   double max_power;
 
@@ -33,10 +33,12 @@ class V1Car : public Car {
     /* Compute the array energy gains */
     EnergyChange compute_array_gain(double delta_time, double dni, double dhi, double az, double el) override;
 
-    /* Compute energy change when moving between two points in a straight line */
+    // Compute energy change when moving between two points in a straight line.
+    // Acceleration must be 0 in this energy model
     CarUpdate compute_travel_update(Coord coord_one,
                                     Coord coord_two,
-                                    double speed,
+                                    double init_speed,
+                                    double acceleration,
                                     Time* time,
                                     Wind wind,
                                     Irradiance irr) override;

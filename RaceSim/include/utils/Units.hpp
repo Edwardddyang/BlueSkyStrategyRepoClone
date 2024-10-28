@@ -86,9 +86,12 @@ struct Irradiance {
 struct EnergyChange {
   double power;
   double energy;
+  double force;
 
-  EnergyChange(double power, double energy) : power(power), energy(energy) {}
-  EnergyChange() : power(0.0), energy(0.0) {}
+  EnergyChange(double power, double energy) : power(power), energy(energy), force(0.0) {}
+  EnergyChange(double power, double energy, double force) : power(power), energy(energy),
+                                                            force(force) {}
+  EnergyChange() : power(0.0), energy(0.0), force(0.0) {}
 };
 
 /* Unit update of the car when travelling between two coordinates */

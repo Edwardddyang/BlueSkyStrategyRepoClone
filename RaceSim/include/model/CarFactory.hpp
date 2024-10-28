@@ -8,9 +8,11 @@
 
 #include "model/Car.hpp"
 #include "model/V1Car.hpp"
+#include "model/V2Car.hpp"
 
 enum class CarModels {
   V1_CAR = 0,
+  V2_CAR = 1,
 };
 
 class CarFactory {
