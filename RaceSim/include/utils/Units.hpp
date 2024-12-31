@@ -36,6 +36,7 @@ struct ForecastCoord {
   ForecastCoord() : lat(0), lon(0) {}
 };
 
+/* Standard latitude/latitude/altitude coordinate */
 struct Coord {
   double lat;
   double lon;

@@ -24,15 +24,20 @@ class Time {
   time_t t_datetime_utc;
 
   /* Special field for milliseconds since the tm struct's resolution is up to seconds */
-    double m_milliseconds;
+  double m_milliseconds;
 
-  /* Indication for a HH:MM:SS only timestamp */
+  /* UTC Adjustment in seconds */
+  double utc_adjustment;
+
+  /* Indication for a HH:MM:SS only timestamp - time_t and m_datetime_utc members are
+   * interpreted as meaningless
+   */
   bool hh_mm_ss_only;
 
   std::string local_time;
 
   /** @brief Construct a Time object from a string in HH:MM:SS format 
-   *
+   * Note: time_t members will not be set and have garbage data
    * @param local_time_point: String in HH:MM:SS local 24 hour format
   */
   void HH_MM_SS_constructor(const std::string local_time_point);
@@ -56,6 +61,11 @@ class Time {
   */
   explicit Time(std::string local_time_point);
 
+  /** @brief Copy the HH:MM:SS from another Time object to this one
+   * Note: This Time object cannot be a hh_mm_ss_only type timestamp
+   */
+  void copy_hh_mm_ss(const Time& other);
+
   /** Return true if the lhs local timestamp is ahead of the rhs local timestamp */
   bool operator>(const Time& other) const;
   static bool gt(const Time* lhs, const Time* rhs);
@@ -63,6 +73,15 @@ class Time {
   /** Return true if the rhs local timestamp is ahead of the lhs local timestamp */
   bool operator<(const Time& other) const;
   static bool lt(const Time* lhs, const Time* rhs);
+
+  /** Return true if the lhs local timestamp is ahead of or equal to the rhs local timestamp */
+  bool operator>=(const Time& other) const;
+
+  /** Return true if the rhs local timestamp is ahead of or equal to the lhs local timestamp */
+  bool operator<=(const Time& other) const;
+
+  /** @brief Return the difference between two Time objects in seconds */
+  double operator-(const Time& other) const;
 
   /** Get an epoch timestamp representing the utc time */
   inline time_t get_utc_time_point() const { return t_datetime_utc; }
@@ -84,6 +103,9 @@ class Time {
    * @param seconds: Number of seconds to advance the current timestamp
   */
   void update_time_seconds(const double seconds);
+
+  /** @brief Same function as update_time_seconds but returns a new Time object */
+  Time operator+(const double seconds) const;
 
   /** @brief Set the tm structs
    * 

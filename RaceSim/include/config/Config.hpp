@@ -43,48 +43,53 @@
   PARAM(tire_inertia, double, double, 0.00125)                                              \
   PARAM(tire_radius, double, double, 0.508)                                                 \
   PARAM(num_tires, int, int, 3)                                                             \
-  PARAM(base_route_path, std::filesystem::path, std::filesystem::path,                      \
-        std::filesystem::path("data/luts/wsc_2023/static/baseroute.csv"))                   \
-  PARAM(speed_limits_path, std::filesystem::path, std::filesystem::path,                    \
-        std::filesystem::path("data/luts/wsc_2023/static/longDistanceSpeedLimit.csv"))      \
-  PARAM(traffic_signals_path, std::filesystem::path, std::filesystem::path,                 \
-        std::filesystem::path("data/luts/wsc_2023/static/longDistanceTrafficSignals.csv"))  \
-  PARAM(power_factor_path, std::filesystem::path, std::filesystem::path,                    \
-        std::filesystem::path("data/luts/wsc_2023/static/powerfactor.csv"))                 \
-  PARAM(roll_res_slope_path, std::filesystem::path, std::filesystem::path,                  \
-        std::filesystem::path("data/luts/wsc_2023/static/rr2.csv"))                         \
-  PARAM(roll_res_yint_path, std::filesystem::path, std::filesystem::path,                   \
-        std::filesystem::path("data/luts/wsc_2023/static/rr1.csv"))                         \
-  PARAM(dni_path, std::filesystem::path, std::filesystem::path,                             \
-        std::filesystem::path("data/luts/wsc_2023/dynamic/dni.csv"))                        \
-  PARAM(dhi_path, std::filesystem::path, std::filesystem::path,                             \
-        std::filesystem::path("data/luts/wsc_2023/dynamic/dhi.csv"))                        \
-  PARAM(wind_direction_path, std::filesystem::path, std::filesystem::path,                  \
-        std::filesystem::path("data/luts/wsc_2023/dynamic/wind_direction_10m.csv"))         \
-  PARAM(wind_speed_path, std::filesystem::path, std::filesystem::path,                      \
-        std::filesystem::path("data/luts/wsc_2023/dynamic/wind_speed_10m.csv"))             \
   PARAM(control_stops, std::unordered_set<size_t>,                                          \
         std::unordered_set<size_t>,                                                         \
         convert_string_to_int_set("2962,5559,9462,11421,14439,16990,20832,23202,25987"))    \
-  PARAM(control_stop_charge_time, double, double, 30)                                       \
-  PARAM(race_start, std::unique_ptr<Time>, Time,                                            \
-        std::make_unique<Time>("2023-10-22 08:30:00", -9.5))                                \
+  PARAM(control_stop_charge_time, int, int, 30)                                             \
+  PARAM(base_route_path, std::filesystem::path, std::filesystem::path,                      \
+        std::filesystem::path("data/luts/fsgp/static/fsgp_base_route.csv"))                 \
+  PARAM(corners_path, std::filesystem::path, std::filesystem::path,                         \
+        std::filesystem::path("data/luts/fsgp/static/fsgp_corners.csv"))                    \
+  PARAM(power_factor_path, std::filesystem::path, std::filesystem::path,                    \
+        std::filesystem::path("data/luts/fsgp/static/powerfactor.csv"))                     \
+  PARAM(roll_res_slope_path, std::filesystem::path, std::filesystem::path,                  \
+        std::filesystem::path("data/luts/fsgp/static/rr2.csv"))                             \
+  PARAM(roll_res_yint_path, std::filesystem::path, std::filesystem::path,                   \
+        std::filesystem::path("data/luts/fsgp/static/rr1.csv"))                             \
+  PARAM(dni_path, std::filesystem::path, std::filesystem::path,                             \
+        std::filesystem::path("data/luts/fsgp/dynamic/dni.csv"))                            \
+  PARAM(dhi_path, std::filesystem::path, std::filesystem::path,                             \
+        std::filesystem::path("data/luts/fsgp/dynamic/dhi.csv"))                            \
+  PARAM(wind_direction_path, std::filesystem::path, std::filesystem::path,                  \
+        std::filesystem::path("data/luts/fsgp/dynamic/wind_direction_10m.csv"))             \
+  PARAM(wind_speed_path, std::filesystem::path, std::filesystem::path,                      \
+        std::filesystem::path("data/luts/fsgp/dynamic/wind_speed_10m.csv"))                 \
+  PARAM(day_one_start_time, std::unique_ptr<Time>, Time,                                    \
+        std::make_unique<Time>("2024-08-16 10:00:00", 6.0))                                 \
+  PARAM(day_one_end_time, std::unique_ptr<Time>, Time,                                      \
+        std::make_unique<Time>("2024-08-16 18:00:00", 6.0))                                 \
   PARAM(day_start_time, std::unique_ptr<Time>, Time, std::make_unique<Time>("09:00:00"))    \
   PARAM(day_end_time, std::unique_ptr<Time>, Time, std::make_unique<Time>("17:00:00"))      \
   PARAM(race_end_time, std::unique_ptr<Time>, Time,                                         \
-        std::make_unique<Time>("2023-10-22 08:30:00", -9.5))                                \
-  PARAM(first_day, bool, bool, true)                                                        \
-  PARAM(current_soc, double, double, 100)                                                   \
+        std::make_unique<Time>("2024-08-18 17:00:00", 6.0))                                 \
+  PARAM(impounding_release_time, std::unique_ptr<Time>, Time,                               \
+        std::make_unique<Time>("07:00:00"))                                                 \
+  PARAM(impounding_start_time, std::unique_ptr<Time>, Time,                                 \
+        std::make_unique<Time>("20:00:00"))                                                 \
+  PARAM(overnight_charging_location, Coord, Coord, Coord(37.000823, -86.367676, 0.157135))  \
+  PARAM(is_route_track, bool, bool, true)                                                   \
+  PARAM(current_soc, double, double, 5.2)                                                   \
   PARAM(gps_coordinates, Coord, Coord, Coord())                                             \
   PARAM(current_date_time, std::unique_ptr<Time>, Time,                                     \
-        std::make_unique<Time>("2023-10-28 17:00:00", -9.5))                                \
-  PARAM(utc_adjustment, double, double, -9.5)                                               \
-  PARAM(model, std::string, std::string, "Gen 11.5")                                        \
-  PARAM(optimizer, std::string, std::string, "Constant")                                    \
-  PARAM(min_speed, double, double, 40)                                                      \
-  PARAM(max_speed, double, double, 100)                                                     \
-  PARAM(num_segments, int, int, 1)                                                          \
+        std::make_unique<Time>("2023-10-28 17:00:00", 6.0))                                 \
+  PARAM(utc_adjustment, double, double, 6.0)                                                \
+  PARAM(model, std::string, std::string, "Gen 12")                                          \
+  PARAM(optimizer, std::string, std::string, "Acceleration")                                \
+  PARAM(min_speed, double, double, 10)                                                      \
+  PARAM(max_speed, double, double, 80)                                                      \
   PARAM(save_csv, bool, bool, true)                                                         \
+  PARAM(simulator, std::string, std::string, "FSGP")                                        \
 
 /* Class that holds all information from a .yaml file storing configuration parameters for
  * a race simulation

@@ -14,6 +14,7 @@
 #include "sim/Simulator.hpp"
 #include "config/Config.hpp"
 #include "model/CarFactory.hpp"
+#include "sim/SimulatorFactory.hpp"
 #include "route/Route.hpp"
 #include "opt/OptimizerFactory.hpp"
 #include "utils/Defines.hpp"
@@ -30,23 +31,22 @@ int main(int argc, char* argv[]) {
   Config::initialize(config_file_path, strat_root);
 
   /* Create a model of the car */
-  std::unique_ptr<Car> car = CarFactory::get_car(Config::get_instance()->get_model());
+  std::shared_ptr<Car> car = CarFactory::get_car(Config::get_instance()->get_model());
 
   /* Create route */
-  std::unique_ptr<Route> route = std::make_unique<Route>(Config::get_instance()->get_base_route_path());
-  route->init_control_stops();
+  std::shared_ptr<Route> route = std::make_shared<Route>(Config::get_instance()->get_base_route_path());
 
   /* Create simulator */
-  std::unique_ptr<Simulator> sim = std::make_unique<Simulator>(std::move(car));
+  std::shared_ptr<Simulator> sim = SimulatorFactory::get_simulator(Config::get_instance()->get_simulator(), car);
 
   /* Create optimizer */
-  std::unique_ptr<Optimizer> opt = OptimizerFactory::get_optimizer(Config::get_instance()->get_optimizer(),
-                                                                    std::move(route), std::move(sim));
+  std::shared_ptr<Optimizer> opt = OptimizerFactory::get_optimizer(Config::get_instance()->get_optimizer(),
+                                                                   route, sim);
 
   /* Run optimizer */
   RacePlan viable_race_plan = opt->optimize();
 
-  spdlog::info("Viable Speed Profile: {}", viable_race_plan.get_speed_profile()[0]);
+  /* Print the optimal speed profile */
 
   return 0;
 }

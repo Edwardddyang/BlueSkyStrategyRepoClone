@@ -60,4 +60,5 @@
   # Todo: add something for ending soc of each segment and minimum soc (penalized)
 
 \Simulation:
+  simulator: WSC
   save_csv: true # Save simulation results to CSVs

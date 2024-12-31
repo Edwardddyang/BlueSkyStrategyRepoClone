@@ -14,15 +14,15 @@ Base class for optimization algorithms
 class Optimizer {
  protected:
   /* Assess viability of proposed speed profiles */
-  std::unique_ptr<Simulator> simulator;
+  std::shared_ptr<Simulator> simulator;
 
   /* Route to optimize on */
-  std::unique_ptr<Route> route;
+  std::shared_ptr<Route> route;
 
   /* Output speed profile */
   std::vector<double> speed_profile_kph;
  public:
-  Optimizer(std::unique_ptr<Simulator> sim, std::unique_ptr<Route> path);
+  Optimizer(std::shared_ptr<Simulator> sim, std::shared_ptr<Route> path);
 
   /* Apply the optimization algorithm, output a speed profile over
       the segments of the race

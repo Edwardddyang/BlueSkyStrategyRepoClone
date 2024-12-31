@@ -41,9 +41,6 @@ CarUpdate V2Car::compute_travel_update(Coord coord_one,
 
   const int num_seconds = 0.0 < delta_time < 1.0 ? 1 : static_cast<int>(delta_time);
   const int num_data_points = num_seconds * num_data_points_per_second;
-  std::vector<double> aero_power(num_data_points);
-  std::vector<double> mech_power(num_data_points);
-  std::vector<double> gravity_power(num_data_points);
   std::vector<double> motor_power_data(num_data_points);
   std::vector<double> position_data(num_data_points);
   double position = 0.0;

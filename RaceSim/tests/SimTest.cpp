@@ -7,7 +7,7 @@
 #include <vector>
 #include "model/V1Car.hpp"
 #include "utils/Units.hpp"
-#include "sim/Simulator.hpp"
+#include "sim/WSCSimulator.hpp"
 #include "model/CarFactory.hpp"
 #include "config/Config.hpp"
 #include "utils/Defines.hpp"
@@ -28,17 +28,16 @@ std::filesystem::path SimTest::strat_root_path;
 
 TEST_F(SimTest, Test1) {
   /* Create a model of the car */
-  std::unique_ptr<Car> car = CarFactory::get_car(Config::get_instance()->get_model());
+  std::shared_ptr<Car> car = CarFactory::get_car(Config::get_instance()->get_model());
 
   /* Create route */
-  std::unique_ptr<Route> route = std::make_unique<Route>(Config::get_instance()->get_base_route_path());
+  std::shared_ptr<Route> route = std::make_shared<Route>(Config::get_instance()->get_base_route_path());
   route->init_control_stops();
 
   /* Create simulator */
-  std::unique_ptr<Simulator> sim = std::make_unique<Simulator>(std::move(car));
+  std::shared_ptr<Simulator> sim = std::make_shared<WSCSimulator>(car);
 
-  std::vector<std::pair<size_t, size_t>> segments = {{0, route->get_num_points() - 1}};
-  RacePlan race_plan(segments, {58.0}, {});
+  RacePlan race_plan({{{0, route->get_num_points() - 1}}}, {{{58.0, 58.0}}});
   sim->run_sim(route, &race_plan);
 
   EXPECT_EQ(true, race_plan.is_viable());
@@ -48,7 +47,7 @@ TEST_F(SimTest, Test1) {
 
   ResultsLut golden_result(results_file);
   ResultsLut test_result = sim->get_results_lut();
-
+  test_result.write_logs("test.csv");
   const double margin = 0.00001;
   // Test battery_energy
   std::vector<double> golden_battery_energy = golden_result.get_battery_energy();

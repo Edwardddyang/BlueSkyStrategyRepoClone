@@ -17,8 +17,8 @@ RacePlan V1Optimizer::optimize() {
   const int max_speed = Config::get_instance()->get_max_speed();
   const int min_speed = Config::get_instance()->get_min_speed();
 
-  std::vector<std::pair<size_t, size_t>> segments = {{0, route->get_num_points() - 1}};
-  RacePlan current_race_plan(segments, {static_cast<double>(min_speed)}, {});
+  RacePlan current_race_plan({{{0, route->get_num_points() - 1}}},
+                            {{{static_cast<double>(min_speed), static_cast<double>(min_speed)}}});
   RacePlan last_race_plan(current_race_plan);
 
   bool save_csv = Config::get_instance()->get_save_csv();
@@ -30,7 +30,7 @@ RacePlan V1Optimizer::optimize() {
   }
 
   for (int i=min_speed; i <= max_speed; i++) {
-    current_race_plan.set_speed_profile({static_cast<double>(i)});
+    current_race_plan.set_speed_profile({{{static_cast<double>(i), static_cast<double>(i)}}});
 
     /* Run the simulation */
     simulator->run_sim(route, &current_race_plan);
@@ -52,11 +52,11 @@ RacePlan V1Optimizer::optimize() {
   }
 
   if (!current_race_plan.is_viable()) {
-    current_race_plan.set_speed_profile({0.0});
+    current_race_plan.set_speed_profile({{{0.0, 0.0}}});
   }
 
   return current_race_plan;
 }
 
-V1Optimizer::V1Optimizer(std::unique_ptr<Simulator> simulator, std::unique_ptr<Route> route)
-    : Optimizer(std::move(simulator), std::move(route)) {}
+V1Optimizer::V1Optimizer(std::shared_ptr<Simulator> simulator, std::shared_ptr<Route> route)
+    : Optimizer(simulator, route) {}

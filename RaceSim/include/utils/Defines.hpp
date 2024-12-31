@@ -23,8 +23,10 @@
   #define GMTIME_SAFE(time_t_ptr, tm_ptr) gmtime_s(tm_ptr, time_t_ptr)
   #define LOCALTIME_SAFE(time_t_ptr, tm_ptr) localtime_s(tm_ptr, time_t_ptr)
   #define ASCTIME_SAFE(char_ptr, tm_ptr) asctime_s(char_ptr, 26, tm_ptr)
+  #define TIMEGM(tm_ptr) _mkgmtime(tm_ptr)
 #else
   #define GMTIME_SAFE(time_t_ptr, tm_ptr) gmtime_r(time_t_ptr, tm_ptr)
   #define LOCALTIME_SAFE(time_t_ptr, tm_ptr) localtime_r(time_t_ptr, tm_ptr)
   #define ASCTIME_SAFE(tm_ptr, char_ptr) asctime_r(tm_ptr, char_ptr)
+  #define TIMEGM(tm_ptr) timegm(tm_ptr)
 #endif

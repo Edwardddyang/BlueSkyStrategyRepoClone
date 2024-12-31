@@ -25,5 +25,5 @@ class CarFactory {
    * 
    * @param car_int: A CarModels enum indicating the model to create
    */
-  static std::unique_ptr<Car> get_car(const std::string car_int);
+  static std::shared_ptr<Car> get_car(const std::string car_int);
 };
