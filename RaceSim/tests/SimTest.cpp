@@ -47,7 +47,6 @@ TEST_F(SimTest, Test1) {
 
   ResultsLut golden_result(results_file);
   ResultsLut test_result = sim->get_results_lut();
-  test_result.write_logs("test.csv");
   const double margin = 0.00001;
   // Test battery_energy
   std::vector<double> golden_battery_energy = golden_result.get_battery_energy();

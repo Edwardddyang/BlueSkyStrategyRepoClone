@@ -35,6 +35,7 @@ int main(int argc, char* argv[]) {
 
   /* Create route */
   std::shared_ptr<Route> route = std::make_shared<Route>(Config::get_instance()->get_base_route_path());
+  route->init_control_stops();
 
   /* Create simulator */
   std::shared_ptr<Simulator> sim = SimulatorFactory::get_simulator(Config::get_instance()->get_simulator(), car);

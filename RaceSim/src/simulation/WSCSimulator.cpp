@@ -67,7 +67,6 @@ void WSCSimulator::run_sim(const std::shared_ptr<Route>& route, RacePlan* race_p
     current_coord = route_points[idx];
     next_coord = route_points[idx+1];
     delta_energy = 0.0;
-    std::cout << "Coordinate " << idx << std::endl;
     // Update route segment
     if (idx > current_segment.second) {
       segment_counter++;
@@ -83,20 +82,15 @@ void WSCSimulator::run_sim(const std::shared_ptr<Route>& route, RacePlan* race_p
 
     wind_speed_lut->update_index_cache(coord_one_forecast, curr_time.get_utc_time_point());
     double wind_speed = wind_speed_lut->get_value_with_cache();
-    std::cout << "Got wind speed" << std::endl;
     wind_dir_lut->update_index_cache(coord_one_forecast, curr_time.get_utc_time_point());
     double wind_dir = wind_dir_lut->get_value_with_cache();
-    std::cout << "Got wind dir" << std::endl;
     dni_lut->update_index_cache(coord_one_forecast, curr_time.get_utc_time_point());
     double dni = dni_lut->get_value_with_cache();
-    std::cout << "Got dni" << std::endl;
     dhi_lut->update_index_cache(coord_one_forecast, curr_time.get_utc_time_point());
     double dhi = dhi_lut->get_value_with_cache();
-    std::cout << "Got dhi" << std::endl;
     Wind wind = Wind(wind_dir, wind_speed);
     Irradiance irr = Irradiance(dni, dhi);
     SolarAngle sun = SolarAngle();
-    std::cout << "La" << std::endl;
     // Control stop
     double overflowed_control_stop_time = 0.0;
     if (control_stops.find(idx) != control_stops.end()) {
