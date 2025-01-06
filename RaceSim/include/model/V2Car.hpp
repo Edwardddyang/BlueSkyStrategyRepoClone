@@ -13,12 +13,8 @@ class V2Car : public V1Car {
   int num_tires;
   double tire_radius;
   double tire_inertia;
+  double max_braking_force;
   _1D::SimpsonRule<double> integrator;
-
-  /** @brief Calculate the time to travel distance d starting at initial speed v1
-   * with constant acceleration a
-   */
-  double calculate_acceleration_time(double v1, double a, double d);
 
  public:
     V2Car();

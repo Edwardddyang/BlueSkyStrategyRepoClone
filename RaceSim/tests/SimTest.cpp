@@ -37,13 +37,12 @@ TEST_F(SimTest, Test1) {
   /* Create simulator */
   std::shared_ptr<Simulator> sim = std::make_shared<WSCSimulator>(car);
 
-  RacePlan race_plan({{{0, route->get_num_points() - 1}}}, {{{58.0, 58.0}}});
+  RacePlan race_plan({{{0, route->get_num_points() - 1}}}, {{{61.0, 61.0}}});
   sim->run_sim(route, &race_plan);
-
   EXPECT_EQ(true, race_plan.is_viable());
 
   /* Parse the logs and ensure that all values match */
-  std::filesystem::path results_file = strat_root_path / "data/luts/TestData/58.csv";
+  std::filesystem::path results_file = strat_root_path / "data/luts/TestData/61.csv";
 
   ResultsLut golden_result(results_file);
   ResultsLut test_result = sim->get_results_lut();

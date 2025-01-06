@@ -67,7 +67,7 @@ From gen12_Strategy/RaceSim/
 7. cd ../install/bin
 8. ./opt.exe <config file relative to gen12_strategy/RaceSim>
 ```
-Note that you will have to set STRAT_ROOT (step 5) every time you open your shell. If you're on linux, you can add it to your .bashrc in order to persist it. If you're on windows, you can add it to ~/.bash_profile in git bash
+Note that you will have to set STRAT_ROOT (step 5) every time you open your shell. If you're on linux, you can add it to your .bashrc in order to persist it. If you're on windows, you can add it to ~/.bash_profile in git bash. To compile with debug symbols, add `-DCMAKE_BUILD_TYPE=Debug` to step 3 and run make as normal
 
 This has been tested on:
 - Windows machine with make (GNU 3.81) with gcc (8.3), CMake (3.30)

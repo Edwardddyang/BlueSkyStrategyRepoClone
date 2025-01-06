@@ -99,16 +99,32 @@ double EffLut::get_value(double row_value, double column_value) {
   size_t row = 0;
   size_t col = 0;
 
-  for (; row < num_rows; row++) {
-    if (row_value == row_values[row] || row_values[row] > row_value) {
+  // Find the closest row index
+  for (; row < num_rows; ++row) {
+    if (row_values[row] >= row_value) {
       break;
     }
   }
+  if (row == num_rows) {
+    row--;
+  }
+  // Adjust row index if necessary
+  if (std::abs(row_values[row - 1] - row_value) < std::abs(row_values[row] - row_value)) {
+    --row;
+  }
 
-  for (; col < num_cols; col++) {
-    if (column_value == column_values[col] || column_values[col] > column_value) {
+  // Find the closest column index
+  for (; col < num_cols; ++col) {
+    if (column_values[col] >= column_value) {
       break;
     }
+  }
+  if (col == num_cols) {
+    col--;
+  }
+  // Adjust column index if necessary
+  if (std::abs(column_values[col - 1] - column_value) < std::abs(column_values[col] - column_value)) {
+    --col;
   }
 
   RUNTIME_EXCEPTION(row >= 0 && row < num_rows && col >= 0 && col < num_cols,
@@ -369,6 +385,10 @@ void ResultsLut::load_LUT() {
 
     std::getline(file_linestream, cell, ',');
     RUNTIME_EXCEPTION(isDouble(cell), "Value {} is not a number in Results csv {}", cell, lut_path.string());
+    acceleration.emplace_back(std::stod(cell));
+
+    std::getline(file_linestream, cell, ',');
+    RUNTIME_EXCEPTION(isDouble(cell), "Value {} is not a number in Results csv {}", cell, lut_path.string());
     array_power.emplace_back(std::stod(cell));
 
     std::getline(file_linestream, cell, ',');
@@ -456,6 +476,7 @@ void ResultsLut::write_logs(const std::string lut_path) const {
               << "Longitude,"
               << "Altitude(m),"
               << "Speed(m/s),"
+              << "Acceleration(m/s^2),"
               << "Array Power(W),"
               << "Array Energy(kWh),"
               << "Motor Power(W),"
@@ -481,6 +502,7 @@ void ResultsLut::write_logs(const std::string lut_path) const {
       output_csv << std::to_string(longitude[i]) + ",";
       output_csv << std::to_string(altitude[i]) + ",";
       output_csv << std::to_string(speed[i]) + ",";
+      output_csv << std::to_string(acceleration[i]) + ",";
       output_csv << std::to_string(array_power[i]) + ",";
       output_csv << std::to_string(array_energy[i]) + ",";
       output_csv << std::to_string(motor_power[i]) + ",";

@@ -134,10 +134,11 @@ RacePlan Route::segment_route_acceleration(const unsigned segment_idx_seed, cons
   std::vector<bool> acceleration_segments;
   std::vector<double> acceleration_values;
 
-  // Iterate through the cornering intervals. For each one, we must create three segments
-  // 1. Deceleration/Acceleration segment going into the corner
-  // 2. Constant speed segment for taking the corner
-  // 3. Acceleration/Deceleration segment leaving the corner
+  // Iterate through the cornering intervals. For each one, we must create three/four segments
+  // 1. Constant speed segment
+  // 2. Deceleration/Acceleration segment going into the corner
+  // 3. Constant speed segment for taking the corner
+  // 4. Acceleration/Deceleration segment leaving the corner
   // Afterwards, we fill in the remaining segments with constant speed
   std::pair<size_t, size_t> last_segment;
   std::pair<double, double> last_segment_speed;
@@ -159,15 +160,25 @@ RacePlan Route::segment_route_acceleration(const unsigned segment_idx_seed, cons
       idx_dist = std::uniform_int_distribution<size_t>(last_segment.second, corner_start - 1);
     }
     const size_t chosen_start_idx = idx_dist(idx_rng);
+    const double deceleration_starting_speed = last_segment_speed.second;
+
+    // If this isn't the first corner, then we need to create a segment going from the last acceleration
+    // segment to the current deceleration segment
+    if (corner_idx > 0) {
+      segments.push_back({last_segment.second, chosen_start_idx});
+      segment_speeds.push_back({deceleration_starting_speed, deceleration_starting_speed});
+      acceleration_segments.push_back(false);
+      acceleration_values.push_back(0.0);
+    }
+
     segments.push_back({chosen_start_idx, corner_start});
 
     const double max_corner_speed = cornering_speed_bounds[corner_idx];
-    speed_dist = std::uniform_real_distribution<double>(1.0, max_corner_speed);
-    const size_t deceleration_starting_speed = last_segment_speed.second;
+    speed_dist = std::uniform_real_distribution<double>(10.0, max_corner_speed);
     const double corner_speed = speed_dist(speed_rng);
     segment_speeds.push_back({deceleration_starting_speed, corner_speed});
 
-    acceleration_segments.push_back(corner_speed == deceleration_starting_speed);
+    acceleration_segments.push_back(!(corner_speed == deceleration_starting_speed));
     double accumulated_distance = 0.0;
     size_t num_segment_points = corner_start - chosen_start_idx;
     for (size_t i=0; i < num_segment_points; i++) {
@@ -176,7 +187,7 @@ RacePlan Route::segment_route_acceleration(const unsigned segment_idx_seed, cons
     }
     acceleration_values.push_back((corner_speed * corner_speed -
                                    deceleration_starting_speed * deceleration_starting_speed) /
-                                   2.0 * accumulated_distance);
+                                   (2.0 * accumulated_distance));
 
     // Create the constant speed segment for taking the corner
     segments.push_back({corner_start, corner_end});
@@ -191,6 +202,9 @@ RacePlan Route::segment_route_acceleration(const unsigned segment_idx_seed, cons
     // where the entire thing is pretty much a bend
     if (corner_idx == num_corners - 1) {
       idx_dist = std::uniform_int_distribution<size_t>(corner_end + 1, num_points - 1);
+      if (corner_end + 1 >= num_points - 1) {
+        break;
+      }
     } else {
       const size_t next_corner_start = cornering_segment_bounds[corner_idx + 1].first;
       idx_dist = std::uniform_int_distribution<size_t>(corner_end + 1, next_corner_start - 1);
@@ -199,10 +213,10 @@ RacePlan Route::segment_route_acceleration(const unsigned segment_idx_seed, cons
     segments.push_back({corner_end, chosen_end_idx});
 
     // Accelerate up to any speed from 1 to the maximum speed of the car
-    speed_dist = std::uniform_real_distribution<double>(1.0, Config::get_instance()->get_max_speed());
+    speed_dist = std::uniform_real_distribution<double>(1.0, kph2mps(Config::get_instance()->get_max_car_speed()));
     const double segment_ending_speed = speed_dist(speed_rng);
     segment_speeds.push_back({corner_speed, segment_ending_speed});
-    acceleration_segments.push_back(corner_speed == segment_ending_speed);
+    acceleration_segments.push_back(!(corner_speed == segment_ending_speed));
     accumulated_distance = 0.0;
     num_segment_points = chosen_end_idx - corner_end;
     for (size_t i=0; i < num_segment_points; i++) {
@@ -210,16 +224,16 @@ RacePlan Route::segment_route_acceleration(const unsigned segment_idx_seed, cons
     }
     acceleration_values.push_back((segment_ending_speed * segment_ending_speed -
                                    corner_speed * corner_speed) /
-                                   2.0 * accumulated_distance);
+                                   (2.0 * accumulated_distance));
 
     last_segment = {corner_end, chosen_end_idx};
     last_segment_speed = {corner_speed, segment_ending_speed};
   }
-
   return RacePlan({segments}, {segment_speeds}, {acceleration_segments}, {acceleration_values});
 }
 
-void Route::init_cornering_bounds(const std::filesystem::path cornering_bounds_path) {
+void Route::init_cornering_bounds(const std::filesystem::path cornering_bounds_path,
+                                  double max_car_speed) {
   cornering_segment_bounds.resize(0);
   std::fstream csv(cornering_bounds_path);
   RUNTIME_EXCEPTION(csv.is_open(), "Base route file not found {}", cornering_bounds_path.string());
@@ -244,14 +258,54 @@ void Route::init_cornering_bounds(const std::filesystem::path cornering_bounds_p
                       starting_bound, cornering_bounds_path.string());
     RUNTIME_EXCEPTION(isSizeT(ending_bound, &bound.second), "Value {} in cornering bounds file {} is not a number",
                       ending_bound, cornering_bounds_path.string());
-    RUNTIME_EXCEPTION(bound.first < bound.second && !is_first_segment &&
-                      bound.first > last_bound.second, "Cornering bounds are degenerate");
+    RUNTIME_EXCEPTION((is_first_segment && bound.first < bound.second) || (!is_first_segment &&
+                      bound.first > last_bound.second), "Cornering bounds are degenerate");
     RUNTIME_EXCEPTION(isDouble(max_speed), "Value {} in cornering bounds file {} is not a number",
                       max_speed, cornering_bounds_path.string());
-    cornering_speed_bounds.push_back(std::stod(max_speed));
+    double max_corner_speed = std::stod(max_speed) < max_car_speed ? std::stod(max_speed) : max_car_speed;
+    cornering_speed_bounds.push_back(max_corner_speed);
     cornering_segment_bounds.push_back(bound);
     last_bound = bound;
     is_first_segment = false;
+  }
+}
+
+void RacePlan::print_plan() const {
+  std::cout << "---------Segments---------" << std::endl;
+  for (size_t i=0; i < segments.size(); i++) {
+    std::cout << "Loop " << i+1 << " -> ";
+    for (size_t j=0; j < segments[i].size(); j++) {
+      std::cout << "[" << segments[i][j].first << "," << segments[i][j].second << "]";
+      if (j == segments[i].size()-1) {
+        std::cout << "\n";
+      } else {
+        std::cout << ",";
+      }
+    }
+  }
+  std::cout << "------Segment Speeds------" << std::endl;
+  for (size_t i=0; i < segment_speeds.size(); i++) {
+    std::cout << "Loop " << i+1 << " -> ";
+    for (size_t j=0; j < segment_speeds[i].size(); j++) {
+      std::cout << "[" << segment_speeds[i][j].first << "," << segment_speeds[i][j].second << "]";
+      if (j == segment_speeds[i].size()-1) {
+        std::cout << "\n";
+      } else {
+        std::cout << ",";
+      }
+    }
+  }
+  std::cout << "-------Acceleration-------" << std::endl;
+  for (size_t i=0; i < acceleration.size(); i++) {
+    std::cout << "Loop " << i+1 << " -> ";
+    for (size_t j=0; j < acceleration[i].size(); j++) {
+      std::cout << "[" << acceleration[i][j] << "]";
+      if (j == acceleration[i].size()-1) {
+        std::cout << "\n";
+      } else {
+        std::cout << ",";
+      }
+    }
   }
 }
 
@@ -280,21 +334,22 @@ bool RacePlan::validate_members(const std::vector<Coord>& route_points) const {
     RUNTIME_EXCEPTION(loop_segments[num_segments-1].second == route_points.size()-1, "Last segment's ending point must "
                                                                                 "be the last index of the route");
     for (size_t i=0; i < num_segments; i++) {
-      RUNTIME_EXCEPTION(loop_segments_speeds[i].first > 0.0 && loop_segments_speeds[i].second > 0.0,
-                        "Segment speeds must be positive");
+      RUNTIME_EXCEPTION(loop_segments_speeds[i].first >= 0.0 && loop_segments_speeds[i].second >= 0.0,
+                        "Segment speed in segment {} is not positive", i);
 
       RUNTIME_EXCEPTION(loop_segments[i].first <= loop_segments[i].second, "Segment start must be <= segment end");
       if (i < num_segments-1) {
         RUNTIME_EXCEPTION(loop_segments[i].second == loop_segments[i+1].first,
-                          "Segments must be continuous i.e. segment end = next segment start");
+                          "Segments must be continuous i.e. segment end = next segment start."
+                          " Invalid on segment {}", i);
         RUNTIME_EXCEPTION(loop_segments_speeds[i].second == loop_segments_speeds[i+1].first,
-                          "Ending speed of segment must equal starting speed of next segment");
+                          "Ending speed of segment {} must equal starting speed of next segment", i);
       }
 
       if (!loop_segments_acceleration[i]) {
         RUNTIME_EXCEPTION(loop_segments_speeds[i].first == loop_segments_speeds[i].second,
-                          "Speed profile for non-acceleration segment must have equal and positive starting "
-                          "and ending speeds");
+                          "Speed profile for non-acceleration segment {} must have equal and positive starting "
+                          "and ending speeds", i);
       } else {
         const double acceleration_value = loop_segments_acceleration_values[i];
         const double starting_speed = loop_segments_speeds[i].first;

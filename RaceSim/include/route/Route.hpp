@@ -10,6 +10,7 @@
 #include <filesystem>
 #include <vector>
 #include <unordered_set>
+#include <limits>
 
 #include "utils/Units.hpp"
 
@@ -22,6 +23,7 @@
  */
 class RacePlan {
  private:
+  /* Viability of race plan */
   bool viable = false;
 
   /* Time taken to complete the race in seconds using this plan */
@@ -49,6 +51,13 @@ class RacePlan {
   // Note that acceleration.size() = acceleration_segments.size() = segments.size() = segment_speeds.size()
   // AND acceleration[i].size() = acceleration_segments[i].size() = segments[i].size() = segment_speeds[i].size()
   // for all i in the range of [0, acceleration.size()-1]
+
+  // Number of loops completed by the car i.e. segments.size()
+  int num_loops;
+
+  // If the plan is not viable, this string holds the reason
+  std::string reason_for_inviability = "";
+
  public:
   RacePlan() {}
   RacePlan(std::vector<std::vector<std::pair<size_t, size_t>>> segments,
@@ -60,6 +69,8 @@ class RacePlan {
   inline std::vector<std::vector<std::pair<double, double>>> get_speed_profile() const {return segment_speeds;}
   inline std::vector<std::vector<bool>> get_acceleration_segments() const {return acceleration_segments;}
   inline std::vector<std::vector<double>> get_acceleration_values() const {return acceleration;}
+  inline std::string get_inviability_reason() const {return reason_for_inviability;}
+  inline int get_num_loops() const {return num_loops;}
   inline bool is_viable() const {return viable;}
 
   inline void set_segments(std::vector<std::vector<std::pair<size_t, size_t>>> new_segments) {segments = new_segments;}
@@ -71,13 +82,18 @@ class RacePlan {
   }
   inline void set_time_taken(time_t new_time_taken) {time_taken = new_time_taken;}
   inline void set_viability(bool viability) {viable = viability;}
+  inline void set_num_loops(int loops) {num_loops = loops;}
+  inline void set_inviability_reason(std::string message) {reason_for_inviability = message;}
 
-  /** @brief Validate members of a race plan. Should be called before simulation
+  /** @brief Validate members of a race plan. Should be called before run_sim()
    *
    * @param route_points Coordinate points of the base route
    * @return True if all members are valid
    */
   bool validate_members(const std::vector<Coord>& route_points) const;
+
+  /** @brief Print the route plan to stdout */
+  void print_plan() const;
 };
 
 /** A class to hold all points and control stop locations in a race route */
@@ -112,8 +128,12 @@ class Route {
   void init_route(const std::filesystem::path route_path);
   void init_control_stops();
 
-  /* Read a csv of corner index bounds with columns |starting index|ending index|max speed(mps)| */
-  void init_cornering_bounds(const std::filesystem::path cornering_bounds_path);
+  /** @brief Read a csv of corner index bounds with columns |starting index|ending index|max speed(mps)|
+   * @param cornering_bounds_path: Path to the csv file
+   * @param max_car_speed: Maximum car speed to limit cornering speeds. Defaults to infinity
+  */
+  void init_cornering_bounds(const std::filesystem::path cornering_bounds_path,
+                             double max_car_speed = std::numeric_limits<double>::infinity());
 
   Route() {}
 

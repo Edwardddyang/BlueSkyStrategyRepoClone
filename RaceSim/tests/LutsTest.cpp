@@ -51,6 +51,14 @@ TEST_F(LutsTest, EffLutTest) {
   true_val = 0.00252506;
   EXPECT_NEAR(value, true_val, 0.0001);
 
+  value = TestEffLut.get_value(6, 121);
+  true_val = 0.00252506;
+  EXPECT_NEAR(value, true_val, 0.0001);
+
+  value = TestEffLut.get_value(6, 12.0);
+  true_val = 0.002569596;
+  EXPECT_NEAR(value, true_val, 0.0001);
+
   std::filesystem::path roll_res_slope_path = LutsTest::strat_root_path / "data/luts/TestData/rr2.csv";
   TestEffLut = EffLut(roll_res_slope_path);
 

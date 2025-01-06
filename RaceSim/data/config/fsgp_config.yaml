@@ -2,6 +2,8 @@
 /Version: "FSGP_2025"
 /Car: # Car characterizationss
   max_soc: 5.2 # kwh
+  max_car_speed: 104 # kph
+  max_deceleration: 6.034 # m/s^2
   tire_pressure: 5.5 # bar
   array_area: 3.98 # m^2
   car_mass: 305 # in kg
@@ -37,8 +39,8 @@
   day_start_time: 9:00:00 # Start time from second day onwards in HH:MM:SS local 24 hour format
   day_end_time: 17:00:00 # End time from second day onwards in HH:MM:SS local 24 hour format
   race_end_time: 2024-08-18 17:00:00 # YYYY-MM-DD HH:MM:SS local 24 hour time
-  impounding_release_time: 20:00:00 # HH:MM:SS of the nightly battery impounding time
-  impounding_start_time: 07:00:00 # HH:MM:SS of the daily battery impounding release time
+  impounding_release_time: 07:00:00 # HH:MM:SS of the morning battery release time
+  impounding_start_time: 20:00:00 # HH:MM:SS of the nightly battery impounding time
   overnight_charging_location: 37.000823,-86.367676,0.157135 # Coordinates of the charging location
   is_route_track: True # If the route is a track, meaning that the coordinates in base_route continuously loop
 

@@ -21,27 +21,27 @@ bool Config::initialized = false;
 
 Config* Config::get_instance() {
   if (instance_ptr == NULL) {
-  RUNTIME_EXCEPTION(!config_file_path.empty(), "No config file path set."
-                                               "Add Config::initialize(file_path, strat_root)"
-                                               "before get_instance(). Exiting");
-  RUNTIME_EXCEPTION(STRAT_ROOT != nullptr, "No STRAT_ROOT variable detected."
-                                           "Add Config::initialize(file_path, strat_root)"
-                                           "before get_instance(). Exiting");
+    RUNTIME_EXCEPTION(!config_file_path.empty(), "No config file path set."
+                                                "Add Config::initialize(file_path, strat_root)"
+                                                "before get_instance(). Exiting");
+    RUNTIME_EXCEPTION(STRAT_ROOT != nullptr, "No STRAT_ROOT variable detected."
+                                            "Add Config::initialize(file_path, strat_root)"
+                                            "before get_instance(). Exiting");
 
-  /* Parse config file */
-  std::string full_config_file_path = (std::filesystem::path(STRAT_ROOT) / config_file_path).string();
-  try {
-    config = YAML::LoadFile(full_config_file_path);
-    get_config_leaf_nodes(config);
-  } catch (const YAML::ParserException& e) {
-    RUNTIME_EXCEPTION(false, "Config file {} could not be parsed. Check yaml for correct syntax. Exiting",
-                      full_config_file_path);
-  } catch (const YAML::BadFile& e) {
-    RUNTIME_EXCEPTION(false, "Config file {} could not be loaded. Check that file exists. Exiting",
-                      full_config_file_path);
-  } catch (const std::exception& e) {
-    RUNTIME_EXCEPTION(false, "Config file {} could not be loaded. Exiting", full_config_file_path);
-  }
+    /* Parse config file */
+    std::string full_config_file_path = (std::filesystem::path(STRAT_ROOT) / config_file_path).string();
+    try {
+      config = YAML::LoadFile(full_config_file_path);
+      get_config_leaf_nodes(config);
+    } catch (const YAML::ParserException& e) {
+      RUNTIME_EXCEPTION(false, "Config file {} could not be parsed. Check yaml for correct syntax. Exiting",
+                        full_config_file_path);
+    } catch (const YAML::BadFile& e) {
+      RUNTIME_EXCEPTION(false, "Config file {} could not be loaded. Check that file exists. Exiting",
+                        full_config_file_path);
+    } catch (const std::exception& e) {
+      RUNTIME_EXCEPTION(false, "Config file {} could not be loaded. Exiting", full_config_file_path);
+    }
     instance_ptr = std::make_unique<Config>(Config());
   }
   return instance_ptr.get();

@@ -20,7 +20,7 @@ void WSCSimulator::run_sim(const std::shared_ptr<Route>& route, RacePlan* race_p
   reset_vars();
   results_lut->reset_logs();
 
-  /* Get route data */
+  /* Get route and race plan data */
   const size_t num_points = route->get_num_points();
   const std::vector<Coord> route_points = route->get_route_points();
   const std::vector<std::pair<size_t, size_t>> segments = race_plan->get_segments()[0];
@@ -82,12 +82,16 @@ void WSCSimulator::run_sim(const std::shared_ptr<Route>& route, RacePlan* race_p
 
     wind_speed_lut->update_index_cache(coord_one_forecast, curr_time.get_utc_time_point());
     double wind_speed = wind_speed_lut->get_value_with_cache();
+
     wind_dir_lut->update_index_cache(coord_one_forecast, curr_time.get_utc_time_point());
     double wind_dir = wind_dir_lut->get_value_with_cache();
+
     dni_lut->update_index_cache(coord_one_forecast, curr_time.get_utc_time_point());
     double dni = dni_lut->get_value_with_cache();
+
     dhi_lut->update_index_cache(coord_one_forecast, curr_time.get_utc_time_point());
     double dhi = dhi_lut->get_value_with_cache();
+
     Wind wind = Wind(wind_dir, wind_speed);
     Irradiance irr = Irradiance(dni, dhi);
     SolarAngle sun = SolarAngle();
@@ -121,7 +125,7 @@ void WSCSimulator::run_sim(const std::shared_ptr<Route>& route, RacePlan* race_p
 
     /* Overnight stop */
     if (curr_time >= current_day_end) {
-      while (curr_time >= current_day_end && curr_time < next_day_start) {
+      while (curr_time < next_day_start) {
         /* Step in 30 second intervals */
         get_az_el(curr_time.get_utc_time_point(), current_coord.lat, current_coord.lon,
                   current_coord.alt, &sun.Az, &sun.El);
@@ -200,7 +204,7 @@ void WSCSimulator::run_sim(const std::shared_ptr<Route>& route, RacePlan* race_p
 void WSCSimulator::reset_vars() {
   max_soc = Config::get_instance()->get_max_soc();
   starting_coord = Config::get_instance()->get_gps_coordinates();
-  battery_energy = max_soc;
+  battery_energy = Config::get_instance()->get_current_soc();
   curr_time = Config::get_instance()->get_current_date_time();
   wind_speed_lut->initialize_caches(starting_coord, curr_time.get_utc_time_point());
   wind_dir_lut->initialize_caches(starting_coord, curr_time.get_utc_time_point());

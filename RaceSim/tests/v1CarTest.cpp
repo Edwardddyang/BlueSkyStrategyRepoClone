@@ -92,20 +92,20 @@ TEST_F(v1CarTest, RollingLossTest) {
   V1Car TestCar = V1Car();
 
   EnergyChange eng_change = TestCar.compute_rolling_loss(16.66667, 3600);
-  double true_power = 230.388;
-  double true_energy = 0.230388;
-  EXPECT_NEAR(eng_change.energy, true_energy, 0.001);
-  EXPECT_NEAR(eng_change.power, true_power, 0.5);
+  double true_power = 161.3649843;
+  double true_energy = 0.1613649843;
+  EXPECT_NEAR(eng_change.energy, true_energy, 0.0001);
+  EXPECT_NEAR(eng_change.power, true_power, 0.0001);
 
   eng_change = TestCar.compute_rolling_loss(30.5556, 86400);
-  true_power = 562;
-  true_energy = 13.5;
-  EXPECT_NEAR(eng_change.energy, true_energy, 0.1);
-  EXPECT_NEAR(eng_change.power, true_power, 2);
+  true_power = 325.8119939;
+  true_energy = 7.819487855;
+  EXPECT_NEAR(eng_change.energy, true_energy, 0.0001);
+  EXPECT_NEAR(eng_change.power, true_power, 0.0001);
 
   eng_change = TestCar.compute_rolling_loss(2.7778, 1200);
-  true_power = 24.039;
-  true_energy = 0.0080130556;
-  EXPECT_NEAR(eng_change.energy, true_energy, 0.01);
-  EXPECT_NEAR(eng_change.power, true_power, 1);
+  true_power = 22.14316298;
+  true_energy = 0.007381054328;
+  EXPECT_NEAR(eng_change.energy, true_energy, 0.0001);
+  EXPECT_NEAR(eng_change.power, true_power, 0.0001);
 }

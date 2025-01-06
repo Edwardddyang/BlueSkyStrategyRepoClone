@@ -20,7 +20,7 @@ EnergyChange V1Car::compute_rolling_loss(double speed, double delta_time) {
   double y_int_rr = yint_rolling_resistance.get_value(tire_pressure, mps2kph(speed));
   double slope_rr = slope_rolling_resistance.get_value(tire_pressure, mps2kph(speed));
 
-  double force_scaling = (y_int_rr + slope_rr * mps2kph(speed));
+  double force_scaling = (y_int_rr + slope_rr * speed);
   double normal_force = mass * GRAVITY_ACCELERATION;
   double force = force_scaling * normal_force;
   double power = force * speed;

@@ -23,6 +23,7 @@ class FSGPSimulator : public WSCSimulator {
   Time impounding_start_time;    // Impounding start time in 24 hour local time
   Time impounding_release_time;  // Impounding release time in 24 hour local time
 
+  void reset_vars();
  public:
   /* Load all LUTs upon construction */
   explicit FSGPSimulator(std::shared_ptr<Car> model);
