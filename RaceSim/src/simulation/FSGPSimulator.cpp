@@ -66,7 +66,7 @@ void FSGPSimulator::run_sim(const std::shared_ptr<Route>& route, RacePlan* race_
     std::pair<double, double> segment_speeds = loop_segment_speeds[segment_counter];
     is_accelerating = loop_segment_acceleration[segment_counter];
     acceleration = loop_segment_acceleration_values[segment_counter];
-    curr_speed = kph2mps(segment_speeds.first);
+    curr_speed = segment_speeds.first;
 
     for (size_t idx=starting_route_index; idx < num_points-1; idx++) {
       current_coord = route_points[idx];
@@ -80,7 +80,7 @@ void FSGPSimulator::run_sim(const std::shared_ptr<Route>& route, RacePlan* race_
         segment_speeds = loop_segment_speeds[segment_counter];
         is_accelerating = loop_segment_acceleration[segment_counter];
         acceleration = loop_segment_acceleration_values[segment_counter];
-        curr_speed = kph2mps(segment_speeds.first);
+        curr_speed = segment_speeds.first;
       }
 
       /* Get forecasting data - wind and irradiance */
@@ -159,7 +159,6 @@ void FSGPSimulator::run_sim(const std::shared_ptr<Route>& route, RacePlan* race_
         // should be thrown out
         race_plan->set_viability(false);
         race_plan->set_inviability_reason(std::string(e.what()));
-        // std::cout << e.what().string() << std::endl;
         return;
       }
 
