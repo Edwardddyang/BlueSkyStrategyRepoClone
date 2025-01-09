@@ -19,23 +19,22 @@ int main(int argc, char* argv[]) {
   Config::initialize(config_file_path, strat_root);
 
   /* Create a model of the car */
-  std::unique_ptr<Car> car = CarFactory::get_car(Config::get_instance()->get_model());
+  std::shared_ptr<Car> car = CarFactory::get_car(Config::get_instance()->get_model());
 
   /* Create route */
-  std::unique_ptr<Route> route = std::make_unique<Route>(Config::get_instance()->get_base_route_path());
-  route->init_control_stops();
+  std::shared_ptr<Route> route = std::make_shared<Route>(Config::get_instance()->get_base_route_path());
 
   /* Create simulator */
-  std::unique_ptr<Simulator> sim = std::make_unique<Simulator>(std::move(car));
+  std::shared_ptr<Simulator> sim = SimulatorFactory::get_simulator(Config::get_instance()->get_simulator(), car);
 
   /* Create optimizer */
-  std::unique_ptr<Optimizer> opt = OptimizerFactory::get_optimizer(Config::get_instance()->get_optimizer(),
-                                                                    std::move(route), std::move(sim));
+  std::shared_ptr<Optimizer> opt = OptimizerFactory::get_optimizer(Config::get_instance()->get_optimizer(),
+                                                                   route, sim);
 
   /* Run optimizer */
   RacePlan viable_race_plan = opt->optimize();
 
-  spdlog::info("Viable Speed Profile: {}", viable_race_plan.get_speed_profile()[0]);
+  /* Print the optimal speed profile */
 
   return 0;
 }
@@ -50,7 +49,7 @@ This example file is already present in the repository.
 - Download Msys2 (https://www.msys2.org/)
 - Follow the instructions on the Msys2 home page with the following modifications to the steps:
   - In step 5, instead of launching the UCRT64 environment which has proven to be buggy, use the MinGW64 environment. You can find this as one of the applications in the downloaded msys2/ folder.
-  - In step 6, run `pacman -S mingw-w64-x86_64-gcc` inside the MinGW64 terminal. Then install `make` with `pacman -S mingw-w64-x86_64-make` inside the same MinGW64 terminal. After installing make, re-name the ```mingw32-make``` file in msys2/mingw64/bin to ```make```.
+  - In step 6, run `pacman -S mingw-w64-x86_64-gcc` inside the MinGW64 terminal. Then install `make` with `pacman -S mingw-w64-x86_64-make` inside the same MinGW64 terminal. Finally, install pip with `pacman -S mingw-w64-x86_64-python-pip`. After installing make, re-name the ```mingw32-make``` file in msys2/mingw64/bin to ```make```.
 - Add the absolute path to msys2/mingw64/bin to your PATH environment variable
 - Open git bash and ensure that ```make --version``` ```gcc --version``` run without error. If you get a command not found error. Then you most likely did not set your environment variable paths correctly
 - Run ```pip install cpplint```
@@ -68,7 +67,7 @@ From gen12_Strategy/RaceSim/
 7. cd ../install/bin
 8. ./opt.exe <config file relative to gen12_strategy/RaceSim>
 ```
-Note that you will have to set STRAT_ROOT (step 5) every time you open your shell. If you're on linux, you can add it to your .bashrc in order to persist it. If you're on windows, you can add it to ~/.bash_profile in git bash
+Note that you will have to set STRAT_ROOT (step 5) every time you open your shell. If you're on linux, you can add it to your .bashrc in order to persist it. If you're on windows, you can add it to ~/.bash_profile in git bash. To compile with debug symbols, add `-DCMAKE_BUILD_TYPE=Debug` to step 3 and run make as normal
 
 This has been tested on:
 - Windows machine with make (GNU 3.81) with gcc (8.3), CMake (3.30)
@@ -80,7 +79,12 @@ Dependencies: yaml-cpp (0.8.0), spdlog (1.14.1), googletest (1.14.0)
 Before pushing, please ensure that ```make install``` runs with no testing or lint errors.
 
 ## Vscode Suggestions
-Add ```"editor.insertSpaces": true``` into .vscode/settings.json and set the tab size to 2
+Add the following into your .vscode/settings.json
+```
+"editor.insertSpaces": true
+"editor.tabSize": 2,
+"editor.detectIndentation": false
+```
 
 ## Config File
 

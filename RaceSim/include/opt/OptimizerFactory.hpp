@@ -12,6 +12,7 @@
 
 enum class Algos {
   CONSTANT = 0,
+  ACCELERATION = 1,
 };
 
 class OptimizerFactory {
@@ -26,7 +27,7 @@ class OptimizerFactory {
    * @param route: Route to optimize
    * @param simulator: Validates proposed speed profiles 
    */
-  static std::unique_ptr<Optimizer> get_optimizer(const std::string opt_type,
-                                                  std::unique_ptr<Route> route,
-                                                  std::unique_ptr<Simulator> simulator);
+  static std::shared_ptr<Optimizer> get_optimizer(const std::string opt_type,
+                                                  std::shared_ptr<Route> route,
+                                                  std::shared_ptr<Simulator> simulator);
 };

@@ -15,6 +15,9 @@
   motor_efficiency: 0.9
   regen_efficiency: 0.8
   battery_efficiency: 0.95
+  tire_inertia: 0.00125 # in kg * m^2
+  tire_radius: 0.508 # in m
+  num_tires: 3
 
 \LutPaths:
   # All following luts are relative to gen12_strategy/RaceSim/
@@ -57,4 +60,5 @@
   # Todo: add something for ending soc of each segment and minimum soc (penalized)
 
 \Simulation:
+  simulator: WSC
   save_csv: true # Save simulation results to CSVs

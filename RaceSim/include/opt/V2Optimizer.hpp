@@ -1,0 +1,15 @@
+/** Optimizer that searches for the best acceleration profile out of a random set of trials */
+#pragma once
+
+#include <memory>
+#include <vector>
+
+#include "opt/Optimizer.hpp"
+#include "route/Route.hpp"
+#include "sim/Simulator.hpp"
+
+class V2Optimizer : public Optimizer {
+ public:
+  V2Optimizer(std::shared_ptr<Simulator> simulator, std::shared_ptr<Route> route);
+  RacePlan optimize() override;
+};

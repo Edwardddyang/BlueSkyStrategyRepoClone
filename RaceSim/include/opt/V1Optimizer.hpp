@@ -10,6 +10,6 @@
 
 class V1Optimizer : public Optimizer {
  public:
-  V1Optimizer(std::unique_ptr<Simulator> simulator, std::unique_ptr<Route> route);
+  V1Optimizer(std::shared_ptr<Simulator> simulator, std::shared_ptr<Route> route);
   RacePlan optimize() override;
 };

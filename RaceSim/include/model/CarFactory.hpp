@@ -8,9 +8,11 @@
 
 #include "model/Car.hpp"
 #include "model/V1Car.hpp"
+#include "model/V2Car.hpp"
 
 enum class CarModels {
   V1_CAR = 0,
+  V2_CAR = 1,
 };
 
 class CarFactory {
@@ -23,5 +25,5 @@ class CarFactory {
    * 
    * @param car_int: A CarModels enum indicating the model to create
    */
-  static std::unique_ptr<Car> get_car(const std::string car_int);
+  static std::shared_ptr<Car> get_car(const std::string car_int);
 };

@@ -41,6 +41,7 @@ set(MODEL_SOURCES
     src/model/Car.cpp
     src/model/CarFactory.cpp
     src/model/V1Car.cpp
+    src/model/V2Car.cpp
 )
 set(CONFIG_SOURCES
     src/config/Config.cpp
@@ -49,12 +50,16 @@ set(OPTIMIZER_SOURCES
     src/optimizer/Optimizer.cpp
     src/optimizer/OptimizerFactory.cpp
     src/optimizer/V1Optimizer.cpp
+    src/optimizer/V2Optimizer.cpp
 )
 set(ROUTE_SOURCES
     src/route/Route.cpp
 )
 set(SIMULATION_SOURCES
     src/simulation/Simulator.cpp
+    src/simulation/SimulatorFactory.cpp
+    src/simulation/WSCSimulator.cpp
+    src/simulation/FSGPSimulator.cpp
 )
 set(UTILS_SOURCES
     src/utils/CustomTime.cpp

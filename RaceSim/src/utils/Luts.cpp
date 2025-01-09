@@ -99,16 +99,32 @@ double EffLut::get_value(double row_value, double column_value) {
   size_t row = 0;
   size_t col = 0;
 
-  for (; row < num_rows; row++) {
-    if (row_value == row_values[row] || row_values[row] > row_value) {
+  // Find the closest row index
+  for (; row < num_rows; ++row) {
+    if (row_values[row] >= row_value) {
       break;
     }
   }
+  if (row == num_rows) {
+    row--;
+  }
+  // Adjust row index if necessary
+  if (std::abs(row_values[row - 1] - row_value) < std::abs(row_values[row] - row_value)) {
+    --row;
+  }
 
-  for (; col < num_cols; col++) {
-    if (column_value == column_values[col] || column_values[col] > column_value) {
+  // Find the closest column index
+  for (; col < num_cols; ++col) {
+    if (column_values[col] >= column_value) {
       break;
     }
+  }
+  if (col == num_cols) {
+    col--;
+  }
+  // Adjust column index if necessary
+  if (std::abs(column_values[col - 1] - column_value) < std::abs(column_values[col] - column_value)) {
+    --col;
   }
 
   RUNTIME_EXCEPTION(row >= 0 && row < num_rows && col >= 0 && col < num_cols,
@@ -294,10 +310,7 @@ void ForecastLut::update_index_cache(ForecastCoord coord, time_t time) {
     double dist_from_next_coord = get_forecast_coord_distance(coord, next_coord);
 
     row_cache = dist_from_current_coord <= dist_from_next_coord ? row_cache : row_cache+1;
-  } else {
-    row_cache = row_cache;
   }
-
   if (column_cache < num_cols-1) {
     uint64_t current_time = forecast_times[column_cache];
     uint64_t next_time = forecast_times[column_cache+1];
@@ -306,8 +319,6 @@ void ForecastLut::update_index_cache(ForecastCoord coord, time_t time) {
     uint64_t diff_time_from_next = abs(static_cast<double>(time - next_time));
 
     column_cache = diff_time_from_current <= diff_time_from_next ? column_cache : column_cache+1;
-  } else {
-    column_cache = column_cache;
   }
 }
 
@@ -371,6 +382,10 @@ void ResultsLut::load_LUT() {
     std::getline(file_linestream, cell, ',');
     RUNTIME_EXCEPTION(isDouble(cell), "Value {} is not a number in Results csv {}", cell, lut_path.string());
     speed.emplace_back(std::stod(cell));
+
+    std::getline(file_linestream, cell, ',');
+    RUNTIME_EXCEPTION(isDouble(cell), "Value {} is not a number in Results csv {}", cell, lut_path.string());
+    acceleration.emplace_back(std::stod(cell));
 
     std::getline(file_linestream, cell, ',');
     RUNTIME_EXCEPTION(isDouble(cell), "Value {} is not a number in Results csv {}", cell, lut_path.string());
@@ -461,6 +476,7 @@ void ResultsLut::write_logs(const std::string lut_path) const {
               << "Longitude,"
               << "Altitude(m),"
               << "Speed(m/s),"
+              << "Acceleration(m/s^2),"
               << "Array Power(W),"
               << "Array Energy(kWh),"
               << "Motor Power(W),"
@@ -486,6 +502,7 @@ void ResultsLut::write_logs(const std::string lut_path) const {
       output_csv << std::to_string(longitude[i]) + ",";
       output_csv << std::to_string(altitude[i]) + ",";
       output_csv << std::to_string(speed[i]) + ",";
+      output_csv << std::to_string(acceleration[i]) + ",";
       output_csv << std::to_string(array_power[i]) + ",";
       output_csv << std::to_string(array_energy[i]) + ",";
       output_csv << std::to_string(motor_power[i]) + ",";
@@ -502,7 +519,8 @@ void ResultsLut::write_logs(const std::string lut_path) const {
 }
 
 void ResultsLut::update_logs(const CarUpdate update, double battery, double d_energy,
-                             double distance, Coord next_coord, double curr_speed, Time curr_time) {
+                             double distance, Coord next_coord, double curr_speed, Time curr_time,
+                             double accel) {
   battery_energy.push_back(battery);
   delta_energy.push_back(d_energy);
   accumulated_distance.push_back(distance);
@@ -515,6 +533,7 @@ void ResultsLut::update_logs(const CarUpdate update, double battery, double d_en
   array_energy.push_back(update.array.energy);
   array_power.push_back(update.array.power);
   speed.push_back(curr_speed);
+  acceleration.push_back(accel);
   motor_power.push_back(update.motor_power);
   motor_energy.push_back(update.motor_energy);
   aero_power.push_back(update.aero.power);

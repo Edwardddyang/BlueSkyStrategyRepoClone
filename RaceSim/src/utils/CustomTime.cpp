@@ -28,10 +28,12 @@ Time::Time(std::string local_time_point, double utc_adjustment) {
 
   t_datetime_local = local_time_t;
 
-  t_datetime_utc = t_datetime_local + hours2secs(utc_adjustment);
+  this->utc_adjustment = hours2secs(utc_adjustment);
+  t_datetime_utc = t_datetime_local + this->utc_adjustment;
 
-  m_datetime_local = *gmtime(&t_datetime_local);
-  m_datetime_utc = *gmtime(&t_datetime_utc);
+
+  GMTIME_SAFE(&t_datetime_local, &m_datetime_local);
+  GMTIME_SAFE(&t_datetime_utc, &m_datetime_utc);
 
   m_milliseconds = 0;
 
@@ -51,7 +53,7 @@ void Time::HH_MM_SS_constructor(const std::string local_time_point) {
   iss >> hours >> delimiter >> minutes >> delimiter >> seconds;
 
   time_t now = time(nullptr);
-  m_datetime_local = *localtime(&now);
+  LOCALTIME_SAFE(&now, &m_datetime_local);
   m_datetime_local.tm_hour = hours;
   m_datetime_local.tm_min = minutes;
   m_datetime_local.tm_sec = seconds;
@@ -61,26 +63,23 @@ void Time::HH_MM_SS_constructor(const std::string local_time_point) {
   return;
 }
 
+void Time::copy_hh_mm_ss(const Time& other) {
+  RUNTIME_EXCEPTION(!this->hh_mm_ss_only, "Cannot copy hh:mm:ss data into existing HH:MM:SS only timestamp");
+  this->m_datetime_local.tm_hour = other.m_datetime_local.tm_hour;
+  this->m_datetime_local.tm_min = other.m_datetime_local.tm_min;
+  this->m_datetime_local.tm_sec = other.m_datetime_local.tm_sec;
+  this->m_milliseconds = 0.0;
+
+  this->t_datetime_local = TIMEGM(&this->m_datetime_local);
+  this->t_datetime_utc = this->t_datetime_local + this->utc_adjustment;
+
+  GMTIME_SAFE(&this->t_datetime_utc, &this->m_datetime_utc);
+}
+
 /* Compare each member of the tm struct */
 bool Time::operator>(const Time& other) const {
   if (!this->hh_mm_ss_only && !other.hh_mm_ss_only) {
-    if (this->m_datetime_local.tm_year > other.m_datetime_local.tm_year) {
-      return true;
-    } else if (this->m_datetime_local.tm_year < other.m_datetime_local.tm_year) {
-      return false;
-    }
-
-    if (this->m_datetime_local.tm_mon > other.m_datetime_local.tm_mon) {
-      return true;
-    } else if (this->m_datetime_local.tm_mon < other.m_datetime_local.tm_mon) {
-      return false;
-    }
-
-    if (this->m_datetime_local.tm_mday > other.m_datetime_local.tm_mday) {
-      return true;
-    } else if (this->m_datetime_local.tm_mday < other.m_datetime_local.tm_mday) {
-      return false;
-    }
+    return this->t_datetime_local > other.t_datetime_local;
   }
 
   if (this->m_datetime_local.tm_hour > other.m_datetime_local.tm_hour) {
@@ -110,6 +109,40 @@ bool Time::operator>(const Time& other) const {
   return false;
 }
 
+/* Compare each member of the tm struct */
+bool Time::operator>=(const Time& other) const {
+  if (!this->hh_mm_ss_only && !other.hh_mm_ss_only) {
+    return this->t_datetime_local >= other.t_datetime_local;
+  }
+
+  if (this->m_datetime_local.tm_hour > other.m_datetime_local.tm_hour) {
+    return true;
+  } else if (this->m_datetime_local.tm_hour < other.m_datetime_local.tm_hour) {
+    return false;
+  }
+
+  if (this->m_datetime_local.tm_min > other.m_datetime_local.tm_min) {
+    return true;
+  } else if (this->m_datetime_local.tm_min < other.m_datetime_local.tm_min) {
+    return false;
+  }
+
+  if (this->m_datetime_local.tm_sec > other.m_datetime_local.tm_sec) {
+    return true;
+  } else if (this->m_datetime_local.tm_sec < other.m_datetime_local.tm_sec) {
+    return false;
+  }
+
+  if (this->m_milliseconds > other.m_milliseconds) {
+    return true;
+  } else if (this->m_milliseconds < other.m_milliseconds) {
+    return false;
+  }
+
+  return true;
+}
+
+
 bool Time::gt(const Time* lhs, const Time* rhs) {
   if (lhs == nullptr) {
     return false;
@@ -124,23 +157,7 @@ bool Time::gt(const Time* lhs, const Time* rhs) {
 
 bool Time::operator<(const Time& other) const {
   if (!this->hh_mm_ss_only && !other.hh_mm_ss_only) {
-    if (this->m_datetime_local.tm_year < other.m_datetime_local.tm_year) {
-      return true;
-    } else if (this->m_datetime_local.tm_year > other.m_datetime_local.tm_year) {
-      return false;
-    }
-
-    if (this->m_datetime_local.tm_mon < other.m_datetime_local.tm_mon) {
-      return true;
-    } else if (this->m_datetime_local.tm_mon > other.m_datetime_local.tm_mon) {
-      return false;
-    }
-
-    if (this->m_datetime_local.tm_mday < other.m_datetime_local.tm_mday) {
-      return true;
-    } else if (this->m_datetime_local.tm_mday > other.m_datetime_local.tm_mday) {
-      return false;
-    }
+    return this->t_datetime_local < other.t_datetime_local;
   }
 
   if (this->m_datetime_local.tm_hour < other.m_datetime_local.tm_hour) {
@@ -169,6 +186,37 @@ bool Time::operator<(const Time& other) const {
   return false;
 }
 
+bool Time::operator<=(const Time& other) const {
+  if (!this->hh_mm_ss_only && !other.hh_mm_ss_only) {
+    return this->t_datetime_local <= other.t_datetime_local;
+  }
+
+  if (this->m_datetime_local.tm_hour < other.m_datetime_local.tm_hour) {
+    return true;
+  } else if (this->m_datetime_local.tm_hour > other.m_datetime_local.tm_hour) {
+    return false;
+  }
+
+  if (this->m_datetime_local.tm_min < other.m_datetime_local.tm_min) {
+    return true;
+  } else if (this->m_datetime_local.tm_min > other.m_datetime_local.tm_min) {
+    return false;
+  }
+
+  if (this->m_datetime_local.tm_sec < other.m_datetime_local.tm_sec) {
+    return true;
+  } else if (this->m_datetime_local.tm_sec > other.m_datetime_local.tm_sec) {
+    return false;
+  }
+  if (this->m_milliseconds < other.m_milliseconds) {
+    return true;
+  } else if (this->m_milliseconds > other.m_milliseconds) {
+    return false;
+  }
+
+  return true;
+}
+
 bool Time::lt(const Time* lhs, const Time* rhs) {
   if (lhs == nullptr) {
     return true;
@@ -189,18 +237,47 @@ std::string Time::get_local_readable_time() const {
     return time_s;
   }
 
-  std::string time = asctime(&m_datetime_local);
+  // https://en.cppreference.com/w/cpp/chrono/c/asctime -> size 26 buffer for the
+  // "Www Mmm dd hh:mm:ss yyyy\n\0" string
+  char buffer[26];
+  ASCTIME_SAFE(buffer, &m_datetime_local);
+  std::string time(buffer);
+
+  // Get rid of newline character
   return time.erase(time.size()-1);
 }
 
 void Time::update_time_seconds(const double seconds) {
-  double total_seconds = seconds + 1000 * m_milliseconds;
+  RUNTIME_EXCEPTION(!hh_mm_ss_only, "Cannot update timestamp that is HH:MM:SS only");
+  double total_seconds = seconds + m_milliseconds / 1000.0;
+
+  // Note that static cast rounds down
   t_datetime_local += static_cast<int>(seconds);
   t_datetime_utc += static_cast<int>(seconds);
 
-  m_datetime_local = *gmtime(&t_datetime_local);
-  m_datetime_utc = *gmtime(&t_datetime_utc);
-  m_milliseconds = total_seconds - floor(total_seconds);
+  GMTIME_SAFE(&t_datetime_local, &m_datetime_local);
+  GMTIME_SAFE(&t_datetime_utc, &m_datetime_utc);
+  m_milliseconds = (total_seconds - floor(total_seconds)) * 1000.0;
+}
+
+Time Time::operator+(const double seconds) const {
+  Time new_time(*this);
+  new_time.update_time_seconds(seconds);
+  return new_time;
+}
+
+double Time::operator-(const Time& other) const {
+  if (this->hh_mm_ss_only || other.hh_mm_ss_only) {
+    time_t seconds1 = this->m_datetime_local.tm_hour * 3600 +
+                   this->m_datetime_local.tm_min * 60 +
+                   this->m_datetime_local.tm_sec;
+    time_t seconds2 = other.m_datetime_local.tm_hour * 3600 +
+                   other.m_datetime_local.tm_min * 60 +
+                   other.m_datetime_local.tm_sec;
+    return static_cast<double>(seconds1 - seconds2);
+  }
+
+  return static_cast<double>(this->t_datetime_local - other.t_datetime_local);
 }
 
 std::string Time::get_utc_readable_time() const {
@@ -210,7 +287,10 @@ std::string Time::get_utc_readable_time() const {
                 + std::to_string(m_datetime_utc.tm_sec);
     return time_s;
   }
-  std::string time = asctime(&m_datetime_utc);
+
+  char buffer[26];
+  ASCTIME_SAFE(buffer, &m_datetime_utc);
+  std::string time(buffer);
   return time.erase(time.size()-1);
 }
 

@@ -1,4 +1,4 @@
-/* Classes for three types of lookup tables:
+/* Classes for four types of lookup tables:
 
    1. Regular lookup table. Table indexed by a certain row and column index starting from 0.
 
@@ -8,6 +8,8 @@
    3. Weather lookup table. The first two columns represent the latitude and longitude respectively, and the
    first row represents a series of timestamps. Index using a lat/lon key along with a timestep key in order to 
    obtain an irradiance or wind value.
+
+   4. Simulation result lookup table. Contains the result logs from a simulation
  */
 
 #pragma once
@@ -128,6 +130,7 @@ class ResultsLut : public BaseLut<double> {
   std::vector<double> longitude;
   std::vector<double> altitude;
   std::vector<double> speed;
+  std::vector<double> acceleration;
   std::vector<double> array_energy;
   std::vector<double> array_power;
   std::vector<double> motor_power;
@@ -151,7 +154,8 @@ class ResultsLut : public BaseLut<double> {
   void reset_logs();
   void write_logs(const std::string lut_path) const;
   void update_logs(const CarUpdate update, double battery, double d_energy,
-                   double distance, Coord next_coord, double curr_speed, Time curr_time);
+                   double distance, Coord next_coord, double curr_speed, Time curr_time,
+                   double accel);
 
   inline std::vector<double> get_battery_energy() const {return battery_energy;}
   inline std::vector<double> get_accumulated_distance() const {return accumulated_distance;}
@@ -163,6 +167,7 @@ class ResultsLut : public BaseLut<double> {
   inline std::vector<double> get_longitude() const { return longitude; }
   inline std::vector<double> get_altitude() const { return altitude; }
   inline std::vector<double> get_speed() const { return speed; }
+  inline std::vector<double> get_acceleration() const { return acceleration; }
   inline std::vector<double> get_array_energy() const { return array_energy; }
   inline std::vector<double> get_array_power() const { return array_power; }
   inline std::vector<double> get_motor_power() const { return motor_power; }
