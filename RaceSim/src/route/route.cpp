@@ -120,7 +120,8 @@ std::vector<std::pair<size_t, size_t>> Route::segment_route_uniform(double lengt
   return segments;
 }
 
-RacePlan Route::segment_route_acceleration(const unsigned segment_idx_seed, const unsigned speed_seed) {
+RacePlan Route::segment_route_acceleration(const unsigned segment_idx_seed, const unsigned speed_seed,
+                                           const int max_num_loops, const double max_speed) {
   RUNTIME_EXCEPTION(route_points.size() > 0, "Route points not yet loaded");
   RUNTIME_EXCEPTION(cornering_segment_bounds.size() > 0, "Cornering bounds CSV not yet read");
   RUNTIME_EXCEPTION(cornering_segment_bounds.size() == cornering_speed_bounds.size(),
@@ -134,6 +135,11 @@ RacePlan Route::segment_route_acceleration(const unsigned segment_idx_seed, cons
   std::vector<bool> acceleration_segments;
   std::vector<double> acceleration_values;
 
+  // Randomly select the number of loops to complete
+  std::mt19937 gen(1);
+  std::uniform_int_distribution<unsigned int> dis(1, max_num_loops);
+  const size_t num_loops = static_cast<size_t>(dis(gen));
+  std::cout << "Num loops: " << num_loops << std::endl;
   // Iterate through the cornering intervals. For each one, we must create three/four segments
   // 1. Constant speed segment
   // 2. Deceleration/Acceleration segment going into the corner
@@ -213,7 +219,7 @@ RacePlan Route::segment_route_acceleration(const unsigned segment_idx_seed, cons
     segments.push_back({corner_end, chosen_end_idx});
 
     // Accelerate up to any speed from 1 to the maximum speed of the car
-    speed_dist = std::uniform_real_distribution<double>(1.0, kph2mps(Config::get_instance()->get_max_car_speed()));
+    speed_dist = std::uniform_real_distribution<double>(1.0, max_speed);
     const double segment_ending_speed = speed_dist(speed_rng);
     segment_speeds.push_back({corner_speed, segment_ending_speed});
     acceleration_segments.push_back(!(corner_speed == segment_ending_speed));

@@ -43,6 +43,7 @@
   impounding_start_time: 20:00:00 # HH:MM:SS of the nightly battery impounding time
   overnight_charging_location: 37.000823,-86.367676,0.157135 # Coordinates of the charging location
   is_route_track: True # If the route is a track, meaning that the coordinates in base_route continuously loop
+  max_num_loops: 300 # Maximum number of loops that can be completed
 
 \Telemetry: # Current state of the car
   current_soc: 5.2 # in kWh, should be <= max_soc
