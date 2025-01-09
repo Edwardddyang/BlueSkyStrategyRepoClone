@@ -2,6 +2,7 @@
 #include <iostream>
 #include <limits>
 #include <vector>
+#include <string>
 #include <utility>
 #include "sim/FSGPSimulator.hpp"
 #include "utils/CustomException.hpp"

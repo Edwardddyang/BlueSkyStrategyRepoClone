@@ -2,6 +2,7 @@
 
 #include <string>
 #include <memory>
+#include <limits>
 #include <utility>
 #include <vector>
 #include <filesystem>
@@ -40,6 +41,11 @@ RacePlan V2Optimizer::optimize() {
     race_plan_is_valid = race_plan.is_viable();
     idx++;
     spdlog::info("Tried {} race plans", idx);
+    if (!race_plan_is_valid) {
+      std::cout << "Reason for inviability: " << race_plan.get_inviability_reason() << std::endl;
+    }
+  }
+
   bool save_csv = Config::get_instance()->get_save_csv();
   std::filesystem::path results_folder;
   if (save_csv) {
@@ -48,12 +54,6 @@ RacePlan V2Optimizer::optimize() {
     std::filesystem::create_directory(results_folder);
     simulator->write_result((results_folder / ("Acceleration.csv")).string());
   }
-    if (!race_plan_is_valid) {
-      std::cout << "Reason for inviability: " << race_plan.get_inviability_reason() << std::endl;
-    }
-    exit(0);
-  }
-
   race_plan.print_plan();
 
   return race_plan;

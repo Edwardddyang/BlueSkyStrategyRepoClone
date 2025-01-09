@@ -4,6 +4,7 @@
 
 #include <iostream>
 #include <exception>
+#include <string>
 
 // For invalid calculation results e.g. negative discriminant
 // in the quadratic formula
@@ -12,7 +13,7 @@ class InvalidCalculation : public std::exception {
   std::string message;
 
  public:
-  InvalidCalculation(const std::string& msg) : message("Invalid calculation result " + msg) {}
+  explicit InvalidCalculation(const std::string& msg) : message("Invalid calculation result " + msg) {}
 
   const char* what() const noexcept override {
     return message.c_str();

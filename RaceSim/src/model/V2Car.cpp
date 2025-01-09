@@ -43,8 +43,8 @@ CarUpdate V2Car::compute_travel_update(Coord coord_one,
     }
 
     const double delta_battery = -1.0 * electric_loss;
-    return CarUpdate(EnergyChange(), EnergyChange(), EnergyChange(), array_gain, az_el, 0.0, 0.0, bearing, electric_loss,
-                    delta_battery, delta_distance, delta_time);
+    return CarUpdate(EnergyChange(), EnergyChange(), EnergyChange(), array_gain, az_el, 0.0, 0.0, bearing,
+                    electric_loss, delta_battery, delta_distance, delta_time);
   } else if (acceleration == 0.0) {
     aero_loss = compute_aero_loss(init_speed, bearing, wind, delta_time);
     rolling_loss = compute_rolling_loss(init_speed, delta_time);
@@ -96,9 +96,6 @@ CarUpdate V2Car::compute_travel_update(Coord coord_one,
       position_data[i] = position;
 
       position = position + position_increments;
-      if (std::isnan(motor_power_data[i]) || std::isnan(position)) {
-        std::cout << "Something is not a number" << std::endl;
-      }
     }
 
     average_motor_power = average_motor_power / num_data_points;
