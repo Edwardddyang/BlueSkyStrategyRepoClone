@@ -1,0 +1,256 @@
+"""
+Interface with solcast API to retrieve live or historical forecast data
+"""
+
+import sys
+import os
+import requests, json, csv, schedule, time, scipy.stats as st
+from ratelimit import limits
+from datetime import date
+from datetime import *
+import geopy.distance
+import timeit
+import argparse
+
+# free trial
+API_KEY_FREE = 'g7AehjAxhZPilJdO3aEyVRDmTikQAhs4'
+
+# premium - Blue Sky's solcast account
+API_KEY_PREMIUM = 'HwqyKe0MKq9VruZ4uTDTiejp4CF7Qm4a'
+
+# (Kevin or Kenneth)'s API key
+HISTORICAL_API_KEY = 'EYiCk5D1-LsSyduwPHGc_QyB4pZzeBfp'
+
+call_count = 0
+
+total_data = 0
+
+
+def format_solcast_date(date):
+	format = '%Y-%m-%dT%H:%M:%S.%f0Z'
+	datetime_obj = datetime.strptime(date, format)
+	return (datetime_obj)
+
+def historic_call_by_site(lat, long):
+    '''
+    Makes an API call for a given site from the historical api
+    '''
+    payload = {
+        'api_key': HISTORICAL_API_KEY,
+        'latitude': lat, 
+        'longitude':long,
+        'output_parameters': 'dhi,dni,wind_speed_10m,wind_direction_10m',
+        'start': '2022-10-21T23:30:00.000Z',
+        'end': '2022-10-28T23:30:00.000Z',
+        'format': 'json',
+    }
+
+    headers = {
+        'Content-Type': 'application/json'
+    }
+
+    url = 'https://api.solcast.com.au/data/historic/radiation_and_weather'
+    call = requests.get(url, params = payload, headers = headers)
+    return call
+
+
+@limits(calls = 5000, period = 1200)
+#5000/20min
+def call_by_site(lat, long, call_type, irr_types,paid = 0, hours = 168):
+    '''
+    Makes an API call for a given site.
+    
+    Please check Solcast documentation for more details. 
+    
+    Parameters:
+    lat (float): Latitude of site.
+    long (float): Longitude of site.
+    call_type (string): Forecast ('forecast') or estimated actuals ('live').
+    paid (bool): If 0, the free trial Solcast account is used. If 1, the premium Solcast account is used. Default is 0.
+    hours (int): How many hours into the future/past to make call for (NOTE: Max is 168). Default is 169
+    
+    Returns:
+    call (response object): Forecast or actuals response in JSON format. 
+    '''
+    global total_data
+    if paid == 0:
+        api_key = API_KEY_FREE
+    else:
+        api_key = API_KEY_PREMIUM
+
+    payload = {
+        'api_key': api_key,
+        'latitude': lat, 
+        'longitude':long,
+        'hours': hours,
+        'output_parameters': irr_types
+    }
+    
+    headers = {
+      'Content-Type': 'application/json'
+    }
+
+    url = 'https://api.solcast.com.au/data/{}/radiation_and_weather'.format(call_type)
+    call = requests.get(url, params = payload, headers = headers)
+
+    total_data += len(call.content)
+    return call
+
+def call_to_end(path, start_time, coords, index, irr_types, call_type, call_count, paid = 0, hours = 168):
+    '''
+    Finds irradiance values for sites in a list starting from some index and writes these values to csv files in the 'calls' folder. 
+    Parameters:
+    coords (list): List of comma separated latitudes and longitudes.
+    index (int): The index of the first site in coords to make forecasts for.
+    irr_types (list): List of desired data from call, e.g. GHI ('ghi'), DHI ('dhi'), or DNI ('dni'). 
+    call_type (string): Forecast ('forecast') or estimated actuals ('live').
+    call_count (int): The number of API calls made since running the script.
+    paid (bool): If 0, the free trial Solcast account is used. If 1, the premium Solcast account is used. Default is 0.
+    hours (int): How many hours into the future to make forecasts for (NOTE: Max is 168). Default is 168
+    
+    Returns:
+    call_count (int): The number of API calls made since running the script.
+    '''        
+    
+    # list of coords to end of race
+    coords_new = coords[index:]
+    
+    # makes calls for each site in new coords list and appends them to a list
+    calls = []
+
+    num_calls_made = 0
+    for i in range(len(coords_new)):
+        calls.append(
+            call_by_site(
+                coords_new[i].split(",")[0], coords_new[i].split(",")[1], 'forecast', irr_types, 1, hours
+            ).json()['forecasts'] # Hard coded to 'forecasts' because the api returns legacy json
+        )
+        if (len(calls[-1]) != 337):
+            print("Lost api data", coords_new[i].split(",")[0], len(calls[-1]))
+            last_element = calls[-1][-1]
+            while len(calls[-1]) < 337:
+                calls[-1].append(last_element)
+
+        if (num_calls_made != 0 and num_calls_made % 10 == 0):
+            print(f"{num_calls_made} calls made out of {len(coords_new)}")
+        
+        num_calls_made += 1
+        # calls.append(
+        #     historic_call_by_site(
+        #         coords_new[i].split(",")[0], coords_new[i].split(",")[1]
+        #     ).json()['estimated_actuals'] # Hard coded to 'forecasts' because the api returns legacy json
+        # )
+    #return
+    # list of times the forecast is made for
+    time_ls = []
+    print("Finished making calls")
+    for i in range(len(calls[0])):
+        call_datetime = format_solcast_date(calls[0][i]['period_end'])
+        datetime_int = int(call_datetime.strftime("%y%m%d%H%M%S"))
+        time_ls.append(datetime_int)
+    
+    # current time for naming csvs
+    timestr = datetime.now().strftime("%Y%m%d-%H%M%S")  
+    # creates csvs for each irr type
+    for irr_type in irr_types.split(","):
+        irr_string = path + "/{}.csv".format(irr_type)
+        with open(irr_string, "w", newline = '') as irr_csv:
+            irr_csvWriter = csv.writer(irr_csv, delimiter = ',')
+            # first row
+            irr_csvWriter.writerow(['latitude', 'longitude'] + time_ls) 
+
+    for i in range(len(coords_new)):    
+        # makes call for each site   
+        call = calls[i]
+        # writes call data to a different csv for each irr type
+        for irr_type in irr_types.split(","):
+            # file name         
+            irr_string = path + "/{}.csv".format(irr_type)
+
+            with open(irr_string, "a", newline = '') as irr_csv:
+                irr_csvWriter = csv.writer(irr_csv, delimiter = ',')
+                
+                # writes site forecast to csv     
+                irr_ls = []    
+                for j in range(len(call)):   
+                    irr_ls.append(call[j][irr_type])    
+                irr_csvWriter.writerow([coords_new[i].split(",")[0], coords_new[i].split(",")[1]] + irr_ls) 
+                
+    return call_count
+
+def check_call_count(n, call_count):
+    '''
+    Checks if making n API calls will put the total number of calls since running the script over 1000. If it does, displays a warning and prompts the user to continue or exit the script. If the script is not exited, returns the total number of calls if the n calls are made.
+    
+    Parameters:
+    n (int): Number of calls to be made.
+    call_count (int): The number of API calls made since running the script.
+    
+    Returns:
+    call_count (int): The number of API calls made since running the script plus n calls to be made.
+    '''   
+    
+    if call_count + n > 1000:
+        while True:
+            answer = input(" You will be making {} API calls. Since running this script you have already made {} calls, so you will make a total of {} calls. Are you sure you want to continue? (y/n)".format(n, call_count, call_count + n))
+            if answer == "y":
+                call_count += n
+                return call_count
+            elif answer == "n":
+                exit()
+            else:
+                print("Please answer 'y' or 'n'")
+    else:
+        call_count += n
+        return call_count
+
+def get_route_coordinates(route_file, starting_coord, interval):
+    '''
+    Return the array of route coordinates seperated by a certain interval for solcast calls
+    '''
+    coords_tuple = []
+
+    # Collect all route coordinates
+    with open(route_file, 'r') as file:
+        reader = csv.reader(file)
+        for i, row in enumerate(reader):
+            coords_tuple.append((row[0], row[1]))
+
+    # Find the starting index
+    starting_index = 0
+    max_distance = float("inf")
+    for i, coord in enumerate(coords_tuple):
+        dist = geopy.distance.distance(coord, starting_coord).km
+        if dist < max_distance:
+            starting_index = i
+            max_distance = dist
+
+    coords_tuple = coords_tuple[starting_index:]
+
+    # Remove coordinates that are within interval km from each other
+    coords = []
+    next_lat_lon = coords_tuple[0]
+    coords.append(next_lat_lon)
+    for lat_lon in coords_tuple:
+        if geopy.distance.distance(lat_lon, next_lat_lon).km > interval:
+            next_lat_lon = lat_lon
+            coords.append(next_lat_lon)
+
+    for idx, lat_lon in enumerate(coords):
+        coords[idx] = ",".join(lat_lon)
+
+    print("number of calls to make: ", len(coords))
+   # coords = [('-33.856784, 151.215297'), ('36.099763, -112.112485'), ('51.178882, -1.826215')]
+    return coords, starting_index
+
+# with open("./luts/wsc_2023/dynamic/dhi.csv", mode='wb') as file:
+#     csv_reader = csv.reader(file)
+#     header = next(csv_reader)
+
+# edited_row = []
+
+if __name__ == "__main__":
+  parser = argparse.ArgumentParser()
+  parser.add_argument('--route', type=str, default=None, help='Path to route csv')
+  parser.add_argument('--coord', type=float, nargs=2, metavar=('LAT', 'LONG'), help='Coordinate location')
+  parser.add_argument('--interval', type=str)

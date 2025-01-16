@@ -154,8 +154,10 @@ void WSCSimulator::run_sim(const std::shared_ptr<Route>& route, RacePlan* race_p
     /* Overflowed control stop */
     double time_charging = 0.0;
     while (time_charging < overflowed_control_stop_time) {
-      double step_size = (time_charging + static_cast<double>(CHARGING_STEP_SIZE)) > overflowed_control_stop_time ?
-                          overflowed_control_stop_time - time_charging : static_cast<double>(CHARGING_STEP_SIZE);
+      double step_size = (time_charging + static_cast<double>(CHARGING_STEP_SIZE)) >
+                              overflowed_control_stop_time ?
+                              overflowed_control_stop_time - time_charging :
+                              static_cast<double>(CHARGING_STEP_SIZE);
       delta_energy += car->compute_static_energy(current_coord, &curr_time, step_size, irr);
       curr_time.update_time_seconds(step_size);
 
