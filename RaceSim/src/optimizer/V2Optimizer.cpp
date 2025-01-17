@@ -45,6 +45,7 @@ RacePlan V2Optimizer::optimize() {
     if (!race_plan_is_valid) {
       std::cout << "Reason for inviability: " << race_plan.get_inviability_reason() << std::endl;
     }
+    exit(1);
   }
 
   bool save_csv = Config::get_instance()->get_save_csv();

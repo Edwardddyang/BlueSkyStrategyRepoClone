@@ -67,7 +67,7 @@ class Time {
    * @param copy_milliseconds: Whether to copy the milliseconds from the other timestamp
    * or not
    */
-  void copy_hh_mm_ss(const Time& other, bool copy_milliseconds=false);
+  void copy_hh_mm_ss(const Time& other, bool copy_milliseconds = false);
 
   /** Return true if the lhs local timestamp is ahead of the rhs local timestamp */
   bool operator>(const Time& other) const;

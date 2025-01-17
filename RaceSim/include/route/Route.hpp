@@ -144,7 +144,7 @@ class Route {
    */
   std::vector<std::pair<size_t, size_t>> segment_route_uniform(double length);
 
-  /** @brief Segment the route assuming that the route completes one loop of the track
+  /** @brief Segment the route into a certain number of loops
    * 
    * @param segment_idx_seed Random seed for selecting segment indices
    * @param speed_seed Random seed for selecting segment speeds
