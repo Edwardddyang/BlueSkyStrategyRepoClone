@@ -226,9 +226,11 @@ RacePlan Route::segment_route_acceleration(const unsigned segment_idx_seed, cons
       } else if (corner_idx == 0 && chosen_start_idx != 0) {
         // If this is the first corner, we need to create a segment from 0 to the chosen start index
         segments.push_back({0, chosen_start_idx});
-        segment_speeds.push_back({next_loop_starting_speed, next_loop_starting_speed});
-        acceleration_segments.push_back(false);
-        acceleration_values.push_back(0.0);
+        segment_speeds.push_back({next_loop_starting_speed, deceleration_starting_speed});
+        acceleration_segments.push_back(!(next_loop_starting_speed == deceleration_starting_speed));
+        acceleration_values.push_back(calc_segment_acceleration(route_points, 0, chosen_start_idx,
+                                                                next_loop_starting_speed,
+                                                                deceleration_starting_speed));
       }
 
       segments.push_back({chosen_start_idx, corner_start});
@@ -284,6 +286,7 @@ RacePlan Route::segment_route_acceleration(const unsigned segment_idx_seed, cons
     acceleration_segments.push_back(!(last_segment_speed.second == next_loop_starting_speed));
     acceleration_values.push_back(calc_segment_acceleration(route_points, last_segment.second, 0,
                                                             last_segment_speed.second, next_loop_starting_speed));
+    last_segment_speed = {last_segment_speed.second, next_loop_starting_speed};
 
     // Store results for this loop
     all_segments.push_back(segments);
@@ -428,20 +431,13 @@ bool RacePlan::validate_members(const std::vector<Coord>& route_points) const {
                           "Speed profile for non-acceleration segment {} must have equal and positive starting "
                           "and ending speeds", i);
       } else {
+        // Verify acceleration value
         const double acceleration_value = loop_segments_acceleration_values[i];
         const double starting_speed = loop_segments_speeds[i].first;
         const double ending_speed = loop_segments_speeds[i].second;
-        // Get distance travelled during this segment
-        double accumulated_distance = 0.0;
-        const size_t num_segment_points = loop_segments[i].second - loop_segments[i].first;
-        for (size_t j=0; j < num_segment_points; j++) {
-          const Coord src_point = route_points[loop_segments[i].first + j];
-          const Coord dest_point = route_points[loop_segments[i].first + j + 1];
-          accumulated_distance += get_distance(src_point, dest_point);
-        }
-        RUNTIME_EXCEPTION(accumulated_distance > 0.0, "Accumulated distance must be > 0");
-        const double calculated_acceleration = (ending_speed * ending_speed - starting_speed * starting_speed) /
-                                                (2.0 * accumulated_distance);
+        const double calculated_acceleration = calc_segment_acceleration(route_points, loop_segments[i].first,
+                                                                         loop_segments[i].second, starting_speed,
+                                                                         ending_speed);
         RUNTIME_EXCEPTION(acceleration_value == calculated_acceleration, "Acceleration is invalid");
       }
     }
