@@ -45,7 +45,16 @@ RacePlan V2Optimizer::optimize() {
     if (!race_plan_is_valid) {
       std::cout << "Reason for inviability: " << race_plan.get_inviability_reason() << std::endl;
     }
-    exit(1);
+
+    bool save_csv = Config::get_instance()->get_save_csv();
+    std::filesystem::path results_folder;
+    if (save_csv) {
+      const std::string strat_root = Config::get_instance()->get_strat_root();
+      results_folder = std::filesystem::path(strat_root) / "Acceleration_Results";
+      std::filesystem::create_directory(results_folder);
+      simulator->write_result((results_folder / ("Acceleration.csv")).string());
+    }
+    exit(0);
   }
 
   bool save_csv = Config::get_instance()->get_save_csv();

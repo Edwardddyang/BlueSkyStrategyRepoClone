@@ -164,6 +164,9 @@ RacePlan Route::segment_route_acceleration(const unsigned segment_idx_seed, cons
   std::mt19937 idx_rng(segment_idx_seed);
   std::mt19937 speed_rng(speed_seed);
 
+  // Route attributes
+  const size_t num_corners = cornering_segment_bounds.size();
+
   // RacePlan attributes
   std::vector<std::vector<std::pair<size_t, size_t>>> all_segments;
   std::vector<std::vector<std::pair<double, double>>> all_segment_speeds;
@@ -175,124 +178,161 @@ RacePlan Route::segment_route_acceleration(const unsigned segment_idx_seed, cons
   std::uniform_int_distribution<unsigned int> dis(1, max_num_loops);
   const size_t num_loops = static_cast<size_t>(dis(gen));
 
-  std::pair<size_t, size_t> last_segment;
-  std::pair<double, double> last_segment_speed;
+  // Temp data holders for each segment
+  std::pair<size_t, size_t> segment;
+  std::pair<double, double> segment_speed;
+  bool acceleration;
+  double acceleration_value;
   double next_loop_starting_speed = 0.0;
-  const size_t num_corners = cornering_segment_bounds.size();
+  double loop_ending_speed = 0.0;
 
   // Uniform distributions used to randomly select locations and speeds
+  // Note that std::uniform_int_distribution is inclusive on both sides
   std::uniform_int_distribution<size_t> idx_dist;
   std::uniform_real_distribution<double> speed_dist;
 
   for (size_t loop_idx=0; loop_idx < num_loops; loop_idx++) {
     // For each loop:
-    // Iterate through the cornering intervals. For each one, we must create three/four segments
-    // 1. Constant speed segment from the last segment
-    // 2. Deceleration/Acceleration segment going into the corner
-    // 3. Constant speed segment for taking the corner
-    // 4. Acceleration/Deceleration segment leaving the corner
-    // Afterwards, we fill in the remaining segments with constant speed
+    // Iterate through the cornering intervals. For each corner, we must create three/four segments
+    // according to the following drawing:
+    //          | |     |
+    //          |0|     |    Direction of travel
+    //          |_|    \|/
+    //          | |
+    //          |1|
+    //          |_|
+    //          / /
+    //         /2/
+    // _______/ /
+    // __3___|_/
+    // 0. Constant speed segment coming from the last segment. This can be an acceleration segment
+    //    if it's the first corner of the first loop(we're starting at 0m/s)
+    // 1. A deceleration/acceleration segment going into the corner
+    // 2. A constant speed segment for taking the corner. These segments
+    //    are fixed as coming from the corners.csv
+    // 3. An acceleration/deceleration segment leaving the corner
+    //
+    // Note that segment 0 does not exist for the 1st corner
+    // (Don't try to get gpt to draw something like this for you. It doesn't really do well
+    // or i'm just bad at prompting)
 
     // Store results for current loop
-    std::vector<std::pair<size_t, size_t>> segments;
-    std::vector<std::pair<double, double>> segment_speeds;
-    std::vector<bool> acceleration_segments;
-    std::vector<double> acceleration_values;
+    std::vector<std::pair<size_t, size_t>> loop_segments;
+    std::vector<std::pair<double, double>> loop_segment_speeds;
+    std::vector<bool> loop_acceleration_segments;
+    std::vector<double> loop_acceleration_values;
+
+    // Add a new segment to the loop
+    auto add_segment = [&]() {
+      loop_segments.emplace_back(segment);
+      loop_segment_speeds.emplace_back(segment_speed);
+      loop_acceleration_segments.emplace_back(acceleration);
+      loop_acceleration_values.emplace_back(acceleration_value);
+    };
 
     for (size_t corner_idx=0; corner_idx < num_corners; corner_idx++) {
       const size_t corner_start = cornering_segment_bounds[corner_idx].first;
       const size_t corner_end = cornering_segment_bounds[corner_idx].second;
 
-      // Create deceleration/acceleration segment coming into the corner
-      // Note that std::uniform_int_distribution is inclusive on both sides
-
-      // Choose some random starting point between the last segment's ending index
-      // and the start of the next corner to begin decelerating
+      // We first identify the index we want to begin decelerating into the corner
       if (corner_idx == 0) {
+        // For the first corner, the range of possible values are from [0, corner_idx-1]
         idx_dist = std::uniform_int_distribution<size_t>(0, corner_start - 1);
       } else {
-        idx_dist = std::uniform_int_distribution<size_t>(last_segment.second, corner_start - 1);
+        // For any corner > 0, we start anywhere from the end of the last segment to
+        // the starting index of the corner
+        idx_dist = std::uniform_int_distribution<size_t>(segment.second, corner_start - 1);
       }
-      const size_t chosen_start_idx = idx_dist(idx_rng);
-      const double deceleration_starting_speed = last_segment_speed.second;
+      const size_t deceleration_start_idx = idx_dist(idx_rng);
+      double deceleration_starting_speed = segment_speed.second;
 
-      // If this isn't the first corner, then we need to create a segment going from the last acceleration
-      // segment to the current deceleration segment
-      if (corner_idx > 0 && last_segment.second != chosen_start_idx) {
-        segments.push_back({last_segment.second, chosen_start_idx});
-        segment_speeds.push_back({deceleration_starting_speed, deceleration_starting_speed});
-        acceleration_segments.push_back(false);
-        acceleration_values.push_back(0.0);
-      } else if (corner_idx == 0 && chosen_start_idx != 0) {
-        // If this is the first corner, we need to create a segment from 0 to the chosen start index
-        segments.push_back({0, chosen_start_idx});
-        segment_speeds.push_back({next_loop_starting_speed, deceleration_starting_speed});
-        acceleration_segments.push_back(!(next_loop_starting_speed == deceleration_starting_speed));
-        acceleration_values.push_back(calc_segment_acceleration(route_points, 0, chosen_start_idx,
-                                                                next_loop_starting_speed,
-                                                                deceleration_starting_speed));
+      // Create segment 0
+      if (corner_idx > 0 && segment.second != deceleration_start_idx) {
+        segment = {segment.second, deceleration_start_idx};
+        segment_speed = {deceleration_starting_speed, deceleration_starting_speed};
+        acceleration = false;
+        acceleration_value = 0.0;
+        add_segment();
+      } else if (corner_idx == 0 && loop_idx == 0 && deceleration_start_idx != 0) {
+        // For segment 0 of the very first corner of the very first loop, we select some arbitrary
+        // deceleration starting speed
+        speed_dist = std::uniform_real_distribution<double>(1.0, max_speed);
+        deceleration_starting_speed = speed_dist(speed_rng);
+        segment_speed = {0, deceleration_starting_speed};
+        segment = {0, deceleration_start_idx};
+        acceleration = true;
+        acceleration_value = calc_segment_acceleration(route_points, 0, deceleration_start_idx,
+                                                       0, deceleration_starting_speed);
+        add_segment();
+      } else if (corner_idx == 0 && deceleration_start_idx != 0) {
+        segment = {0, deceleration_start_idx};
+        // next_loop_starting_speed = 0 for the first loop
+        segment_speed = {next_loop_starting_speed, deceleration_starting_speed};
+        acceleration = next_loop_starting_speed != deceleration_starting_speed;
+        acceleration_value = calc_segment_acceleration(route_points, 0, deceleration_start_idx,
+                                                       next_loop_starting_speed, deceleration_starting_speed);
+        add_segment();
       }
 
-      segments.push_back({chosen_start_idx, corner_start});
-
+      // Create segment 1
       const double max_corner_speed = cornering_speed_bounds[corner_idx];
       speed_dist = std::uniform_real_distribution<double>(10.0, max_corner_speed);
       const double corner_speed = speed_dist(speed_rng);
-      segment_speeds.push_back({deceleration_starting_speed, corner_speed});
-      acceleration_segments.push_back(!(corner_speed == deceleration_starting_speed));
-      acceleration_values.push_back(calc_segment_acceleration(route_points, chosen_start_idx, corner_start,
-                                                              deceleration_starting_speed, corner_speed));
+      segment_speed = {deceleration_starting_speed, corner_speed};
+      segment = {deceleration_start_idx, corner_start};
+      acceleration = corner_speed != deceleration_starting_speed;
+      acceleration_value = calc_segment_acceleration(route_points, deceleration_start_idx, corner_start,
+                                                     deceleration_starting_speed, corner_speed);
+      add_segment();
 
-      // Create the constant speed segment for taking the corner
-      segments.push_back({corner_start, corner_end});
-      segment_speeds.push_back({corner_speed, corner_speed});
-      acceleration_segments.push_back(false);
-      acceleration_values.push_back(0.0);
+      // Create segment 2
+      segment = {segment.second, corner_end};
+      segment_speed = {segment_speed.second, corner_speed};
+      acceleration = false;
+      acceleration_value = 0.0;
+      add_segment();
 
-      // Create acceleration/deceleration segment coming out of the corner
+      // Create segment 3
       // TODO(Somebody): A copy of this function should be made such that there is a chance
       // that acceleration does not happen, and the car simply continues travelling at the
       // speed at which it took the corner. This will be common for the latter half of the track
       // where the entire thing is pretty much a bend
       if (corner_idx == num_corners - 1 && corner_end + 1 >= num_points - 1) {
-        last_segment_speed = {corner_speed, corner_speed};
-        last_segment = {corner_start, corner_end};
         break;
       } else {
         const size_t next_corner_start = cornering_segment_bounds[corner_idx + 1].first;
         idx_dist = std::uniform_int_distribution<size_t>(corner_end + 1, next_corner_start - 1);
       }
-      const size_t chosen_end_idx = idx_dist(idx_rng);
-      segments.push_back({corner_end, chosen_end_idx});
-
+      const size_t acceleration_end_idx = idx_dist(idx_rng);
+      segment = {corner_end, acceleration_end_idx};
       // Accelerate up to any speed from 1 to the maximum speed of the car
       speed_dist = std::uniform_real_distribution<double>(1.0, max_speed);
-      const double segment_ending_speed = speed_dist(speed_rng);
-      segment_speeds.push_back({corner_speed, segment_ending_speed});
-      acceleration_segments.push_back(!(corner_speed == segment_ending_speed));
-      acceleration_values.push_back(calc_segment_acceleration(route_points, corner_end, chosen_end_idx,
-                                                              corner_speed, segment_ending_speed));
-
-      last_segment = {corner_end, chosen_end_idx};
-      last_segment_speed = {corner_speed, segment_ending_speed};
+      const double acceleration_ending_speed = speed_dist(speed_rng);
+      segment_speed = {corner_speed, acceleration_ending_speed};
+      acceleration = corner_speed != acceleration_ending_speed;
+      acceleration_value = calc_segment_acceleration(route_points, corner_end, acceleration_end_idx,
+                                                     corner_speed, acceleration_ending_speed);
+      add_segment();
     }
 
     // We need one last segment connecting the last index to the 0th index since
     // there is a gap between them. Choose some random speed (Need to prefer keeping constant speed)
-    segments.push_back({last_segment.second, 0});
+    const size_t last_loop_idx = segment.second;
+    segment = {last_loop_idx, 0};
     speed_dist = std::uniform_real_distribution<double>(1.0, max_speed);
     next_loop_starting_speed = speed_dist(speed_rng);
-    segment_speeds.push_back({last_segment_speed.second, next_loop_starting_speed});
-    acceleration_segments.push_back(!(last_segment_speed.second == next_loop_starting_speed));
-    acceleration_values.push_back(calc_segment_acceleration(route_points, last_segment.second, 0,
-                                                            last_segment_speed.second, next_loop_starting_speed));
-    last_segment_speed = {last_segment_speed.second, next_loop_starting_speed};
+    loop_ending_speed = segment_speed.second;
+    segment_speed = {loop_ending_speed, next_loop_starting_speed};
+    acceleration = loop_ending_speed != next_loop_starting_speed;
+    acceleration_value = calc_segment_acceleration(route_points, last_loop_idx, 0,
+                                                   loop_ending_speed, next_loop_starting_speed);
+    add_segment();
 
     // Store results for this loop
-    all_segments.push_back(segments);
-    all_segment_speeds.push_back(segment_speeds);
-    all_acceleration_segments.push_back(acceleration_segments);
-    all_acceleration_values.push_back(acceleration_values);
+    all_segments.push_back(loop_segments);
+    all_segment_speeds.push_back(loop_segment_speeds);
+    all_acceleration_segments.push_back(loop_acceleration_segments);
+    all_acceleration_values.push_back(loop_acceleration_values);
   }
   return RacePlan(all_segments, all_segment_speeds, all_acceleration_segments, all_acceleration_values);
 }
