@@ -3,6 +3,8 @@
 #include <cmath>
 #include <ctime>
 #include <chrono>
+#include <iomanip>
+#include <sstream>
 
 #include "utils/Units.hpp"
 #include "utils/CustomTime.hpp"
@@ -63,12 +65,14 @@ void Time::HH_MM_SS_constructor(const std::string local_time_point) {
   return;
 }
 
-void Time::copy_hh_mm_ss(const Time& other) {
+void Time::copy_hh_mm_ss(const Time& other, bool copy_milliseconds) {
   RUNTIME_EXCEPTION(!this->hh_mm_ss_only, "Cannot copy hh:mm:ss data into existing HH:MM:SS only timestamp");
   this->m_datetime_local.tm_hour = other.m_datetime_local.tm_hour;
   this->m_datetime_local.tm_min = other.m_datetime_local.tm_min;
   this->m_datetime_local.tm_sec = other.m_datetime_local.tm_sec;
-  this->m_milliseconds = 0.0;
+  if (copy_milliseconds) {
+    this->m_milliseconds = other.m_milliseconds;
+  }
 
   this->t_datetime_local = TIMEGM(&this->m_datetime_local);
   this->t_datetime_utc = this->t_datetime_local + this->utc_adjustment;
@@ -230,34 +234,36 @@ bool Time::lt(const Time* lhs, const Time* rhs) {
 }
 
 std::string Time::get_local_readable_time() const {
+  std::ostringstream oss;
+
   if (hh_mm_ss_only) {
-    std::string time_s = std::to_string(m_datetime_local.tm_hour) + ":"
-                        + std::to_string(m_datetime_local.tm_min) + ":"
-                        + std::to_string(m_datetime_local.tm_sec);
-    return time_s;
+      oss << std::setw(2) << std::setfill('0') << m_datetime_local.tm_hour << ":"
+          << std::setw(2) << std::setfill('0') << m_datetime_local.tm_min << ":"
+          << std::setw(2) << std::setfill('0') << m_datetime_local.tm_sec;
+      return oss.str();
   }
 
-  // https://en.cppreference.com/w/cpp/chrono/c/asctime -> size 26 buffer for the
-  // "Www Mmm dd hh:mm:ss yyyy\n\0" string
-  char buffer[26];
-  ASCTIME_SAFE(buffer, &m_datetime_local);
-  std::string time(buffer);
+  oss << std::setw(4) << std::setfill('0') << (m_datetime_local.tm_year + 1900) << "-"
+      << std::setw(2) << std::setfill('0') << (m_datetime_local.tm_mon + 1) << "-"
+      << std::setw(2) << std::setfill('0') << m_datetime_local.tm_mday << " "
+      << std::setw(2) << std::setfill('0') << m_datetime_local.tm_hour << ":"
+      << std::setw(2) << std::setfill('0') << m_datetime_local.tm_min << ":"
+      << std::setw(2) << std::setfill('0') << m_datetime_local.tm_sec << "."
+      << std::setw(3) << std::setfill('0') << m_milliseconds;
 
-  // Get rid of newline character
-  return time.erase(time.size()-1);
+  return oss.str();
 }
 
 void Time::update_time_seconds(const double seconds) {
   RUNTIME_EXCEPTION(!hh_mm_ss_only, "Cannot update timestamp that is HH:MM:SS only");
-  double total_seconds = seconds + m_milliseconds / 1000.0;
+  int64_t total_milliseconds = static_cast<int64_t>(seconds * 1000) + m_milliseconds;
 
-  // Note that static cast rounds down
-  t_datetime_local += static_cast<int>(seconds);
-  t_datetime_utc += static_cast<int>(seconds);
+  t_datetime_local += total_milliseconds / 1000;
+  t_datetime_utc += total_milliseconds / 1000;
 
   GMTIME_SAFE(&t_datetime_local, &m_datetime_local);
   GMTIME_SAFE(&t_datetime_utc, &m_datetime_utc);
-  m_milliseconds = (total_seconds - floor(total_seconds)) * 1000.0;
+  m_milliseconds = total_milliseconds % 1000;
 }
 
 Time Time::operator+(const double seconds) const {
@@ -267,31 +273,44 @@ Time Time::operator+(const double seconds) const {
 }
 
 double Time::operator-(const Time& other) const {
+  int64_t milliseconds1;
+  int64_t milliseconds2;
   if (this->hh_mm_ss_only || other.hh_mm_ss_only) {
-    time_t seconds1 = this->m_datetime_local.tm_hour * 3600 +
-                   this->m_datetime_local.tm_min * 60 +
-                   this->m_datetime_local.tm_sec;
-    time_t seconds2 = other.m_datetime_local.tm_hour * 3600 +
-                   other.m_datetime_local.tm_min * 60 +
-                   other.m_datetime_local.tm_sec;
-    return static_cast<double>(seconds1 - seconds2);
+      milliseconds1 = this->m_datetime_local.tm_hour * 3600000 +
+                      this->m_datetime_local.tm_min * 60000 +
+                      this->m_datetime_local.tm_sec * 1000 +
+                      this->m_milliseconds;
+      milliseconds2 = other.m_datetime_local.tm_hour * 3600000 +
+                      other.m_datetime_local.tm_min * 60000 +
+                      other.m_datetime_local.tm_sec * 1000 +
+                      other.m_milliseconds;
+  } else {
+      milliseconds1 = this->t_datetime_local * 1000 + this->m_milliseconds;
+      milliseconds2 = other.t_datetime_local * 1000 + other.m_milliseconds;
   }
 
-  return static_cast<double>(this->t_datetime_local - other.t_datetime_local);
+  return static_cast<double>((milliseconds1 - milliseconds2) / 1000.0);
 }
 
 std::string Time::get_utc_readable_time() const {
+  std::ostringstream oss;
+
   if (hh_mm_ss_only) {
-    std::string time_s = std::to_string(m_datetime_utc.tm_hour) + ":"
-                + std::to_string(m_datetime_utc.tm_min) + ":"
-                + std::to_string(m_datetime_utc.tm_sec);
-    return time_s;
+      oss << std::setw(2) << std::setfill('0') << m_datetime_utc.tm_hour << ":"
+          << std::setw(2) << std::setfill('0') << m_datetime_utc.tm_min << ":"
+          << std::setw(2) << std::setfill('0') << m_datetime_utc.tm_sec;
+      return oss.str();
   }
 
-  char buffer[26];
-  ASCTIME_SAFE(buffer, &m_datetime_utc);
-  std::string time(buffer);
-  return time.erase(time.size()-1);
+  oss << std::setw(4) << std::setfill('0') << (m_datetime_utc.tm_year + 1900) << "-"
+      << std::setw(2) << std::setfill('0') << (m_datetime_utc.tm_mon + 1) << "-"
+      << std::setw(2) << std::setfill('0') << m_datetime_utc.tm_mday << " "
+      << std::setw(2) << std::setfill('0') << m_datetime_utc.tm_hour << ":"
+      << std::setw(2) << std::setfill('0') << m_datetime_utc.tm_min << ":"
+      << std::setw(2) << std::setfill('0') << m_datetime_utc.tm_sec << "."
+      << std::setw(3) << std::setfill('0') << m_milliseconds;
+
+  return oss.str();
 }
 
 uint64_t Time::get_forecast_csv_time() const {

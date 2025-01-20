@@ -35,7 +35,8 @@ RacePlan V2Optimizer::optimize() {
   while (!race_plan_is_valid) {
     unsigned int idx_seed = dis(gen);
     unsigned int speed_seed = dis(gen);
-    race_plan = route->segment_route_acceleration(idx_seed, speed_seed);
+    race_plan = route->segment_route_acceleration(idx_seed, speed_seed, Config::get_instance()->get_max_num_loops(),
+                                                  kph2mps(Config::get_instance()->get_max_car_speed()));
     race_plan.print_plan();
     simulator->run_sim(route, &race_plan);
     race_plan_is_valid = race_plan.is_viable();
@@ -44,6 +45,16 @@ RacePlan V2Optimizer::optimize() {
     if (!race_plan_is_valid) {
       std::cout << "Reason for inviability: " << race_plan.get_inviability_reason() << std::endl;
     }
+
+    bool save_csv = Config::get_instance()->get_save_csv();
+    std::filesystem::path results_folder;
+    if (save_csv) {
+      const std::string strat_root = Config::get_instance()->get_strat_root();
+      results_folder = std::filesystem::path(strat_root) / "Acceleration_Results";
+      std::filesystem::create_directory(results_folder);
+      simulator->write_result((results_folder / ("Acceleration.csv")).string());
+    }
+    exit(0);
   }
 
   bool save_csv = Config::get_instance()->get_save_csv();

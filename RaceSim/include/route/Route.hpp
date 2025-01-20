@@ -144,12 +144,15 @@ class Route {
    */
   std::vector<std::pair<size_t, size_t>> segment_route_uniform(double length);
 
-  /** @brief Segment the route assuming that the route completes one loop of the track
+  /** @brief Segment the route into a certain number of loops
    * 
    * @param segment_idx_seed Random seed for selecting segment indices
    * @param speed_seed Random seed for selecting segment speeds
+   * @param max_num_loops Maximum possible number of loops around the track
+   * @param max_speed Maximum speed of the car in m/s
    */
-  RacePlan segment_route_acceleration(const unsigned segment_idx_seed, const unsigned speed_seed);
+  RacePlan segment_route_acceleration(const unsigned segment_idx_seed, const unsigned speed_seed,
+                                      const int max_num_loops, const double max_speed);
 
   /* Getters */
   inline std::unordered_set<size_t> get_control_stops() const {return control_stops;}

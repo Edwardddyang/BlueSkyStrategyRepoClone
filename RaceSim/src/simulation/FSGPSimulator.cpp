@@ -69,13 +69,16 @@ void FSGPSimulator::run_sim(const std::shared_ptr<Route>& route, RacePlan* race_
     acceleration = loop_segment_acceleration_values[segment_counter];
     curr_speed = segment_speeds.first;
 
-    for (size_t idx=starting_route_index; idx < num_points-1; idx++) {
-      current_coord = route_points[idx];
-      next_coord = route_points[idx+1];
+    for (size_t idx=starting_route_index; idx < num_points; idx++) {
+      const size_t coord_one = idx;
+      const size_t coord_two = idx == num_points - 1 ? 0 : idx + 1;
+      current_coord = route_points[coord_one];
+      next_coord = route_points[coord_two];
       delta_energy = 0.0;
 
-      // Update segment counter
-      if (idx > current_segment.second) {
+      // Update segment counter. The only time when the ending index is 0 i.e. current_segment.second == 0
+      // is the last segment when the loop wraps around
+      if (idx > current_segment.second && current_segment.second != 0) {
         segment_counter++;
         current_segment = loop_segments[segment_counter];
         segment_speeds = loop_segment_speeds[segment_counter];

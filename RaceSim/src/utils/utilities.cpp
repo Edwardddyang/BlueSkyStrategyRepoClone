@@ -91,3 +91,8 @@ double calc_time(const double init_speed, const double acceleration, const doubl
     return result_1;
   }
 }
+
+double calc_acceleration(const double init_speed, const double final_speed, const double distance) {
+  RUNTIME_EXCEPTION(distance != 0.0, "Cannot have distance == 0.0, in acceleration calculation");
+  return ((final_speed * final_speed - init_speed * init_speed) / (2.0 * distance));
+}

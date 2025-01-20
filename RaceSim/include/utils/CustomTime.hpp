@@ -24,7 +24,7 @@ class Time {
   time_t t_datetime_utc;
 
   /* Special field for milliseconds since the tm struct's resolution is up to seconds */
-  double m_milliseconds;
+  uint64_t m_milliseconds;
 
   /* UTC Adjustment in seconds */
   double utc_adjustment;
@@ -63,8 +63,11 @@ class Time {
 
   /** @brief Copy the HH:MM:SS from another Time object to this one
    * Note: This Time object cannot be a hh_mm_ss_only type timestamp
+   * @param other: The HH:MM:SS timestamp to copy over
+   * @param copy_milliseconds: Whether to copy the milliseconds from the other timestamp
+   * or not
    */
-  void copy_hh_mm_ss(const Time& other);
+  void copy_hh_mm_ss(const Time& other, bool copy_milliseconds = false);
 
   /** Return true if the lhs local timestamp is ahead of the rhs local timestamp */
   bool operator>(const Time& other) const;

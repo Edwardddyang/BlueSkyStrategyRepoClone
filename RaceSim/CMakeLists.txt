@@ -162,7 +162,8 @@ file(GLOB_RECURSE UTIL_HEADERS "${CMAKE_SOURCE_DIR}/include/utils/*.hpp")
 set(RACESIM_HEADERS ${CONFIG_HEADERS} ${MODEL_HEADERS} ${OPT_HEADERS} ${ROUTE_HEADERS} ${SIM_HEADERS} ${UTIL_HEADERS})
 set(RACESIM_TEST_SOURCES ${CMAKE_SOURCE_DIR}/tests/RouteTest.cpp ${CMAKE_SOURCE_DIR}/tests/v1CarTest.cpp
                          ${CMAKE_SOURCE_DIR}/tests/GeographyTest.cpp ${CMAKE_SOURCE_DIR}/tests/TimeTest.cpp
-                         ${CMAKE_SOURCE_DIR}/tests/LutsTest.cpp ${CMAKE_SOURCE_DIR}/tests/SimTest.cpp)
+                         ${CMAKE_SOURCE_DIR}/tests/LutsTest.cpp
+                         ${CMAKE_SOURCE_DIR}/tests/SimTest.cpp)
 add_custom_target(lint ALL
     COMMAND ${CPPLINT_EXE} --linelength=120 --filter=-build/c++17,-legal/copyright
             ${RACESIM_SOURCES}

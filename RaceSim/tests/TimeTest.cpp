@@ -5,10 +5,7 @@
 
 TEST(TimeTest, GetLocalReadableTime) {
   Time m_time = Time("2024-03-21 10:30:00", -9.5);
-  EXPECT_EQ(m_time.get_local_readable_time(), "Thu Mar 21 10:30:00 2024");
-
-  Time time = Time("2024-03-21 11:30:00");
-  EXPECT_EQ(time.get_local_readable_time(), "2024:3:21");
+  EXPECT_EQ(m_time.get_local_readable_time(), "2024-03-21 10:30:00.000");
 }
 
 TEST(TimeTest, UpdateSecondsUTCReadable) {
@@ -20,30 +17,30 @@ TEST(TimeTest, UpdateSecondsUTCReadable) {
   t.update_time_seconds(14);
 
   // Test both the local time and the UTC time
-  EXPECT_EQ(t.get_local_readable_time(), "Thu Mar 21 10:30:14 2024");
-  EXPECT_EQ(t.get_utc_readable_time(), "Thu Mar 21 01:00:14 2024");
+  EXPECT_EQ(t.get_local_readable_time(), "2024-03-21 10:30:14.000");
+  EXPECT_EQ(t.get_utc_readable_time(), "2024-03-21 01:00:14.000");
 
   t.update_time_seconds(60);
-  EXPECT_EQ(t.get_local_readable_time(), "Thu Mar 21 10:31:14 2024");
-  EXPECT_EQ(t.get_utc_readable_time(), "Thu Mar 21 01:01:14 2024");
+  EXPECT_EQ(t.get_local_readable_time(), "2024-03-21 10:31:14.000");
+  EXPECT_EQ(t.get_utc_readable_time(), "2024-03-21 01:01:14.000");
 
   t.update_time_seconds(5400);
-  EXPECT_EQ(t.get_local_readable_time(), "Thu Mar 21 12:01:14 2024");
-  EXPECT_EQ(t.get_utc_readable_time(), "Thu Mar 21 02:31:14 2024");
+  EXPECT_EQ(t.get_local_readable_time(), "2024-03-21 12:01:14.000");
+  EXPECT_EQ(t.get_utc_readable_time(), "2024-03-21 02:31:14.000");
 
   t.update_time_seconds(43200);
   // Test day update
-  EXPECT_EQ(t.get_local_readable_time(), "Fri Mar 22 00:01:14 2024");
-  EXPECT_EQ(t.get_utc_readable_time(), "Thu Mar 21 14:31:14 2024");
+  EXPECT_EQ(t.get_local_readable_time(), "2024-03-22 00:01:14.000");
+  EXPECT_EQ(t.get_utc_readable_time(), "2024-03-21 14:31:14.000");
 
   Time time = Time("2023-12-31 23:30:00", -9.5);
-  EXPECT_EQ(time.get_local_readable_time(), "Sun Dec 31 23:30:00 2023");
-  EXPECT_EQ(time.get_utc_readable_time(), "Sun Dec 31 14:00:00 2023");
+  EXPECT_EQ(time.get_local_readable_time(), "2023-12-31 23:30:00.000");
+  EXPECT_EQ(time.get_utc_readable_time(), "2023-12-31 14:00:00.000");
 
   time.update_time_seconds(5400);
   // Test month and year change
-  EXPECT_EQ(time.get_local_readable_time(), "Mon Jan 01 01:00:00 2024");
-  EXPECT_EQ(time.get_utc_readable_time(), "Sun Dec 31 15:30:00 2023");
+  EXPECT_EQ(time.get_local_readable_time(), "2024-01-01 01:00:00.000");
+  EXPECT_EQ(time.get_utc_readable_time(), "2023-12-31 15:30:00.000");
 }
 
 TEST(TimeTest, GetUTCtmAndTimePoint) {
