@@ -9,6 +9,7 @@
 #include <random>
 #include <utility>
 #include <vector>
+#include <iomanip>
 
 #include "utils/Defines.hpp"
 #include "route/Route.hpp"
@@ -16,15 +17,30 @@
 #include "utils/Utilities.hpp"
 #include "utils/Geography.hpp"
 
-Route::Route(const std::string lut_path) {
-  init_route(std::filesystem::path(lut_path));
+Route::Route(const std::filesystem::path route_path, const bool init_control_stops,
+            const std::filesystem::path cornering_bounds_path,
+            const std::filesystem::path precomputed_distances_path,
+            const bool precompute_distances) {
+  init_base_route(route_path);
+
+  if (init_control_stops) {
+    this->init_control_stops();
+  }
+
+  if (!cornering_bounds_path.empty()) {
+    this->init_cornering_bounds(cornering_bounds_path, kph2mps(Config::get_instance()->get_max_speed()));
+  }
+
+  if (!precomputed_distances_path.empty() && !precompute_distances) {
+    route_distances = BasicLut(precomputed_distances_path);
+  }
+
+  if (precompute_distances) {
+    this->precompute_distances(precomputed_distances_path);
+  }
 }
 
-Route::Route(const std::filesystem::path lut_path) {
-  init_route(lut_path);
-}
-
-void Route::init_route(const std::filesystem::path route_path) {
+void Route::init_base_route(const std::filesystem::path route_path) {
   std::fstream base_route(route_path);
   RUNTIME_EXCEPTION(base_route.is_open(), "Base route file not found {}", route_path.string());
 
@@ -118,6 +134,52 @@ std::vector<std::pair<size_t, size_t>> Route::segment_route_uniform(double lengt
   }
 
   return segments;
+}
+
+void Route::precompute_distances(const std::filesystem::path csv_path) {
+  RUNTIME_EXCEPTION(route_points.size() > 0 && num_points > 0, "Route csv not yet loaded");
+
+  // Pre-allocate data
+  std::vector<std::vector<double>> index_distances;
+  index_distances.resize(num_points);
+  for (size_t i=0; i < num_points; i++) {
+    index_distances[i].resize(num_points, 0.0);
+  }
+  // We want to calculate the distance between each pair of coordinates along the points of
+  // the route e.g. for index_distances[15][200], it's the accumulated distance from route_points[15]
+  // to route_points[200]. For index_distances[270][8], it's the accumulated distance from
+  // route_point[200] to route_point.end() + accumulated distance from route_points[0] to route_points[8]
+  index_distances[num_points-1][0] = get_distance(route_points[num_points-1], route_points[0]);
+  for (size_t src=0; src < num_points; src++) {
+    for (size_t dest=0; dest < num_points; dest++) {
+      if (src == dest) {
+        continue;
+      } else if (src < dest) {
+        index_distances[src][dest] = index_distances[src][dest-1] +
+                                     get_distance(route_points[dest-1], route_points[dest]);
+      } else {
+        index_distances[src][dest] = index_distances[0][num_points-1] - index_distances[0][src]
+                                     + index_distances[0][dest] + index_distances[num_points-1][0];
+      }
+    }
+  }
+
+  if (!csv_path.empty()) {
+    std::ofstream output_stream(csv_path);
+    RUNTIME_EXCEPTION(output_stream.is_open(), "Output csv {} could not be opened for writing", csv_path.string());
+    output_stream << std::fixed << std::setprecision(8);
+    for (const auto& row : index_distances) {
+      for (size_t i=0; i < num_points; i++) {
+        output_stream << row[i];
+        if (i < row.size() - 1) {
+          output_stream << ",";
+        }
+      }
+      output_stream << "\n";
+    }
+
+    output_stream.close();
+  }
 }
 
 /** @brief Calculate acceleration in m/s^2 from the starting coordinate to the ending coordinate

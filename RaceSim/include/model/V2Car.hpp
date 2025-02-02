@@ -20,7 +20,7 @@ class V2Car : public V1Car {
     V2Car();
 
     // Compute energy change when moving between two points in a straight line.
-    // Note that unlike V1Car, init_speed /= final_speed.
+    // Note that unlike V1Car, acceleration is not always 0
     // Implementation is based on https://www.overleaf.com/read/xzbrzqtbsrhn#2ac2ad
     CarUpdate compute_travel_update(Coord coord_one,
                                     Coord coord_two,
@@ -28,5 +28,6 @@ class V2Car : public V1Car {
                                     double acceleration,
                                     Time* time,
                                     Wind wind,
-                                    Irradiance irr) override;
+                                    Irradiance irr,
+                                    double distance = -1.0) override;
 };

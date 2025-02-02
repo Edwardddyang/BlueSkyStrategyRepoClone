@@ -25,15 +25,22 @@
   # All following luts are relative to gen12_strategy/RaceSim/
   base_route_path: data/luts/fsgp/static/fsgp_base_route.csv # 3 column csv --> latitude (degrees) | longitude (degrees) | altitude (km)
   power_factor_path: data/luts/fsgp/static/powerfactor.csv
-  segment_bounds_path: data/luts/fsgp/static/segment_bounds.csv # 2 Column csv -> Starting index | Ending index (inclusive)
+  corners_path: data/luts/fsgp/static/fsgp_corners.csv # 3 Column csv -> Corner start index | Corner end index | Max speed (mps)
   roll_res_slope_path: data/luts/fsgp/static/rr2.csv
   roll_res_yint_path: data/luts/fsgp/static/rr1.csv
   dni_path: data/luts/fsgp/dynamic/dni.csv
   dhi_path: data/luts/fsgp/dynamic/dhi.csv
   wind_direction_path: data/luts/fsgp/dynamic/wind_direction_10m.csv
   wind_speed_path: data/luts/fsgp/dynamic/wind_speed_10m.csv
+  precomputed_distances_path: data/luts/fsgp/static/precomputed_distances.csv # Precomputed distances between each pair of
+                                                                              # coordinates in base_route_path.
+                                                                              # If calculate_distances is true, it will
+                                                                              # write the result to this path
+  calculate_distances: False # Whether to pre-compute distances. If you're passing in a new base route never seen before,
+                             # set this to true
 
 \Route: # Route conditions
+  init_control_stops: False # Use control stops or not
   day_one_start_time: 2024-08-16 10:00:00 # Start time of the first day in YYYY-MM-DD HH:MM:SS local 24 hour format
   day_one_end_time: 2024-08-16 18:00:00 # End time of the first day in YYYY-MM-DD HH:MM:SS local 24 hour format
   day_start_time: 9:00:00 # Start time from second day onwards in HH:MM:SS local 24 hour format

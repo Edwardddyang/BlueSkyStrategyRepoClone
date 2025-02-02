@@ -31,8 +31,8 @@ TEST_F(SimTest, Test1) {
   std::shared_ptr<Car> car = CarFactory::get_car(Config::get_instance()->get_model());
 
   /* Create route */
-  std::shared_ptr<Route> route = std::make_shared<Route>(Config::get_instance()->get_base_route_path());
-  route->init_control_stops();
+  std::shared_ptr<Route> route = std::make_shared<Route>(Config::get_instance()->get_base_route_path(),
+                                                         Config::get_instance()->get_init_control_stops());
 
   /* Create simulator */
   std::shared_ptr<Simulator> sim = std::make_shared<WSCSimulator>(car);

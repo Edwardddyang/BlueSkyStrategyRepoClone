@@ -33,6 +33,7 @@
   wind_speed_path: data/luts/TestData/wind_speed_10m.csv
 
 \Route: # Route conditions
+  init_control_stops: True # Use control stops or not
   control_stops: 2962,5559,9462,11421,14439,16990,20832,23202,25987 # Coordinate indices in the route csv 
   control_stop_charge_time: 30 # in minutes
   day_start_time: 9:00:00 # Start time from second day onwards in HH:MM:SS local 24 hour format

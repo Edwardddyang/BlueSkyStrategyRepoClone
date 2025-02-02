@@ -13,6 +13,7 @@
 #include <limits>
 
 #include "utils/Units.hpp"
+#include "utils/Luts.hpp"
 
 /** A class to represent a proposed race plan
  * 
@@ -120,12 +121,29 @@ class Route {
   /* Speed bounds */
   std::vector<double> max_speed;
 
- public:
-  /* Read a CSV with columns |latitude|longitude|altitude(m)| */
-  explicit Route(const std::string route_path);
-  explicit Route(const std::filesystem::path route_path);
+  /* Lookup table for all distances between any two points. Should be num_points x num_points*/
+  BasicLut route_distances;
 
-  void init_route(const std::filesystem::path route_path);
+ public:
+  /** @brief Load information about the race route
+   * 
+   * @param route_path: Absolute path to the base route csv
+   * @param init_control_stops: Initialize control stop indices from config file
+   * @param cornering_bounds_path: Absolute path to the cornering bounds. If empty, don't load
+   * @param precomputed_distances_path: Absolute path to the precomputed distances csv. If empty or precompute_distances
+   * is true, don't load
+   * @param precompute_distances: Whether to pre-compute distances. If precomputed_distances_path is not empty, it
+   * will save the csv to that path
+   */
+  Route(const std::filesystem::path route_path, const bool init_control_stops = false,
+        const std::filesystem::path cornering_bounds_path = std::filesystem::path(),
+        const std::filesystem::path precomputed_distances_path = std::filesystem::path(),
+        const bool precompute_distances = false);
+
+  /** @brief initial the base route csv */
+  void init_base_route(const std::filesystem::path route_path);
+
+  /** @brief Initialize control stops */
   void init_control_stops();
 
   /** @brief Read a csv of corner index bounds with columns |starting index|ending index|max speed(mps)|
@@ -134,6 +152,15 @@ class Route {
   */
   void init_cornering_bounds(const std::filesystem::path cornering_bounds_path,
                              double max_car_speed = std::numeric_limits<double>::infinity());
+
+  /** @brief Read a num_points x num_points csv of pre-computed distances */
+  void init_precomputed_distances(const std::filesystem::path precomputed_distances_path);
+
+  /** @brief Pre-compute distances between every possible pair of indices inside the route
+   * 
+   * @param csv_path: Path for the save location of the pre-computed distance csv
+   */
+  void precompute_distances(const std::filesystem::path csv_path = std::filesystem::path());
 
   Route() {}
 
@@ -156,7 +183,9 @@ class Route {
 
   /* Getters */
   inline std::unordered_set<size_t> get_control_stops() const {return control_stops;}
+  inline const std::vector<Coord>& get_route_points() {return route_points;}
   inline std::vector<Coord> get_route_points() const {return route_points;}
   inline size_t get_num_points() const {return num_points;}
   inline double get_route_length() const {return route_length;}
+  inline const BasicLut& get_precomputed_distances() {return route_distances;}
 };

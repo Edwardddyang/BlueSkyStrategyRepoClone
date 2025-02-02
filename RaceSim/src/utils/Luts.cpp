@@ -41,12 +41,25 @@ void BasicLut::load_LUT() {
   spdlog::info("Loaded LUT: {}", lut_path.string());
 }
 
-double BasicLut::get_value(size_t row_idx, size_t col_idx) {
+double BasicLut::get_value(size_t row_idx, size_t col_idx) const {
+  RUNTIME_EXCEPTION(0 <= row_idx && row_idx < num_rows && col_idx < num_cols && num_cols >= 0,
+                    "Invalid access in BasicLut {}", lut_path.string());
   return values[row_idx][col_idx];
 }
 
 BasicLut::BasicLut(const std::filesystem::path lut_path) : BaseLut<double>(lut_path) {
   load_LUT();
+}
+
+BasicLut::BasicLut(std::vector<std::vector<double>> data) {
+  values = data;
+  num_rows = data.size();
+  RUNTIME_EXCEPTION(num_rows > 0, "BasicLut loaded with no data");
+  num_cols = data[0].size();
+
+  for (size_t i=0; i < num_rows; i++) {
+    RUNTIME_EXCEPTION(num_cols == data[i].size(), "BasicLut have unequal row sizes");
+  }
 }
 
 void EffLut::load_LUT() {

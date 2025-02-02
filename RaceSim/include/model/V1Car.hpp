@@ -41,7 +41,8 @@ class V1Car : public Car {
                                     double acceleration,
                                     Time* time,
                                     Wind wind,
-                                    Irradiance irr) override;
+                                    Irradiance irr,
+                                    double distance = -1.0) override;
 
     /* Compute energy change during a static stop */
     double compute_static_energy(Coord coord, Time* time, double charge_time, Irradiance irr) override;

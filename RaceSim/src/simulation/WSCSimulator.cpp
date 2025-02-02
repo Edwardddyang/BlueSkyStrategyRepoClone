@@ -22,7 +22,7 @@ void WSCSimulator::run_sim(const std::shared_ptr<Route>& route, RacePlan* race_p
 
   /* Get route and race plan data */
   const size_t num_points = route->get_num_points();
-  const std::vector<Coord> route_points = route->get_route_points();
+  const std::vector<Coord>& route_points = route->get_route_points();
   const std::vector<std::pair<size_t, size_t>> segments = race_plan->get_segments()[0];
   const std::vector<std::pair<double, double>> segment_speeds = race_plan->get_speed_profile()[0];
   const std::vector<bool> acceleration_profile = race_plan->get_acceleration_segments()[0];
@@ -64,8 +64,8 @@ void WSCSimulator::run_sim(const std::shared_ptr<Route>& route, RacePlan* race_p
   curr_speed = kph2mps(speeds.first);
 
   for (size_t idx=starting_route_index; idx < num_points-1; idx++) {
-    current_coord = route_points[idx];
-    next_coord = route_points[idx+1];
+    const Coord& current_coord = route_points[idx];
+    const Coord& next_coord = route_points[idx+1];
     delta_energy = 0.0;
     // Update route segment
     if (idx > current_segment.second) {
