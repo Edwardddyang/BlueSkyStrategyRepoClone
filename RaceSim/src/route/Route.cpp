@@ -33,6 +33,8 @@ Route::Route(const std::filesystem::path route_path, const bool init_control_sto
 
   if (!precomputed_distances_path.empty() && !precompute_distances) {
     route_distances = BasicLut(precomputed_distances_path);
+    RUNTIME_EXCEPTION(route_distances.get_num_rows() == route_distances.get_num_cols(),
+                      "Precomputed distance from {} must be a square matrix", precomputed_distances_path.string());
   }
 
   if (precompute_distances) {

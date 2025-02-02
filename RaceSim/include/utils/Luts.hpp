@@ -47,6 +47,10 @@ class BaseLut {
   explicit BaseLut(const std::filesystem::path path);
   BaseLut() {}
 
+  /* Getters */
+  size_t get_num_rows() const {return num_rows;}
+  size_t get_num_cols() const {return num_cols;}
+
   /* We let the derived LUTs implement their own lookup functionality */
 };
 
