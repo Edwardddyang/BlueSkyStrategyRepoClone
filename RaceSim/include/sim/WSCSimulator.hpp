@@ -39,9 +39,6 @@ class WSCSimulator : public Simulator {
   double curr_speed;
   bool is_accelerating;
   double acceleration;
-  Coord current_coord;
-  Coord next_coord;
-
   /* Reset loop variables. Done before each simulation in run_sim(...) */
   void reset_vars();
 

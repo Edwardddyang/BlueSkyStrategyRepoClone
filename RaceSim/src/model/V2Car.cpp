@@ -10,7 +10,8 @@ CarUpdate V2Car::compute_travel_update(Coord coord_one,
                                        double acceleration,
                                        Time* time,
                                        Wind wind,
-                                       Irradiance irr) {
+                                       Irradiance irr,
+                                       double distance) {
   /* Get orientation of the car */
   const double bearing = get_bearing(coord_one, coord_two);
   SolarAngle az_el = get_az_el_from_bearing(bearing, coord_one, time);
@@ -19,7 +20,7 @@ CarUpdate V2Car::compute_travel_update(Coord coord_one,
   }
 
   /* Get time and distance travelled */
-  const double delta_distance = get_distance(coord_one, coord_two);
+  const double delta_distance = distance == -1.0 ? get_distance(coord_one, coord_two) : distance;
   const double delta_time = calc_time(init_speed, acceleration, delta_distance);
   double delta_altitude = coord_two.alt - coord_one.alt;
 

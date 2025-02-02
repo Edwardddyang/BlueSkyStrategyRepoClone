@@ -78,6 +78,8 @@ class Car {
    * @param acceleration: acceleration of the car
    * @param time: current time at coord_one
    * @param Wind, Irradiance: Weather forecast taken at coord_one
+   * @param delta_distance: The distance between the coordinates. Can be passed in
+   * if using pre-computed distances
    *
    * @return CarUpdate: State updates to the car after moving from coord_one to coord_two
   */
@@ -87,7 +89,8 @@ class Car {
                                           double acceleration,
                                           Time* time,
                                           Wind wind,
-                                          Irradiance irr) = 0;
+                                          Irradiance irr,
+                                          double distance = -1.0) = 0;
 
   /** @brief Compute energy change during a static stop
    *

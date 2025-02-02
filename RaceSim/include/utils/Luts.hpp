@@ -47,6 +47,10 @@ class BaseLut {
   explicit BaseLut(const std::filesystem::path path);
   BaseLut() {}
 
+  /* Getters */
+  size_t get_num_rows() const {return num_rows;}
+  size_t get_num_cols() const {return num_cols;}
+
   /* We let the derived LUTs implement their own lookup functionality */
 };
 
@@ -57,10 +61,19 @@ class BasicLut : public BaseLut<double> {
 
  public:
   /* Index the LUT to retrieve a value */
-  double get_value(size_t row_idx, size_t col_idx);
+  double get_value(size_t row_idx, size_t col_idx) const;
 
   /* Load csv upon construction */
   explicit BasicLut(const std::filesystem::path path);
+
+  /* Instantiate with pre-defined values */
+  explicit BasicLut(std::vector<std::vector<double>> data);
+
+  /* Empty constructor */
+  explicit BasicLut() {}
+
+  /* Whether LUT has any data */
+  bool empty() const { return num_rows == 0; }
 };
 
 /* Represents an efficiency lookup table of double values */

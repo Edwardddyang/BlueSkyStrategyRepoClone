@@ -12,6 +12,8 @@ void FSGPSimulator::run_sim(const std::shared_ptr<Route>& route, RacePlan* race_
   RUNTIME_EXCEPTION(results_lut != nullptr, "Results lut is null");
   RUNTIME_EXCEPTION(race_plan != nullptr, "Race plan is null");
   RUNTIME_EXCEPTION(race_plan->validate_members(route->get_route_points()), "Race Plan is improperly created");
+  const BasicLut& route_distances = route->get_precomputed_distances();
+  RUNTIME_EXCEPTION(!route_distances.empty(), "FSGP Simulator must use pre-computed distances, but no data was loaded");
 
   /* Reset variables */
   reset_vars();
@@ -19,7 +21,7 @@ void FSGPSimulator::run_sim(const std::shared_ptr<Route>& route, RacePlan* race_
 
   /* Get route data */
   const size_t num_points = route->get_num_points();
-  const std::vector<Coord> route_points = route->get_route_points();
+  const std::vector<Coord>& route_points = route->get_route_points();
 
   /* Get race plan data */
   const std::vector<std::vector<std::pair<size_t, size_t>>> segments = race_plan->get_segments();
@@ -31,7 +33,7 @@ void FSGPSimulator::run_sim(const std::shared_ptr<Route>& route, RacePlan* race_
   size_t starting_route_index = 0;
   double min_distance = std::numeric_limits<double>::max();
   for (size_t i = 0; i < num_points; i++) {
-    Coord route_coord = route_points[i];
+    const Coord& route_coord = route_points[i];
     double distance = get_distance(route_coord, starting_coord);
     if (distance < min_distance) {
       min_distance = distance;
@@ -72,8 +74,8 @@ void FSGPSimulator::run_sim(const std::shared_ptr<Route>& route, RacePlan* race_
     for (size_t idx=starting_route_index; idx < num_points; idx++) {
       const size_t coord_one = idx;
       const size_t coord_two = idx == num_points - 1 ? 0 : idx + 1;
-      current_coord = route_points[coord_one];
-      next_coord = route_points[coord_two];
+      const Coord& current_coord = route_points[coord_one];
+      const Coord& next_coord = route_points[coord_two];
       delta_energy = 0.0;
 
       // Update segment counter. The only time when the ending index is 0 i.e. current_segment.second == 0
@@ -156,8 +158,10 @@ void FSGPSimulator::run_sim(const std::shared_ptr<Route>& route, RacePlan* race_
 
       /* Compute state update of the car */
       try {
+        // Use pre-computed distance value
+        const double distance = route_distances.get_value(coord_one, coord_two);
         car_update = car->compute_travel_update(current_coord, next_coord, curr_speed, acceleration,
-                                                      &curr_time, wind, irr);
+                                                &curr_time, wind, irr, distance);
       } catch (const InvalidCalculation& e) {
         // Discriminant is negative. Some deceleration/acceleration cannot be completed and this race plan
         // should be thrown out

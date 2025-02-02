@@ -61,7 +61,8 @@ double V1Car::compute_net_battery_change(double array, double aero, double rolli
 }
 
 CarUpdate V1Car::compute_travel_update(Coord coord_one, Coord coord_two, double init_speed,
-                                       double acceleration, Time* time, Wind wind, Irradiance irr) {
+                                       double acceleration, Time* time, Wind wind, Irradiance irr,
+                                       double distance) {
   RUNTIME_EXCEPTION(acceleration == 0.0, "Acceleration must be 0 in Gen 11.5 energy model");
   /* Get orientation of the car */
   double bearing = get_bearing(coord_one, coord_two);
@@ -71,8 +72,8 @@ CarUpdate V1Car::compute_travel_update(Coord coord_one, Coord coord_two, double 
   }
 
   /* Get time and distance travelled */
-  double delta_distance = get_distance(coord_one, coord_two);
-  double delta_time = delta_distance / init_speed;
+  const double delta_distance = distance == -1.0 ? get_distance(coord_one, coord_two) : distance;
+  const double delta_time = delta_distance / init_speed;
 
   /* Calculate energy losses */
   double electric_loss = compute_electric_loss(delta_time);

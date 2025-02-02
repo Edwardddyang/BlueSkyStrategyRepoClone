@@ -16,9 +16,6 @@
 #include "utils/Defines.hpp"
 
 RacePlan V2Optimizer::optimize() {
-  /* Initialize cornering bounds */
-  route->init_cornering_bounds(Config::get_instance()->get_corners_path(),
-                               kph2mps(Config::get_instance()->get_max_speed()));
   // Create a random device to seed the random number generator
   std::random_device rd;
 

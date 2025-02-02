@@ -48,6 +48,7 @@
   PARAM(control_stops, std::unordered_set<size_t>,                                          \
         std::unordered_set<size_t>,                                                         \
         convert_string_to_int_set("2962,5559,9462,11421,14439,16990,20832,23202,25987"))    \
+  PARAM(init_control_stops, bool, bool, false)                                              \
   PARAM(control_stop_charge_time, int, int, 30)                                             \
   PARAM(base_route_path, std::filesystem::path, std::filesystem::path,                      \
         std::filesystem::path("data/luts/fsgp/static/fsgp_base_route.csv"))                 \
@@ -67,6 +68,9 @@
         std::filesystem::path("data/luts/fsgp/dynamic/wind_direction_10m.csv"))             \
   PARAM(wind_speed_path, std::filesystem::path, std::filesystem::path,                      \
         std::filesystem::path("data/luts/fsgp/dynamic/wind_speed_10m.csv"))                 \
+  PARAM(precomputed_distances_path, std::filesystem::path, std::filesystem::path,           \
+        std::filesystem::path("data/luts/fsgp/static/precomputed_distances.csv"))           \
+  PARAM(calculate_distances, bool, bool, false)                                             \
   PARAM(day_one_start_time, std::unique_ptr<Time>, Time,                                    \
         std::make_unique<Time>("2024-08-16 10:00:00", 6.0))                                 \
   PARAM(day_one_end_time, std::unique_ptr<Time>, Time,                                      \
