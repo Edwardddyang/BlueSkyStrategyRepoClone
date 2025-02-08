@@ -58,3 +58,10 @@ double calc_time(const double init_speed, const double acceleration, const doubl
  * @param distance Total distance in m
  */
 double calc_acceleration(const double init_speed, const double final_speed, const double distance);
+
+/** @brief Calculate final velocity given initial velocity, acceleration and distance
+ * @param init_speed Initial speed in m/s
+ * @param acceleration Acceleration in m/s^2
+ * @param distance Distance to cover
+*/
+double calc_final_speed_a(const double init_speed, const double acceleration, const double distance);

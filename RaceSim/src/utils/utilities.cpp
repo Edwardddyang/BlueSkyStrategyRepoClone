@@ -96,3 +96,10 @@ double calc_acceleration(const double init_speed, const double final_speed, cons
   RUNTIME_EXCEPTION(distance != 0.0, "Cannot have distance == 0.0, in acceleration calculation");
   return ((final_speed * final_speed - init_speed * init_speed) / (2.0 * distance));
 }
+
+double calc_final_speed_a(const double init_speed, const double acceleration, const double distance) {
+  RUNTIME_EXCEPTION(acceleration != 0.0, "Cannot have acceleration == 0.0, in final speed calculation");
+  RUNTIME_EXCEPTION(distance != 0.0, "Cannot have distance == 0.0 in final speed calculation");
+  RUNTIME_EXCEPTION(init_speed >= 0.0, "Cannot have negative speed in final speed calculation");
+  return std::sqrt(init_speed * init_speed + 2 * acceleration * distance);
+}

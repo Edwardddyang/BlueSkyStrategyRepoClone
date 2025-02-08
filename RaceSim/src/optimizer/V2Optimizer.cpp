@@ -32,8 +32,11 @@ RacePlan V2Optimizer::optimize() {
   while (!race_plan_is_valid) {
     unsigned int idx_seed = dis(gen);
     unsigned int speed_seed = dis(gen);
-    race_plan = route->segment_route_acceleration(idx_seed, speed_seed, Config::get_instance()->get_max_num_loops(),
-                                                  kph2mps(Config::get_instance()->get_max_car_speed()));
+    unsigned int acceleration_seed = dis(gen);
+    race_plan = route->segment_route_acceleration(idx_seed, speed_seed, acceleration_seed,
+                                                  Config::get_instance()->get_max_num_loops(),
+                                                  kph2mps(Config::get_instance()->get_max_car_speed()),
+                                                  Config::get_instance()->get_max_deceleration());
     race_plan.print_plan();
     simulator->run_sim(route, &race_plan);
     race_plan_is_valid = race_plan.is_viable();

@@ -11,7 +11,6 @@
   passive_electric_loss: 20 # in w
   cda: 0.16
   max_motor_power: 3.5 # in kwh
-  max_car_speed: 120 # in km/h
   array_power_max: 950 # in W
   array_efficiency: 0.252 
   motor_efficiency: 0.9
@@ -49,8 +48,7 @@
   impounding_release_time: 07:00:00 # HH:MM:SS of the morning battery release time
   impounding_start_time: 20:00:00 # HH:MM:SS of the nightly battery impounding time
   overnight_charging_location: 37.000823,-86.367676,0.157135 # Coordinates of the charging location
-  is_route_track: True # If the route is a track, meaning that the coordinates in base_route continuously loop
-  max_num_loops: 300 # Maximum number of loops that can be completed
+  max_num_loops: 3 # Maximum number of loops that can be completed
 
 \Telemetry: # Current state of the car
   current_soc: 5.2 # in kWh, should be <= max_soc
@@ -62,8 +60,6 @@
 \Optimizer:
   model: Gen 12 # Force model of the car to use
   optimizer: Acceleration # type of optimization
-  min_speed: 1 # in km/h. Minimum speed to even consider in any solution
-  max_speed: 80 # in km/h. Maximum speed to consider in any solution. Should be lower than max_car_speed
 
 \Simulation:
   simulator: FSGP # Type of simulator
