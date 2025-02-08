@@ -3,7 +3,7 @@
 /Car: # Car characterizationss
   max_soc: 5.2 # kwh
   max_car_speed: 104 # kph
-  max_deceleration: 6.034 # m/s^2
+  max_deceleration: 6.00 # m/s^2
   tire_pressure: 5.5 # bar
   array_area: 3.98 # m^2
   car_mass: 305 # in kg
