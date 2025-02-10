@@ -34,6 +34,13 @@ std::unordered_set<size_t> convert_string_to_int_set(const std::string input);
 */
 Coord create_coord(const std::string input);
 
+/** @brief Sample true or false from uniform probability distribution
+ *
+ * @param seed Seed for the random device
+ * @param p Probability of true
+ */
+bool sample_binary(unsigned int seed, double p=0.5);
+
 ///////////////////////////
 // Kinematics Equations
 ///////////////////////////

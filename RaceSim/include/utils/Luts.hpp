@@ -37,8 +37,8 @@ class BaseLut {
   std::vector<std::vector<T>> values;
 
   /* Dimensions of the LUT */
-  size_t num_rows;
-  size_t num_cols;
+  size_t num_rows = 0;
+  size_t num_cols = 0;
 
   virtual void load_LUT() = 0;
 
@@ -73,7 +73,7 @@ class BasicLut : public BaseLut<double> {
   explicit BasicLut() {}
 
   /* Whether LUT has any data */
-  bool empty() const { return num_rows == 0; }
+  bool is_empty() const { return num_rows == 0; }
 };
 
 /* Represents an efficiency lookup table of double values */

@@ -40,7 +40,6 @@ CarUpdate V2Car::compute_travel_update(Coord coord_one,
     const double braking_force = mass * std::abs(acceleration) - resistive_force;
 
     if (braking_force > max_braking_force) {
-      std::cout << "Acceleration: " << acceleration << std::endl;
       throw InvalidCalculation("Braking force is too large");
     }
 

@@ -59,12 +59,16 @@ class RacePlan {
   // If the plan is not viable, this string holds the reason
   std::string reason_for_inviability = "";
 
+  // Represents an empty race plan
+  bool empty;
+
  public:
-  RacePlan() {}
+  RacePlan() : empty(true) {}
   RacePlan(std::vector<std::vector<std::pair<size_t, size_t>>> segments,
            std::vector<std::vector<std::pair<double, double>>> segment_speeds,
            std::vector<std::vector<bool>> acceleration_segments = {},
            std::vector<std::vector<double>> acceleration = {});
+  RacePlan(std::string inviability_reason) { reason_for_inviability = inviability_reason; viable = false; }
 
   inline std::vector<std::vector<std::pair<size_t, size_t>>> get_segments() const {return segments;}
   inline std::vector<std::vector<std::pair<double, double>>> get_speed_profile() const {return segment_speeds;}
@@ -73,6 +77,7 @@ class RacePlan {
   inline std::string get_inviability_reason() const {return reason_for_inviability;}
   inline int get_num_loops() const {return num_loops;}
   inline bool is_viable() const {return viable;}
+  inline bool is_empty() const {return empty;}
 
   inline void set_segments(std::vector<std::vector<std::pair<size_t, size_t>>> new_segments) {segments = new_segments;}
   inline void set_speed_profile(std::vector<std::vector<std::pair<double, double>>> new_speed_profile) {
@@ -124,6 +129,9 @@ class Route {
   /* Lookup table for all distances between any two points. Should be num_points x num_points*/
   BasicLut route_distances;
 
+  /* Longest straight path */
+  double longest_straight;
+
  public:
   /** @brief Load information about the race route
    * 
@@ -156,6 +164,9 @@ class Route {
   /** @brief Read a num_points x num_points csv of pre-computed distances */
   void init_precomputed_distances(const std::filesystem::path precomputed_distances_path);
 
+  /** @brief Find the longest straight in the route */
+  void init_longest_straight();
+
   /** @brief Pre-compute distances between every possible pair of indices inside the route
    * 
    * @param csv_path: Path for the save location of the pre-computed distance csv
@@ -176,14 +187,32 @@ class Route {
    * @param segment_idx_seed Random seed for selecting segment indices
    * @param speed_seed Random seed for selecting segment speeds
    * @param acceleration_seed Random seed for selecting accelerations
+   * @param skip_seed Random seed for skipping acceleration segments
+   * @param loop_seed Random seed for selecting the number of loops to complete
    * @param max_num_loops Maximum possible number of loops around the track
    * @param max_speed Maximum speed of the car in m/s
    * @param max_acceleration Maximum magnitude for acceleration and deceleration in m/s^2
+   * @param max_iterations Maximum number of iterations when searching for speeds/accelerations/indices
+   * This is to prevent hanging from infinite loops
+   * 
+   * @return Empty race plan if segment was unsuccessful. Valid race plan otherwise
    */
-  RacePlan segment_route_acceleration(const unsigned segment_idx_seed, const unsigned speed_seed,
+  RacePlan segment_route_acceleration(const unsigned segment_idx_seed,
+                                      const unsigned speed_seed,
                                       const unsigned acceleration_seed,
-                                      const int max_num_loops, const double max_speed,
-                                      const double max_acceleration);
+                                      const unsigned skip_seed,
+                                      const unsigned loop_seed,
+                                      const int max_num_loops,
+                                      const double max_speed,
+                                      const double max_acceleration,
+                                      const int max_iters=1000);
+
+  /** @brief Find segment length
+   *
+   * @param start_idx Start index of the segment
+   * @param end_idx End index of the segment
+   */
+  double get_segment_length(const size_t start_idx, const size_t end_idx) const;
 
   /* Getters */
   inline std::unordered_set<size_t> get_control_stops() const {return control_stops;}

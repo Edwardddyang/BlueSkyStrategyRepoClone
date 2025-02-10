@@ -5,6 +5,7 @@
 #include <string>
 #include <fstream>
 #include <sstream>
+#include <random>
 #include <unordered_set>
 
 #include "utils/Utilities.hpp"
@@ -63,6 +64,17 @@ Coord create_coord(const std::string input) {
   }
 
   return Coord(lat, lon, alt);
+}
+
+bool sample_binary(unsigned int seed, double p) {
+  RUNTIME_EXCEPTION(p >= 0.0 && p <= 1.0, "Probability for sample binary must be between 0 and 1");
+  std::mt19937 gen(seed);
+  std::uniform_real_distribution<> dis(0.0, 1.0);
+
+  // Generate a random number and compare it to p
+  double random_value = dis(gen);
+  std::cout << "Random value: " << random_value << std::endl;
+  return true;
 }
 
 double calc_final_speed(const double init_speed, const double acceleration, const double time) {
