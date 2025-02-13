@@ -39,7 +39,7 @@ Coord create_coord(const std::string input);
  * @param seed Seed for the random device
  * @param p Probability of true
  */
-bool sample_binary(unsigned int seed, double p=0.5);
+bool sample_binary(unsigned int seed, double p = 0.5);
 
 ///////////////////////////
 // Kinematics Equations

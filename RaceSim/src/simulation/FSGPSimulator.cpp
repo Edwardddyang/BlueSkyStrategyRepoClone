@@ -13,7 +13,8 @@ void FSGPSimulator::run_sim(const std::shared_ptr<Route>& route, RacePlan* race_
   RUNTIME_EXCEPTION(race_plan != nullptr, "Race plan is null");
   RUNTIME_EXCEPTION(race_plan->validate_members(route->get_route_points()), "Race Plan is improperly created");
   const BasicLut& route_distances = route->get_precomputed_distances();
-  RUNTIME_EXCEPTION(!route_distances.is_empty(), "FSGP Simulator must use pre-computed distances, but no data was loaded");
+  RUNTIME_EXCEPTION(!route_distances.is_empty(), "FSGP Simulator must use pre-computed distances,"
+                                                 "but no data was loaded");
 
   /* Reset variables */
   reset_vars();
@@ -75,7 +76,9 @@ void FSGPSimulator::run_sim(const std::shared_ptr<Route>& route, RacePlan* race_
 
     if (loop_idx == 0) {
       // Write starting condition of the car to the result csv
-      results_lut->update_logs(car_update, battery_energy, 0.0, 0.0, route_points[0], curr_speed, curr_time, acceleration);
+      results_lut->update_logs(car_update, battery_energy, 0.0, 0.0,
+                               route_points[0], curr_speed, curr_time,
+                               acceleration);
     }
 
     size_t idx = 0;
@@ -175,7 +178,7 @@ void FSGPSimulator::run_sim(const std::shared_ptr<Route>& route, RacePlan* race_
         if (is_accelerating) {
           // When accelerating, we complete the segment in one shot from start_idx to end_idx
           distance = route_distances.get_value(current_segment.first, current_segment.second);
-          car_update = car->compute_travel_update(route_points[current_segment.first], 
+          car_update = car->compute_travel_update(route_points[current_segment.first],
                                                   route_points[current_segment.second],
                                                   curr_speed, acceleration,
                                                   &curr_time, wind, irr, distance);

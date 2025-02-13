@@ -73,7 +73,6 @@ bool sample_binary(unsigned int seed, double p) {
 
   // Generate a random number and compare it to p
   double random_value = dis(gen);
-  std::cout << "Random value: " << random_value << std::endl;
   return true;
 }
 

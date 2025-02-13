@@ -269,8 +269,8 @@ RacePlan Route::segment_route_acceleration(const unsigned segment_idx_seed,
   // Note that std::uniform_<type>_distribution is inclusive on both sides
   std::uniform_int_distribution<size_t> idx_dist;
   std::uniform_real_distribution<double> speed_dist;
-  std::uniform_real_distribution<double> acceleration_dist = std::uniform_real_distribution<double>(0.1, max_acceleration);
-  std::uniform_real_distribution<double> skip_dist = std::uniform_real_distribution<double>(0.0, 1.0);
+  std::uniform_real_distribution<double> acceleration_dist(0.1, max_acceleration);
+  std::uniform_real_distribution<double> skip_dist(0.0, 1.0);
 
   // Maximum number of sampling iterations
   int count = 0;
@@ -334,7 +334,7 @@ RacePlan Route::segment_route_acceleration(const unsigned segment_idx_seed,
         // the starting index of the corner
         idx_dist = std::uniform_int_distribution<size_t>(segment.second, corner_start - 1);
       }
-  
+
       size_t deceleration_start_idx = idx_dist(idx_rng);
       double deceleration_starting_speed = 0.0;
 
@@ -423,9 +423,8 @@ RacePlan Route::segment_route_acceleration(const unsigned segment_idx_seed,
         // Deceleration value
         const double proposed_acceleration_value = calc_acceleration(deceleration_starting_speed,
                                                                      corner_speed, route_distances.get_value(
-                                                                      deceleration_start_idx, corner_start
-                                                                     ));
-        
+                                                                      deceleration_start_idx, corner_start));
+
         // Calculate required acceleration to reach the next corner based on the projected corner speed
         if (corner_idx != num_corners - 1) {
           const double necessary_deceleration = calc_acceleration(corner_speed, next_corner_max_speed * 0.95,
@@ -463,7 +462,7 @@ RacePlan Route::segment_route_acceleration(const unsigned segment_idx_seed,
       const double straight_distance = route_distances.get_value(corner_end, next_corner_start);
 
       // Shorter the straight, higher the probability for skipping the accleration segment
-      // For the longest straight, 
+      // For the longest straight,
       const double probability = 1.0 - straight_distance / longest_straight;
       const double sample = skip_dist(skip_gen);
       if (sample < probability) {
@@ -486,12 +485,12 @@ RacePlan Route::segment_route_acceleration(const unsigned segment_idx_seed,
         acceleration_value = acceleration_dist(acceleration_rng);
         const double acceleration_ending_speed = calc_final_speed_a(segment_speed.second, acceleration_value,
                                                 route_distances.get_value(corner_end, acceleration_end_idx));
-        
+
         const double required_deceleration = calc_acceleration(acceleration_ending_speed,
                                                                next_corner_max_speed * 0.95,
                                                                route_distances.get_value(acceleration_end_idx,
                                                                                         next_corner_start));
-        
+
         if (std::abs(required_deceleration) < max_acceleration) {
           segment = {corner_end, acceleration_end_idx};
           segment_speed = {segment_speed.second, acceleration_ending_speed};
