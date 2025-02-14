@@ -18,5 +18,6 @@ RaceSim/*.dll
 *.dll.a
 *.exe
 install/
+Acceleration_Results/
 
 *venv*/

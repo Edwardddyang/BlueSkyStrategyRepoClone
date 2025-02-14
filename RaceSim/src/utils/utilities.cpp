@@ -5,6 +5,7 @@
 #include <string>
 #include <fstream>
 #include <sstream>
+#include <random>
 #include <unordered_set>
 
 #include "utils/Utilities.hpp"
@@ -65,6 +66,16 @@ Coord create_coord(const std::string input) {
   return Coord(lat, lon, alt);
 }
 
+bool sample_binary(unsigned int seed, double p) {
+  RUNTIME_EXCEPTION(p >= 0.0 && p <= 1.0, "Probability for sample binary must be between 0 and 1");
+  std::mt19937 gen(seed);
+  std::uniform_real_distribution<> dis(0.0, 1.0);
+
+  // Generate a random number and compare it to p
+  double random_value = dis(gen);
+  return true;
+}
+
 double calc_final_speed(const double init_speed, const double acceleration, const double time) {
   return init_speed + acceleration * time;
 }
@@ -95,4 +106,11 @@ double calc_time(const double init_speed, const double acceleration, const doubl
 double calc_acceleration(const double init_speed, const double final_speed, const double distance) {
   RUNTIME_EXCEPTION(distance != 0.0, "Cannot have distance == 0.0, in acceleration calculation");
   return ((final_speed * final_speed - init_speed * init_speed) / (2.0 * distance));
+}
+
+double calc_final_speed_a(const double init_speed, const double acceleration, const double distance) {
+  RUNTIME_EXCEPTION(acceleration != 0.0, "Cannot have acceleration == 0.0, in final speed calculation");
+  RUNTIME_EXCEPTION(distance != 0.0, "Cannot have distance == 0.0 in final speed calculation");
+  RUNTIME_EXCEPTION(init_speed >= 0.0, "Cannot have negative speed in final speed calculation");
+  return std::sqrt(init_speed * init_speed + 2 * acceleration * distance);
 }

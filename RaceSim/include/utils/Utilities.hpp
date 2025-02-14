@@ -34,6 +34,13 @@ std::unordered_set<size_t> convert_string_to_int_set(const std::string input);
 */
 Coord create_coord(const std::string input);
 
+/** @brief Sample true or false from uniform probability distribution
+ *
+ * @param seed Seed for the random device
+ * @param p Probability of true
+ */
+bool sample_binary(unsigned int seed, double p = 0.5);
+
 ///////////////////////////
 // Kinematics Equations
 ///////////////////////////
@@ -58,3 +65,10 @@ double calc_time(const double init_speed, const double acceleration, const doubl
  * @param distance Total distance in m
  */
 double calc_acceleration(const double init_speed, const double final_speed, const double distance);
+
+/** @brief Calculate final velocity given initial velocity, acceleration and distance
+ * @param init_speed Initial speed in m/s
+ * @param acceleration Acceleration in m/s^2
+ * @param distance Distance to cover
+*/
+double calc_final_speed_a(const double init_speed, const double acceleration, const double distance);
