@@ -147,6 +147,11 @@ add_executable(SimTest ${CMAKE_SOURCE_DIR}/tests/SimTest.cpp)
 target_link_libraries(SimTest gtest gtest_main RaceSim ${EXTERNAL_DEPS})
 add_test(SimTest SimTest)
 
+# Optimizer
+add_executable(OptimizerTest ${CMAKE_SOURCE_DIR}/tests/OptimizerTest.cpp)
+target_link_libraries(OptimizerTest gtest gtest_main RaceSim ${EXTERNAL_DEPS})
+add_test(OptimizerTest OptimizerTest)
+
 # Run tests
 add_custom_target(run_tests ALL
     COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure || true)

@@ -96,6 +96,7 @@
   PARAM(max_speed, double, double, 80)                                                      \
   PARAM(save_csv, bool, bool, true)                                                         \
   PARAM(simulator, std::string, std::string, "FSGP")                                        \
+  PARAM(threads, double, double, 0.5)                                                       \
 
 /* Class that holds all information from a .yaml file storing configuration parameters for
  * a race simulation
