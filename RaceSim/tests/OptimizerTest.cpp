@@ -8,11 +8,12 @@
 #include "model/V1Car.hpp"
 #include "utils/Units.hpp"
 #include "sim/WSCSimulator.hpp"
+#include "opt/V1Optimizer.hpp"
 #include "model/CarFactory.hpp"
 #include "config/Config.hpp"
 #include "utils/Defines.hpp"
 
-class SimTest : public ::testing::Test {
+class OptimizerTest : public ::testing::Test {
  public:
   static std::filesystem::path strat_root_path;
  protected:
@@ -24,9 +25,9 @@ class SimTest : public ::testing::Test {
     strat_root_path = std::filesystem::path(strat_root);
   }
 };
-std::filesystem::path SimTest::strat_root_path;
+std::filesystem::path OptimizerTest::strat_root_path;
 
-TEST_F(SimTest, Test1) {
+TEST_F(OptimizerTest, Test1) {
   /* Create a model of the car */
   std::shared_ptr<Car> car = CarFactory::get_car(Config::get_instance()->get_model());
 
@@ -37,16 +38,20 @@ TEST_F(SimTest, Test1) {
   /* Create simulator */
   std::shared_ptr<Simulator> sim = std::make_shared<WSCSimulator>(car);
 
-  RacePlan race_plan({{{0, route->get_num_points() - 1}}}, {{{61.0, 61.0}}});
-  std::shared_ptr<ResultsLut> test_result = std::make_shared<ResultsLut>();
+  /* Create optimizer */
+  std::shared_ptr<V1Optimizer> opt = std::make_shared<V1Optimizer>(sim, route);
+  RacePlan viable_race_plan = opt->optimize();
 
-  sim->run_sim(route, &race_plan, test_result);
-  EXPECT_EQ(true, race_plan.is_viable());
+  EXPECT_TRUE(viable_race_plan.is_viable());
+
+  std::vector<std::shared_ptr<ResultsLut>> result_luts = opt->get_result_luts();
 
   /* Parse the logs and ensure that all values match */
   std::filesystem::path results_file = strat_root_path / "data/luts/TestData/61.csv";
-
   ResultsLut golden_result(results_file);
+
+  std::shared_ptr<ResultsLut> test_result = result_luts[61 - Config::get_instance()->get_min_speed()];
+
   const double margin = 0.00001;
   // Test battery_energy
   std::vector<double> golden_battery_energy = golden_result.get_battery_energy();

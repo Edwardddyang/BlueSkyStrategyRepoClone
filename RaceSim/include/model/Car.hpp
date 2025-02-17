@@ -10,6 +10,8 @@ Base class for force balance car models
 #include "utils/Luts.hpp"
 #include "config/Config.hpp"
 
+// All class members should be initialized once when constructed to ensure
+// thread safety
 class Car {
  protected:
   /* Car parameters */

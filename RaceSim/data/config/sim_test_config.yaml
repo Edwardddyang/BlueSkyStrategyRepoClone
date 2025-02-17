@@ -51,12 +51,11 @@
 \Optimizer:
   model: Gen 11.5 # Force model of the car to use
   optimizer: Constant # type of optimization
-  min_speed: 1 # in km/h. Minimum speed to even consider in any solution
-  max_speed: 100 # in km/h. Maximum speed to consider in any solution. Should be lower than max_car_speed
-  num_segments: 1 # Number of segments to split the route into. Note that if optimizer = constant, this is
-                  # 1 by force
+  min_speed: 50 # in km/h. Minimum speed to even consider in any solution
+  max_speed: 65 # in km/h. Maximum speed to consider in any solution. Should be lower than max_car_speed
+  threads: 0.5 # proportion of hardware_concurrency() threads to use
   # Todo: add something for ending soc of each segment and minimum soc (penalized)
 
 \Simulation:
   simulator: WSC # Type of simulator
-  save_csv: true # Save simulation results to CSVs
+  save_csv: false # Save simulation results to CSVs
