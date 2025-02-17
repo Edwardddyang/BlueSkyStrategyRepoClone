@@ -7,7 +7,8 @@
 #include "sim/WSCSimulator.hpp"
 #include "config/Config.hpp"
 
-void WSCSimulator::run_sim(const std::shared_ptr<Route>& route, RacePlan* race_plan) {
+void WSCSimulator::run_sim(const std::shared_ptr<Route>& route, RacePlan* race_plan,
+                           std::shared_ptr<ResultsLut> results_lut) {
   RUNTIME_EXCEPTION(route != nullptr, "Route pointer is null");
   RUNTIME_EXCEPTION(results_lut != nullptr, "Results lut is null");
   RUNTIME_EXCEPTION(race_plan != nullptr, "Race plan is null");
@@ -15,10 +16,32 @@ void WSCSimulator::run_sim(const std::shared_ptr<Route>& route, RacePlan* race_p
   RUNTIME_EXCEPTION(race_plan->get_segments().size() == 1, "Race Plan should have only one loop for WSC simulator");
   RUNTIME_EXCEPTION(control_stop_charge_time % CHARGING_STEP_SIZE == 0, "Control stop charge time must be divisible by "
                     "charging step size");
+  RUNTIME_EXCEPTION(wind_speed_lut != nullptr, "Wind speed lut must be loaded");
+  RUNTIME_EXCEPTION(wind_dir_lut != nullptr, "Wind direction lut must be loaded");
+  RUNTIME_EXCEPTION(dni_lut != nullptr, "DNI lut must be loaded");
+  RUNTIME_EXCEPTION(dhi_lut != nullptr, "DHI Lut must be loaded");
 
-  /* Reset variables */
-  reset_vars();
+  // Reset results lut logs
   results_lut->reset_logs();
+
+  // Initialize simulation state variables
+  double accumulated_distance = 0.0;
+  Time curr_time = this->sim_start_time;
+  double battery_energy = this->sim_start_soc;
+  Coord starting_coord = this->sim_start_coord;
+  // Initialize index caches for forecast lut lookups
+  std::pair<size_t, size_t> wind_speed_cache = wind_speed_lut->initialize_caches(starting_coord,
+                                                                                 curr_time.get_utc_time_point());
+  std::pair<size_t, size_t> wind_dir_cache = wind_dir_lut->initialize_caches(starting_coord,
+                                                                             curr_time.get_utc_time_point());
+  std::pair<size_t, size_t> dni_cache = dni_lut->initialize_caches(starting_coord,
+                                                                   curr_time.get_utc_time_point());
+  std::pair<size_t, size_t> dhi_cache = dhi_lut->initialize_caches(starting_coord,
+                                                                   curr_time.get_utc_time_point());
+  double delta_energy;
+  double curr_speed;
+  bool is_accelerating;
+  double acceleration;
 
   /* Get route and race plan data */
   const size_t num_points = route->get_num_points();
@@ -77,24 +100,25 @@ void WSCSimulator::run_sim(const std::shared_ptr<Route>& route, RacePlan* race_p
       curr_speed = kph2mps(speeds.first);
     }
 
-    /* Get forecasting data - wind and irradiance */
+    /* Update forecast lut index caches and get forecast data at coordinate 1 */
     ForecastCoord coord_one_forecast(current_coord.lat, current_coord.lon);
 
-    wind_speed_lut->update_index_cache(coord_one_forecast, curr_time.get_utc_time_point());
-    double wind_speed = wind_speed_lut->get_value_with_cache();
+    wind_speed_lut->update_index_cache(&wind_speed_cache, coord_one_forecast, curr_time.get_utc_time_point());
+    double wind_speed = wind_speed_lut->get_value(wind_speed_cache);
 
-    wind_dir_lut->update_index_cache(coord_one_forecast, curr_time.get_utc_time_point());
-    double wind_dir = wind_dir_lut->get_value_with_cache();
+    wind_dir_lut->update_index_cache(&wind_dir_cache, coord_one_forecast, curr_time.get_utc_time_point());
+    double wind_dir = wind_dir_lut->get_value(wind_dir_cache);
 
-    dni_lut->update_index_cache(coord_one_forecast, curr_time.get_utc_time_point());
-    double dni = dni_lut->get_value_with_cache();
+    dni_lut->update_index_cache(&dni_cache, coord_one_forecast, curr_time.get_utc_time_point());
+    double dni = dni_lut->get_value(dni_cache);
 
-    dhi_lut->update_index_cache(coord_one_forecast, curr_time.get_utc_time_point());
-    double dhi = dhi_lut->get_value_with_cache();
+    dhi_lut->update_index_cache(&dhi_cache, coord_one_forecast, curr_time.get_utc_time_point());
+    double dhi = dhi_lut->get_value(dhi_cache);
 
     Wind wind = Wind(wind_dir, wind_speed);
     Irradiance irr = Irradiance(dni, dhi);
     SolarAngle sun = SolarAngle();
+
     // Control stop
     double overflowed_control_stop_time = 0.0;
     if (control_stops.find(idx) != control_stops.end()) {
@@ -111,11 +135,12 @@ void WSCSimulator::run_sim(const std::shared_ptr<Route>& route, RacePlan* race_p
                             current_day_end - curr_time : static_cast<double>(CHARGING_STEP_SIZE);
         delta_energy += car->compute_static_energy(current_coord, &curr_time, step_size, irr);
         curr_time.update_time_seconds(step_size);
-        dni_lut->update_index_cache(coord_one_forecast, curr_time.get_utc_time_point());
-        irr.dni = dni_lut->get_value_with_cache();
 
-        dhi_lut->update_index_cache(coord_one_forecast, curr_time.get_utc_time_point());
-        irr.dhi = dhi_lut->get_value_with_cache();
+        dni_lut->update_index_cache(&dni_cache, coord_one_forecast, curr_time.get_utc_time_point());
+        irr.dni = dni_lut->get_value(dni_cache);
+
+        dhi_lut->update_index_cache(&dhi_cache, coord_one_forecast, curr_time.get_utc_time_point());
+        irr.dhi = dhi_lut->get_value(dhi_cache);
 
         time_charging = time_charging + step_size;
       }
@@ -135,11 +160,12 @@ void WSCSimulator::run_sim(const std::shared_ptr<Route>& route, RacePlan* race_p
           /* Charging at dawn/dusk */
           delta_energy += car->compute_static_energy(current_coord, &curr_time, step_size, irr);
           curr_time.update_time_seconds(step_size);
-          dni_lut->update_index_cache(coord_one_forecast, curr_time.get_utc_time_point());
-          irr.dni = dni_lut->get_value_with_cache();
 
-          dhi_lut->update_index_cache(coord_one_forecast, curr_time.get_utc_time_point());
-          irr.dhi = dhi_lut->get_value_with_cache();
+          dni_lut->update_index_cache(&dni_cache, coord_one_forecast, curr_time.get_utc_time_point());
+          irr.dni = dni_lut->get_value(dni_cache);
+
+          dhi_lut->update_index_cache(&dhi_cache, coord_one_forecast, curr_time.get_utc_time_point());
+          irr.dhi = dhi_lut->get_value(dhi_cache);
         } else {
           curr_time.update_time_seconds(step_size);
         }
@@ -161,11 +187,11 @@ void WSCSimulator::run_sim(const std::shared_ptr<Route>& route, RacePlan* race_p
       delta_energy += car->compute_static_energy(current_coord, &curr_time, step_size, irr);
       curr_time.update_time_seconds(step_size);
 
-      dni_lut->update_index_cache(coord_one_forecast, curr_time.get_utc_time_point());
-      irr.dni = dni_lut->get_value_with_cache();
+      dni_lut->update_index_cache(&dni_cache, coord_one_forecast, curr_time.get_utc_time_point());
+      irr.dni = dni_lut->get_value(dni_cache);
 
-      dhi_lut->update_index_cache(coord_one_forecast, curr_time.get_utc_time_point());
-      irr.dhi = dhi_lut->get_value_with_cache();
+      dhi_lut->update_index_cache(&dhi_cache, coord_one_forecast, curr_time.get_utc_time_point());
+      irr.dhi = dhi_lut->get_value(dhi_cache);
       time_charging += step_size;
     }
 
@@ -203,25 +229,15 @@ void WSCSimulator::run_sim(const std::shared_ptr<Route>& route, RacePlan* race_p
   race_plan->set_time_taken(curr_time.get_local_time_point() - race_start_time.get_local_time_point());
 }
 
-void WSCSimulator::reset_vars() {
-  max_soc = Config::get_instance()->get_max_soc();
-  starting_coord = Config::get_instance()->get_gps_coordinates();
-  battery_energy = Config::get_instance()->get_current_soc();
-  curr_time = Config::get_instance()->get_current_date_time();
-  wind_speed_lut->initialize_caches(starting_coord, curr_time.get_utc_time_point());
-  wind_dir_lut->initialize_caches(starting_coord, curr_time.get_utc_time_point());
-  dni_lut->initialize_caches(starting_coord, curr_time.get_utc_time_point());
-  dhi_lut->initialize_caches(starting_coord, curr_time.get_utc_time_point());
-  accumulated_distance = 0.0;
-}
-
 WSCSimulator::WSCSimulator(std::shared_ptr<Car> model) :
   control_stop_charge_time(mins2secs(Config::get_instance()->get_control_stop_charge_time())),
+  sim_start_time(Config::get_instance()->get_current_date_time()),
+  sim_start_soc(Config::get_instance()->get_current_soc()),
   day_one_start_time(Config::get_instance()->get_day_one_start_time()),
   day_one_end_time(Config::get_instance()->get_day_one_end_time()),
   day_start_time(Config::get_instance()->get_day_start_time()),
   day_end_time(Config::get_instance()->get_day_end_time()),
   race_end_time(Config::get_instance()->get_race_end_time()),
-  starting_coord(Config::get_instance()->get_gps_coordinates()),
-  curr_time(Config::get_instance()->get_current_date_time()),
+  sim_start_coord(Config::get_instance()->get_gps_coordinates()),
+  max_soc(Config::get_instance()->get_max_soc()),
   Simulator(model) {}

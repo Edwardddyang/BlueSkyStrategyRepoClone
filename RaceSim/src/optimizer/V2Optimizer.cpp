@@ -29,6 +29,7 @@ RacePlan V2Optimizer::optimize() {
   /* Create race plan */
   bool race_plan_is_valid = false;
   RacePlan race_plan;
+  std::shared_ptr<ResultsLut> result_lut = std::make_shared<ResultsLut>();
   int idx = 0;
   route->init_longest_straight();
   while (!race_plan_is_valid) {
@@ -44,7 +45,7 @@ RacePlan V2Optimizer::optimize() {
                                                   Config::get_instance()->get_max_deceleration());
     race_plan.print_plan();
     auto start = std::chrono::high_resolution_clock::now();
-    simulator->run_sim(route, &race_plan);
+    simulator->run_sim(route, &race_plan, result_lut);
     auto end = std::chrono::high_resolution_clock::now();
 
     auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
@@ -61,7 +62,7 @@ RacePlan V2Optimizer::optimize() {
     const std::string strat_root = Config::get_instance()->get_strat_root();
     results_folder = std::filesystem::path(strat_root) / "Acceleration_Results";
     std::filesystem::create_directory(results_folder);
-    simulator->write_result((results_folder / ("Acceleration.csv")).string());
+    result_lut->write_logs((results_folder / ("Acceleration.csv")).string());
   }
   }
 
@@ -71,7 +72,7 @@ RacePlan V2Optimizer::optimize() {
     const std::string strat_root = Config::get_instance()->get_strat_root();
     results_folder = std::filesystem::path(strat_root) / "Acceleration_Results";
     std::filesystem::create_directory(results_folder);
-    simulator->write_result((results_folder / ("Acceleration.csv")).string());
+    result_lut->write_logs((results_folder / ("Acceleration.csv")).string());
   }
 
   return race_plan;

@@ -20,6 +20,7 @@ RacePlan V1Optimizer::optimize() {
   RacePlan current_race_plan({{{0, route->get_num_points() - 1}}},
                             {{{static_cast<double>(min_speed), static_cast<double>(min_speed)}}});
   RacePlan last_race_plan(current_race_plan);
+  std::shared_ptr<ResultsLut> result_lut = std::make_shared<ResultsLut>();
 
   bool save_csv = Config::get_instance()->get_save_csv();
   std::filesystem::path results_folder;
@@ -33,10 +34,10 @@ RacePlan V1Optimizer::optimize() {
     current_race_plan.set_speed_profile({{{static_cast<double>(i), static_cast<double>(i)}}});
 
     /* Run the simulation */
-    simulator->run_sim(route, &current_race_plan);
+    simulator->run_sim(route, &current_race_plan, result_lut);
     /* Log the simulation */
     if (save_csv) {
-      simulator->write_result((results_folder / (std::to_string(i) + ".csv")).string());
+      result_lut->write_logs((results_folder / (std::to_string(i) + ".csv")).string());
     }
 
     if (current_race_plan.is_viable()) {

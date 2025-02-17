@@ -5,6 +5,7 @@
 #include <string>
 #include <limits>
 #include <filesystem>
+#include <utility>
 #include <vector>
 
 #include "spdlog/spdlog.h"
@@ -42,7 +43,7 @@ void BasicLut::load_LUT() {
 }
 
 double BasicLut::get_value(size_t row_idx, size_t col_idx) const {
-  RUNTIME_EXCEPTION(0 <= row_idx && row_idx < num_rows && col_idx < num_cols && num_cols >= 0,
+  RUNTIME_EXCEPTION(0 <= row_idx && row_idx < num_rows && col_idx < num_cols && col_idx >= 0,
                     "Invalid access in BasicLut {}", lut_path.string());
   return values[row_idx][col_idx];
 }
@@ -230,8 +231,6 @@ void ForecastLut::load_LUT() {
   this->num_rows = forecast_coords.size();
   this->num_cols = forecast_times.size();
 
-  row_cache = 0;
-  column_cache = 0;
   spdlog::info("Loaded LUT: {}", lut_path.string());
 }
 
@@ -264,8 +263,10 @@ double ForecastLut::get_value(ForecastCoord coord, time_t time) {
   return this->values[row_key][col_key];
 }
 
-void ForecastLut::initialize_caches(ForecastCoord coord, time_t time) {
+std::pair<size_t, size_t> ForecastLut::initialize_caches(ForecastCoord coord, time_t time) {
   /* Initialize row cache */
+  size_t row_cache = 0;
+  size_t column_cache = 0;
   Coord forecast_coord_as_coord = Coord(coord);
   double min_distance = std::numeric_limits<double>::max();
   for (size_t i = 0; i < num_rows; i++) {
@@ -287,10 +288,24 @@ void ForecastLut::initialize_caches(ForecastCoord coord, time_t time) {
       column_cache = i;
     }
   }
+
+  return {row_cache, column_cache};
 }
 
-void ForecastLut::initialize_caches(Coord coord, time_t time) {
+double ForecastLut::get_value(size_t row_idx, size_t col_idx) {
+  RUNTIME_EXCEPTION(0 <= row_idx && row_idx < num_rows && col_idx < num_cols && col_idx >= 0,
+                    "Invalid access in ForecastLut {}", lut_path.string());
+  return values[row_idx][col_idx];
+}
+
+double ForecastLut::get_value(std::pair<size_t, size_t> index_cache) {
+  return get_value(index_cache.first, index_cache.second);
+}
+
+std::pair<size_t, size_t> ForecastLut::initialize_caches(Coord coord, time_t time) {
   /* Initialize row cache */
+  size_t row_cache = 0;
+  size_t column_cache = 0;
   double min_distance = std::numeric_limits<double>::max();
   for (size_t i = 0; i < num_rows; i++) {
     Coord forecast_coord = Coord(forecast_coords[i]);
@@ -311,10 +326,19 @@ void ForecastLut::initialize_caches(Coord coord, time_t time) {
       column_cache = i;
     }
   }
+
+  return {row_cache, column_cache};
 }
 
 /* Begins searching from the specified indices */
-void ForecastLut::update_index_cache(ForecastCoord coord, time_t time) {
+void ForecastLut::update_index_cache(std::pair<size_t, size_t>* index_caches,
+                                     ForecastCoord coord, time_t time) {
+  RUNTIME_EXCEPTION(index_caches != nullptr, "Index caches are null");
+  size_t row_cache = index_caches->first;
+  size_t column_cache = index_caches->second;
+
+  RUNTIME_EXCEPTION(0 <= row_cache && row_cache < num_rows && column_cache < num_cols && column_cache >= 0,
+                    "Invalid access in ForecastLut {}", lut_path.string());
   if (row_cache < num_rows-1) {
     ForecastCoord next_coord = forecast_coords[row_cache+1];
     ForecastCoord current_coord = forecast_coords[row_cache];
@@ -333,10 +357,8 @@ void ForecastLut::update_index_cache(ForecastCoord coord, time_t time) {
 
     column_cache = diff_time_from_current <= diff_time_from_next ? column_cache : column_cache+1;
   }
-}
-
-double ForecastLut::get_value_with_cache() {
-  return this->values[row_cache][column_cache];
+  index_caches->first = row_cache;
+  index_caches->second = column_cache;
 }
 
 ResultsLut::ResultsLut(const std::filesystem::path lut_path) : BaseLut<double>(lut_path) {

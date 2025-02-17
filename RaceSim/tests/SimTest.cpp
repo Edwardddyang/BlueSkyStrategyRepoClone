@@ -38,18 +38,19 @@ TEST_F(SimTest, Test1) {
   std::shared_ptr<Simulator> sim = std::make_shared<WSCSimulator>(car);
 
   RacePlan race_plan({{{0, route->get_num_points() - 1}}}, {{{61.0, 61.0}}});
-  sim->run_sim(route, &race_plan);
+  std::shared_ptr<ResultsLut> test_result = std::make_shared<ResultsLut>();
+
+  sim->run_sim(route, &race_plan, test_result);
   EXPECT_EQ(true, race_plan.is_viable());
 
   /* Parse the logs and ensure that all values match */
   std::filesystem::path results_file = strat_root_path / "data/luts/TestData/61.csv";
 
   ResultsLut golden_result(results_file);
-  ResultsLut test_result = sim->get_results_lut();
   const double margin = 0.00001;
   // Test battery_energy
   std::vector<double> golden_battery_energy = golden_result.get_battery_energy();
-  std::vector<double> test_battery_energy = test_result.get_battery_energy();
+  std::vector<double> test_battery_energy = test_result->get_battery_energy();
   EXPECT_EQ(golden_battery_energy.size(), test_battery_energy.size());
   for (size_t i = 0; i < golden_battery_energy.size(); ++i) {
     EXPECT_NEAR(golden_battery_energy[i], test_battery_energy[i], margin);
@@ -57,7 +58,7 @@ TEST_F(SimTest, Test1) {
 
   // Test accumulated_distance
   std::vector<double> golden_accumulated_distance = golden_result.get_accumulated_distance();
-  std::vector<double> test_accumulated_distance = test_result.get_accumulated_distance();
+  std::vector<double> test_accumulated_distance = test_result->get_accumulated_distance();
   EXPECT_EQ(golden_accumulated_distance.size(), test_accumulated_distance.size());
   for (size_t i = 0; i < golden_accumulated_distance.size(); ++i) {
     EXPECT_NEAR(golden_accumulated_distance[i], test_accumulated_distance[i], margin);
@@ -65,7 +66,7 @@ TEST_F(SimTest, Test1) {
 
   // Test time
   std::vector<std::string> golden_time = golden_result.get_time();
-  std::vector<std::string> test_time = test_result.get_time();
+  std::vector<std::string> test_time = test_result->get_time();
   EXPECT_EQ(golden_time.size(), test_time.size());
   for (size_t i = 0; i < golden_time.size(); ++i) {
     EXPECT_EQ(golden_time[i], test_time[i]);
@@ -73,7 +74,7 @@ TEST_F(SimTest, Test1) {
 
   // Test azimuth
   std::vector<double> golden_azimuth = golden_result.get_azimuth();
-  std::vector<double> test_azimuth = test_result.get_azimuth();
+  std::vector<double> test_azimuth = test_result->get_azimuth();
   EXPECT_EQ(golden_azimuth.size(), test_azimuth.size());
   for (size_t i = 0; i < golden_azimuth.size(); ++i) {
     EXPECT_NEAR(golden_azimuth[i], test_azimuth[i], margin);
@@ -81,7 +82,7 @@ TEST_F(SimTest, Test1) {
 
   // Test elevation
   std::vector<double> golden_elevation = golden_result.get_elevation();
-  std::vector<double> test_elevation = test_result.get_elevation();
+  std::vector<double> test_elevation = test_result->get_elevation();
   EXPECT_EQ(golden_elevation.size(), test_elevation.size());
   for (size_t i = 0; i < golden_elevation.size(); ++i) {
     EXPECT_NEAR(golden_elevation[i], test_elevation[i], margin);
@@ -89,7 +90,7 @@ TEST_F(SimTest, Test1) {
 
   // Test bearing
   std::vector<double> golden_bearing = golden_result.get_bearing();
-  std::vector<double> test_bearing = test_result.get_bearing();
+  std::vector<double> test_bearing = test_result->get_bearing();
   EXPECT_EQ(golden_bearing.size(), test_bearing.size());
   for (size_t i = 0; i < golden_bearing.size(); ++i) {
     EXPECT_NEAR(golden_bearing[i], test_bearing[i], margin);
@@ -97,7 +98,7 @@ TEST_F(SimTest, Test1) {
 
   // Test latitude
   std::vector<double> golden_latitude = golden_result.get_latitude();
-  std::vector<double> test_latitude = test_result.get_latitude();
+  std::vector<double> test_latitude = test_result->get_latitude();
   EXPECT_EQ(golden_latitude.size(), test_latitude.size());
   for (size_t i = 0; i < golden_latitude.size(); ++i) {
     EXPECT_NEAR(golden_latitude[i], test_latitude[i], margin);
@@ -105,7 +106,7 @@ TEST_F(SimTest, Test1) {
 
   // Test longitude
   std::vector<double> golden_longitude = golden_result.get_longitude();
-  std::vector<double> test_longitude = test_result.get_longitude();
+  std::vector<double> test_longitude = test_result->get_longitude();
   EXPECT_EQ(golden_longitude.size(), test_longitude.size());
   for (size_t i = 0; i < golden_longitude.size(); ++i) {
     EXPECT_NEAR(golden_longitude[i], test_longitude[i], margin);
@@ -113,7 +114,7 @@ TEST_F(SimTest, Test1) {
 
   // Test altitude
   std::vector<double> golden_altitude = golden_result.get_altitude();
-  std::vector<double> test_altitude = test_result.get_altitude();
+  std::vector<double> test_altitude = test_result->get_altitude();
   EXPECT_EQ(golden_altitude.size(), test_altitude.size());
   for (size_t i = 0; i < golden_altitude.size(); ++i) {
     EXPECT_NEAR(golden_altitude[i], test_altitude[i], margin);
@@ -121,7 +122,7 @@ TEST_F(SimTest, Test1) {
 
   // Test speed
   std::vector<double> golden_speed = golden_result.get_speed();
-  std::vector<double> test_speed = test_result.get_speed();
+  std::vector<double> test_speed = test_result->get_speed();
   EXPECT_EQ(golden_speed.size(), test_speed.size());
   for (size_t i = 0; i < golden_speed.size(); ++i) {
     EXPECT_NEAR(golden_speed[i], test_speed[i], margin);
@@ -129,7 +130,7 @@ TEST_F(SimTest, Test1) {
 
   // Test array_energy
   std::vector<double> golden_array_energy = golden_result.get_array_energy();
-  std::vector<double> test_array_energy = test_result.get_array_energy();
+  std::vector<double> test_array_energy = test_result->get_array_energy();
   EXPECT_EQ(golden_array_energy.size(), test_array_energy.size());
   for (size_t i = 0; i < golden_array_energy.size(); ++i) {
     EXPECT_NEAR(golden_array_energy[i], test_array_energy[i], margin);
@@ -137,7 +138,7 @@ TEST_F(SimTest, Test1) {
 
   // Test array_power
   std::vector<double> golden_array_power = golden_result.get_array_power();
-  std::vector<double> test_array_power = test_result.get_array_power();
+  std::vector<double> test_array_power = test_result->get_array_power();
   EXPECT_EQ(golden_array_power.size(), test_array_power.size());
   for (size_t i = 0; i < golden_array_power.size(); ++i) {
     EXPECT_NEAR(golden_array_power[i], test_array_power[i], margin);
@@ -145,7 +146,7 @@ TEST_F(SimTest, Test1) {
 
   // Test motor_power
   std::vector<double> golden_motor_power = golden_result.get_motor_power();
-  std::vector<double> test_motor_power = test_result.get_motor_power();
+  std::vector<double> test_motor_power = test_result->get_motor_power();
   EXPECT_EQ(golden_motor_power.size(), test_motor_power.size());
   for (size_t i = 0; i < golden_motor_power.size(); ++i) {
     EXPECT_NEAR(golden_motor_power[i], test_motor_power[i], margin);
@@ -153,7 +154,7 @@ TEST_F(SimTest, Test1) {
 
   // Test motor_energy
   std::vector<double> golden_motor_energy = golden_result.get_motor_energy();
-  std::vector<double> test_motor_energy = test_result.get_motor_energy();
+  std::vector<double> test_motor_energy = test_result->get_motor_energy();
   EXPECT_EQ(golden_motor_energy.size(), test_motor_energy.size());
   for (size_t i = 0; i < golden_motor_energy.size(); ++i) {
     EXPECT_NEAR(golden_motor_energy[i], test_motor_energy[i], margin);
@@ -161,7 +162,7 @@ TEST_F(SimTest, Test1) {
 
   // Test aero_power
   std::vector<double> golden_aero_power = golden_result.get_aero_power();
-  std::vector<double> test_aero_power = test_result.get_aero_power();
+  std::vector<double> test_aero_power = test_result->get_aero_power();
   EXPECT_EQ(golden_aero_power.size(), test_aero_power.size());
   for (size_t i = 0; i < golden_aero_power.size(); ++i) {
     EXPECT_NEAR(golden_aero_power[i], test_aero_power[i], margin);
@@ -169,7 +170,7 @@ TEST_F(SimTest, Test1) {
 
   // Test aero_energy
   std::vector<double> golden_aero_energy = golden_result.get_aero_energy();
-  std::vector<double> test_aero_energy = test_result.get_aero_energy();
+  std::vector<double> test_aero_energy = test_result->get_aero_energy();
   EXPECT_EQ(golden_aero_energy.size(), test_aero_energy.size());
   for (size_t i = 0; i < golden_aero_energy.size(); ++i) {
     EXPECT_NEAR(golden_aero_energy[i], test_aero_energy[i], margin);
@@ -177,7 +178,7 @@ TEST_F(SimTest, Test1) {
 
   // Test rolling_power
   std::vector<double> golden_rolling_power = golden_result.get_rolling_power();
-  std::vector<double> test_rolling_power = test_result.get_rolling_power();
+  std::vector<double> test_rolling_power = test_result->get_rolling_power();
   EXPECT_EQ(golden_rolling_power.size(), test_rolling_power.size());
   for (size_t i = 0; i < golden_rolling_power.size(); ++i) {
     EXPECT_NEAR(golden_rolling_power[i], test_rolling_power[i], margin);
@@ -185,7 +186,7 @@ TEST_F(SimTest, Test1) {
 
   // Test rolling_energy
   std::vector<double> golden_rolling_energy = golden_result.get_rolling_energy();
-  std::vector<double> test_rolling_energy = test_result.get_rolling_energy();
+  std::vector<double> test_rolling_energy = test_result->get_rolling_energy();
   EXPECT_EQ(golden_rolling_energy.size(), test_rolling_energy.size());
   for (size_t i = 0; i < golden_rolling_energy.size(); ++i) {
     EXPECT_NEAR(golden_rolling_energy[i], test_rolling_energy[i], margin);
@@ -193,7 +194,7 @@ TEST_F(SimTest, Test1) {
 
   // Test gravitational_power
   std::vector<double> golden_gravitational_power = golden_result.get_gravitational_power();
-  std::vector<double> test_gravitational_power = test_result.get_gravitational_power();
+  std::vector<double> test_gravitational_power = test_result->get_gravitational_power();
   EXPECT_EQ(golden_gravitational_power.size(), test_gravitational_power.size());
   for (size_t i = 0; i < golden_gravitational_power.size(); ++i) {
     EXPECT_NEAR(golden_gravitational_power[i], test_gravitational_power[i], margin);
@@ -201,7 +202,7 @@ TEST_F(SimTest, Test1) {
 
   // Test gravitational_energy
   std::vector<double> golden_gravitational_energy = golden_result.get_gravitational_energy();
-  std::vector<double> test_gravitational_energy = test_result.get_gravitational_energy();
+  std::vector<double> test_gravitational_energy = test_result->get_gravitational_energy();
   EXPECT_EQ(golden_gravitational_energy.size(), test_gravitational_energy.size());
   for (size_t i = 0; i < golden_gravitational_energy.size(); ++i) {
     EXPECT_NEAR(golden_gravitational_energy[i], test_gravitational_energy[i], margin);
@@ -209,7 +210,7 @@ TEST_F(SimTest, Test1) {
 
   // Test electric_energy
   std::vector<double> golden_electric_energy = golden_result.get_electric_energy();
-  std::vector<double> test_electric_energy = test_result.get_electric_energy();
+  std::vector<double> test_electric_energy = test_result->get_electric_energy();
   EXPECT_EQ(golden_electric_energy.size(), test_electric_energy.size());
   for (size_t i = 0; i < golden_electric_energy.size(); ++i) {
     EXPECT_NEAR(golden_electric_energy[i], test_electric_energy[i], margin);
@@ -217,7 +218,7 @@ TEST_F(SimTest, Test1) {
 
   // Test delta_energy
   std::vector<double> golden_delta_energy = golden_result.get_delta_energy();
-  std::vector<double> test_delta_energy = test_result.get_delta_energy();
+  std::vector<double> test_delta_energy = test_result->get_delta_energy();
   EXPECT_EQ(golden_delta_energy.size(), test_delta_energy.size());
   for (size_t i = 0; i < golden_delta_energy.size(); ++i) {
     EXPECT_NEAR(golden_delta_energy[i], test_delta_energy[i], margin);
