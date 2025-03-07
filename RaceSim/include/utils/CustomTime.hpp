@@ -83,7 +83,9 @@ class Time {
   /** Return true if the rhs local timestamp is ahead of or equal to the lhs local timestamp */
   bool operator<=(const Time& other) const;
 
-  /** @brief Return the difference between two Time objects in seconds */
+  /** @brief Return the difference between two Time objects in seconds. Calculated based on
+   * local timestamps and ignores UTC adjustment
+   */
   double operator-(const Time& other) const;
 
   /** Get an epoch timestamp representing the utc time */

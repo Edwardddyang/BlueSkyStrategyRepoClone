@@ -51,10 +51,11 @@ class Car {
 
   /** @brief Compute the gravitational loss over a time period
    *
-   * @param delta_altitude: Difference in altitude in metres
+   * @param distance: Distance along the slant of the hill in m
    * @param delta_time: Time interval in seconds
+   * @param sin_theta: sin(elevation angle of the slant)
    */
-  virtual EnergyChange compute_gravitational_loss(double delta_altitude, double delta_time) = 0;
+  virtual EnergyChange compute_gravitational_loss(double distance, double delta_time, double sin_theta) = 0;
 
   /** @brief Compute the electrical loss over a time period
    *

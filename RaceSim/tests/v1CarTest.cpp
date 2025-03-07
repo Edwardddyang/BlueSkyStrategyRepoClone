@@ -44,23 +44,29 @@ TEST_F(v1CarTest, GravityLossTest) {
 
   // Notice: uses GRAVITY +_ACCELERATION as 9.81 as defined in Globals.h
   // If using more precise g value, difference will be larger than 0.0000001
-  EnergyChange eng_change = TestCar.compute_gravitational_loss(10, 3600);
-  double true_power = 8.31125;
-  double true_energy = 0.00831125;
-  EXPECT_NEAR(eng_change.energy, true_energy, 0.0000001);
-  EXPECT_NEAR(eng_change.power, true_power, 0.00000001);
+  EnergyChange eng_change = TestCar.compute_gravitational_loss(10, 3600, 0.0);
+  double true_force = 0.0;
+  double true_power = 0.0;
+  double true_energy = 0.0;
+  EXPECT_EQ(eng_change.power, true_power);
+  EXPECT_EQ(eng_change.energy, true_energy);
+  EXPECT_EQ(eng_change.force, true_force);
 
-  eng_change = TestCar.compute_gravitational_loss(1400, 86400);
-  true_power = 48.482291666;
-  true_energy = 1.163575;
+  eng_change = TestCar.compute_gravitational_loss(1400, 86400, 0.104528463268);
+  true_force = 312.75438852;
+  true_power = 5.06777944361;
+  true_energy = 0.121626706647;
   EXPECT_NEAR(eng_change.energy, true_energy, 0.0000001);
   EXPECT_NEAR(eng_change.power, true_power, 0.00000001);
+  EXPECT_NEAR(eng_change.force, true_force, 0.0000001);
 
-  eng_change = TestCar.compute_gravitational_loss(250, 86400);
-  true_power = 8.65755208333;
-  true_energy = 0.20778125;
+  eng_change = TestCar.compute_gravitational_loss(250.0, 20.0, 0.173648177667);
+  true_force = 519.564029988;
+  true_power = 6494.55037485;
+  true_energy = 0.0360808354158;
   EXPECT_NEAR(eng_change.energy, true_energy, 0.0000001);
   EXPECT_NEAR(eng_change.power, true_power, 0.00000001);
+  EXPECT_NEAR(eng_change.force, true_force, 0.0000001);
 }
 
 TEST_F(v1CarTest, AeroLossTest) {

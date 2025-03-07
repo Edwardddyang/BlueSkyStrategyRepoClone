@@ -129,8 +129,10 @@ class ForecastLut : public BaseLut<double>{
    */
   void update_index_cache(std::pair<size_t, size_t>* index_caches,
                           ForecastCoord coord, time_t time);
+  void update_index_cache(std::pair<size_t, size_t>* index_caches,
+                          Coord coord, time_t time);
 
-  /** @brief Initialize index caches by finding the first closets time and coordinate
+  /** @brief Initialize index caches by finding the first closest time and coordinate
    * @param coord Starting coordinate
    * @param time Starting time
    * @return {row_cache, column_cache}

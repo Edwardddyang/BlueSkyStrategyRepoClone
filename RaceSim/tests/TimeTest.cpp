@@ -73,3 +73,40 @@ TEST(TimeTest, GetUTCtmAndTimePoint) {
 
   EXPECT_EQ(time.get_utc_time_point(), 1704031200);
 }
+
+TEST(TimeTest, CopyHHMMSS) {
+  Time t("2025-03-25 16:30:00", -9.5);
+  Time hh_mm_ss_only("17:00:00");
+
+  EXPECT_EQ(t.get_utc_readable_time(), "2025-03-25 07:00:00.000");
+  EXPECT_EQ(t.get_local_readable_time(), "2025-03-25 16:30:00.000");
+
+  t.copy_hh_mm_ss(hh_mm_ss_only);
+  EXPECT_EQ(t.get_local_readable_time(), "2025-03-25 17:00:00.000");
+  EXPECT_EQ(t.get_utc_readable_time(), "2025-03-25 07:30:00.000");
+
+  t.update_time_seconds(5.5);
+  EXPECT_EQ(t.get_local_readable_time(), "2025-03-25 17:00:05.500");
+}
+
+TEST(TimeTest, Operator) {
+  Time t_finish("2025-08-23 00:00:00", -9.5);
+  Time t_start("2025-08-22 23:30:00", -9.5);
+
+  EXPECT_EQ(t_finish.get_utc_readable_time(), "2025-08-22 14:30:00.000");
+
+  double result = t_finish - t_start;
+  EXPECT_EQ(result, 1800.0);
+
+  t_finish.update_time_seconds(4.32);
+  result = t_finish - t_start;
+  EXPECT_EQ(result, 1804.32);
+
+  EXPECT_TRUE(t_finish > t_start);
+
+  Time t_same(t_finish);
+  EXPECT_TRUE(t_finish <= t_same);
+
+  t_start.update_time_seconds(t_finish - t_start);
+  EXPECT_EQ(t_finish - t_start, 0.0);
+}

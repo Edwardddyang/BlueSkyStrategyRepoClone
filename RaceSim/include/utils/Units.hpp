@@ -14,6 +14,10 @@ Definitions and functions for scientific units, custom objects, conversion funct
 
 #include "date/date.h"
 
+// Forward declarations
+struct ForecastCoord;
+struct Coord;
+
 /* Constants */
 #define PI (3.14159265358979323846264338327950288)
 #define DEGREES_IN_PI (180)
@@ -24,6 +28,7 @@ Definitions and functions for scientific units, custom objects, conversion funct
 #define MPS_TO_KPH (3.6)
 #define GRAVITY_ACCELERATION (9.81)
 #define KM_TO_M (1000.0)
+#define SECONDS_IN_DAY 86400
 
 /* Custom units */
 
@@ -43,6 +48,7 @@ struct Coord {
   double alt;
 
   Coord(double latitude, double longitude, double altitude) : lat(latitude), lon(longitude), alt(altitude) {}
+  Coord(double latitude, double longitude) : lat(latitude), lon(longitude), alt(0.0) {}
   Coord() : lat(0), lon(0), alt(0) {}
 
   /* Conversion operator from type ForecastCoord to Coord by clearing the altitude value */
@@ -85,9 +91,9 @@ struct Irradiance {
    actual energy lost/gained and the instataneous power drawn/generated
 */
 struct EnergyChange {
-  double power;
-  double energy;
-  double force;
+  double power;  // In W
+  double energy;  // In kWh
+  double force;  // In N
 
   EnergyChange(double power, double energy) : power(power), energy(energy), force(0.0) {}
   EnergyChange(double power, double energy, double force) : power(power), energy(energy),
@@ -138,5 +144,6 @@ inline double kph2mps(double kph) { return kph / MPS_TO_KPH; }
 inline double mps2kph(double mps) { return mps * MPS_TO_KPH; }
 inline double joules2kwh(double joules) { return joules / JOULES_TO_KWH; }
 inline double watts2kwh(double time, double watts) { return watts * (secs2hours(time) / 1000.0);}
+inline double joules2watts(double joules, double time) { return joules / time; }
 inline double meters2km(double m) {return m/KM_TO_M;}
 inline double km2meters(double km) {return km * KM_TO_M;}

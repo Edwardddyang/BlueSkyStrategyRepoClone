@@ -186,7 +186,7 @@ install(TARGETS RaceSim
         LIBRARY DESTINATION ${CMAKE_SOURCE_DIR}/install/lib)
 install(TARGETS opt
         RUNTIME DESTINATION ${CMAKE_SOURCE_DIR}/install/bin)
-install(TARGETS GeographyTest TimeTest LutsTest v1CarTest RouteTest SimTest
+install(TARGETS GeographyTest TimeTest LutsTest v1CarTest RouteTest SimTest OptimizerTest
         RUNTIME DESTINATION ${CMAKE_SOURCE_DIR}/install/tests/)
 # ---------------------------------------------------------
 
