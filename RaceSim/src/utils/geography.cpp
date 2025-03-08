@@ -23,7 +23,7 @@ double get_distance(Coord src_coord, Coord dst_coord) {
   double c = 2 * atan2(sqrt(a), sqrt(1-a));
 
   // Haversine distance in m
-  double dist_km = (R * c);
+  double dist_m = (R * c);
 
   // calculate altitude difference
   double alt_1 = src_coord.alt;
@@ -32,7 +32,7 @@ double get_distance(Coord src_coord, Coord dst_coord) {
   double alt_difference = abs(alt_1-alt_2);
 
   // Calculate true distance with haversine
-  double true_distance = sqrt(dist_km * dist_km + alt_difference * alt_difference);
+  double true_distance = sqrt(dist_m * dist_m + alt_difference * alt_difference);
 
   return true_distance;
 }
@@ -49,13 +49,13 @@ double get_forecast_coord_distance(ForecastCoord src_coord, ForecastCoord dst_co
   double a =  (sin(delPhi/2) * sin(delPhi/2) ) + (cos(phi_1) * cos(phi_2) * sin(delLambda/2) * sin(delLambda/2));
   double c = 2 * atan2(sqrt(a), sqrt(1-a));
 
-  // Haversine distance in km
-  double dist_km = (R * c)/1000;
+  // Haversine distance in m
+  double dist_m = (R * c)/1000;
 
   double alt_difference = 0.0;
 
   // Calculate true distance with haversine
-  double true_distance = sqrt(dist_km * dist_km + alt_difference * alt_difference) * 1000.0;
+  double true_distance = sqrt(dist_m * dist_m + alt_difference * alt_difference) * 1000.0;
 
   return true_distance;
 }
@@ -70,7 +70,7 @@ double get_bearing(Coord src_coord, Coord dst_coord) {
              (sin(src_coord_rad.lat) * cos(dst_coord_rad.lat)* cos(delta_lon));
 
   if (delta_lon < 0) {
-    return 360 + rad2deg(atan2(X, Y));
+    return 360.0 + rad2deg(atan2(X, Y));
   } else {
     return rad2deg(atan2(X, Y));
   }
@@ -84,18 +84,16 @@ SolarAngle get_az_el_from_bearing(double bearing, Coord coord, const Time* time)
   // Get the relative azimuth angle based on bearing from true north.
   // e.g. if the car was pointing south (180 degree bearing) and the azimuth of the sun was 90 degrees (east)
   // then the relative azimuth is 270 degrees
-  sun.Az = sun.Az + 180 - bearing;
+  sun.Az = sun.Az - bearing;
   if (sun.Az < 0) {
-      sun.Az = 360 + sun.Az;
-  } else if (sun.Az > 360) {
-      sun.Az = sun.Az - 360;
+    sun.Az = 360.0 + sun.Az;
+  } else if (sun.Az > 360.0) {
+    sun.Az = sun.Az - 360.0;
   }
   return sun;
 }
 
 double get_speed_relative_to_wind(double car_speed, double car_bearing, Wind wind) {
-  // Subtract wind speed because the bearing points the wind towards and the car points from the origin.
-
   // Make wind bearing point away from the origin
   double wind_bearing = wind.bearing < 180.0 ? wind.bearing + 180.0 : wind.bearing - 180.0;
 
@@ -104,17 +102,21 @@ double get_speed_relative_to_wind(double car_speed, double car_bearing, Wind win
   double relative_wind_speed = 0.0;
 
   if (interior_angle < 90.0 && interior_angle > 0.0) {  // tailwind
-      relative_wind_speed = -1 * cos(deg2rad(interior_angle)) * wind.speed;
+    relative_wind_speed = -1 * cos(deg2rad(interior_angle)) * wind.speed;
   } else if (interior_angle > 90.0 && interior_angle < 180.0) {  // headwind
-      relative_wind_speed = sin(deg2rad(interior_angle-90.0)) * wind.speed;
+    relative_wind_speed = sin(deg2rad(interior_angle-90.0)) * wind.speed;
   } else if (interior_angle > 180.0 && interior_angle < 270.0) {  // headwind
-      relative_wind_speed = cos(deg2rad(interior_angle-180.0)) * wind.speed;
+    relative_wind_speed = cos(deg2rad(interior_angle-180.0)) * wind.speed;
   } else if (interior_angle > 270.0 && interior_angle < 360.0) {  // tailwind
-      relative_wind_speed = -1 * sin(deg2rad(interior_angle - 270.0)) * wind.speed;
+    relative_wind_speed = -1 * sin(deg2rad(interior_angle - 270.0)) * wind.speed;
   } else if (interior_angle == 180.0) {  // direct headwind
-      relative_wind_speed = wind.speed;
+    relative_wind_speed = wind.speed;
   } else if (interior_angle == 0.0) {  // direct tailwind
-      relative_wind_speed = -1 * wind.speed;
+    relative_wind_speed = -1 * wind.speed;
+  } else if (interior_angle == 90.0 || interior_angle == 270.0) {
+    relative_wind_speed = 0.0;  // Direct crosswind
+  } else {
+    RUNTIME_EXCEPTION(false, "Invalid combination of wind bearing and car bearing");
   }
 
   return car_speed + relative_wind_speed;

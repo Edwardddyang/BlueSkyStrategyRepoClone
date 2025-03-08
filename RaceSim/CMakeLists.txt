@@ -137,6 +137,11 @@ add_executable(v1CarTest ${CMAKE_SOURCE_DIR}/tests/v1CarTest.cpp)
 target_link_libraries(v1CarTest gtest gtest_main RaceSim ${EXTERNAL_DEPS})
 add_test(v1CarTest v1CarTest)
 
+# Gen 12 Car Model
+add_executable(v2CarTest ${CMAKE_SOURCE_DIR}/tests/v2CarTest.cpp)
+target_link_libraries(v2CarTest gtest gtest_main RaceSim ${EXTERNAL_DEPS})
+add_test(v2CarTest v2CarTest)
+
 # Route
 add_executable(RouteTest ${CMAKE_SOURCE_DIR}/tests/RouteTest.cpp)
 target_link_libraries(RouteTest gtest gtest_main RaceSim ${EXTERNAL_DEPS})
@@ -167,6 +172,7 @@ file(GLOB_RECURSE UTIL_HEADERS "${CMAKE_SOURCE_DIR}/include/utils/*.hpp")
 set(RACESIM_HEADERS ${CONFIG_HEADERS} ${MODEL_HEADERS} ${OPT_HEADERS} ${ROUTE_HEADERS} ${SIM_HEADERS} ${UTIL_HEADERS})
 set(RACESIM_TEST_SOURCES ${CMAKE_SOURCE_DIR}/tests/RouteTest.cpp ${CMAKE_SOURCE_DIR}/tests/v1CarTest.cpp
                          ${CMAKE_SOURCE_DIR}/tests/GeographyTest.cpp ${CMAKE_SOURCE_DIR}/tests/TimeTest.cpp
+                         ${CMAKE_SOURCE_DIR}/tests/v2CarTest.cpp
                          ${CMAKE_SOURCE_DIR}/tests/LutsTest.cpp
                          ${CMAKE_SOURCE_DIR}/tests/SimTest.cpp)
 add_custom_target(lint ALL
@@ -174,7 +180,7 @@ add_custom_target(lint ALL
             ${RACESIM_SOURCES}
             ${RACESIM_HEADERS}
             ${CMAKE_SOURCE_DIR}/src/main.cpp
-            ${RACESIM_TEST_SOURCES} || true
+            ${RACESIM_TEST_SOURCES} > /dev/null || true
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
     COMMENT "Running cpplint"
 )
@@ -186,7 +192,7 @@ install(TARGETS RaceSim
         LIBRARY DESTINATION ${CMAKE_SOURCE_DIR}/install/lib)
 install(TARGETS opt
         RUNTIME DESTINATION ${CMAKE_SOURCE_DIR}/install/bin)
-install(TARGETS GeographyTest TimeTest LutsTest v1CarTest RouteTest SimTest OptimizerTest
+install(TARGETS GeographyTest TimeTest LutsTest v1CarTest RouteTest SimTest OptimizerTest v2CarTest
         RUNTIME DESTINATION ${CMAKE_SOURCE_DIR}/install/tests/)
 # ---------------------------------------------------------
 

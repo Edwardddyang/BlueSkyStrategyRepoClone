@@ -56,8 +56,8 @@ struct Coord {
 };
 
 struct Wind {
-  double bearing;
-  double speed;
+  double bearing;  // degrees
+  double speed;  // m/s
 
   Wind(double b, double s) : bearing(b), speed(s) {}
   Wind() : bearing(0), speed(0) {}
