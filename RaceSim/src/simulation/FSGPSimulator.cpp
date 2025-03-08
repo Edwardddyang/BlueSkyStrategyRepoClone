@@ -29,6 +29,11 @@ void FSGPSimulator::run_sim(const std::shared_ptr<Route>& route, RacePlan* race_
   Time curr_time = this->sim_start_time;
   double battery_energy = this->sim_start_soc;
   Coord starting_coord = this->sim_start_coord;
+  double delta_energy;
+  double curr_speed;
+  bool is_accelerating;
+  double acceleration;
+
   // Initialize index caches for forecast lut lookups
   std::pair<size_t, size_t> wind_speed_cache = wind_speed_lut->initialize_caches(starting_coord,
                                                                                  curr_time.get_utc_time_point());
@@ -38,10 +43,6 @@ void FSGPSimulator::run_sim(const std::shared_ptr<Route>& route, RacePlan* race_
                                                                    curr_time.get_utc_time_point());
   std::pair<size_t, size_t> dhi_cache = dhi_lut->initialize_caches(starting_coord,
                                                                    curr_time.get_utc_time_point());
-  double delta_energy;
-  double curr_speed;
-  bool is_accelerating;
-  double acceleration;
 
   /* Get route data */
   const size_t num_points = route->get_num_points();
@@ -78,7 +79,7 @@ void FSGPSimulator::run_sim(const std::shared_ptr<Route>& route, RacePlan* race_
   }
   next_day_start.copy_hh_mm_ss(day_start_time);
   // Advance the timestamp by 24 hours => 24 * 3600 seconds / hour = 86400 seconds
-  next_day_start.update_time_seconds(86400);
+  next_day_start.update_time_seconds(SECONDS_IN_DAY);
 
   CarUpdate car_update;
   const size_t num_loops = segments.size();
@@ -100,8 +101,7 @@ void FSGPSimulator::run_sim(const std::shared_ptr<Route>& route, RacePlan* race_
     if (loop_idx == 0) {
       // Write starting condition of the car to the result csv
       results_lut->update_logs(car_update, battery_energy, 0.0, 0.0,
-                               route_points[0], curr_speed, curr_time,
-                               acceleration);
+                               route_points[0], 0.0, curr_time, 0.0);
     }
 
     size_t idx = 0;
@@ -127,7 +127,7 @@ void FSGPSimulator::run_sim(const std::shared_ptr<Route>& route, RacePlan* race_
       const Coord& next_coord = route_points[coord_two];
       delta_energy = 0.0;
 
-      /* Update forecast lut index caches and get forecast data at coordinate 1 */
+      /* Update forecast lut index caches and get forecast data at the src coordinate */
       ForecastCoord coord_one_forecast(current_coord.lat, current_coord.lon);
 
       wind_speed_lut->update_index_cache(&wind_speed_cache, coord_one_forecast, curr_time.get_utc_time_point());
@@ -165,10 +165,10 @@ void FSGPSimulator::run_sim(const std::shared_ptr<Route>& route, RacePlan* race_
 
               start_time.update_time_seconds(step_size);
 
-              dni_lut->update_index_cache(&dni_cache, coord_one_forecast, curr_time.get_utc_time_point());
+              dni_lut->update_index_cache(&dni_cache, coord_one_forecast, start_time.get_utc_time_point());
               irr.dni = dni_lut->get_value(dni_cache);
 
-              dhi_lut->update_index_cache(&dhi_cache, coord_one_forecast, curr_time.get_utc_time_point());
+              dhi_lut->update_index_cache(&dhi_cache, coord_one_forecast, start_time.get_utc_time_point());
               irr.dhi = dhi_lut->get_value(dhi_cache);
             } else {
               start_time.update_time_seconds(step_size);
@@ -193,7 +193,7 @@ void FSGPSimulator::run_sim(const std::shared_ptr<Route>& route, RacePlan* race_
 
         next_day_start = curr_time;
         next_day_start.copy_hh_mm_ss(day_start_time);
-        next_day_start.update_time_seconds(86400);
+        next_day_start.update_time_seconds(SECONDS_IN_DAY);
       }
 
       /* Compute state update of the car */
@@ -212,7 +212,7 @@ void FSGPSimulator::run_sim(const std::shared_ptr<Route>& route, RacePlan* race_
         } else {
           distance = route_distances.get_value(coord_one, coord_two);
           car_update = car->compute_travel_update(current_coord, next_coord, curr_speed, acceleration,
-                                        &curr_time, wind, irr, distance);
+                                                  &curr_time, wind, irr, distance);
         }
       } catch (const InvalidCalculation& e) {
         // Discriminant is negative. Some deceleration/acceleration cannot be completed and this race plan

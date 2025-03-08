@@ -3,6 +3,7 @@ Model of the car implemented for gen 11.5
 */
 
 #include <math.h>
+#include <cmath>
 
 #include "model/V1Car.hpp"
 #include "utils/Geography.hpp"
@@ -10,7 +11,7 @@ Model of the car implemented for gen 11.5
 EnergyChange V1Car::compute_aero_loss(double speed, double car_bearing, Wind wind, double delta_time) {
   double speed_relative_to_wind = get_speed_relative_to_wind(speed, car_bearing, wind);
   double force = 0.5 * air_density * cda * pow(speed_relative_to_wind, 2);
-  double power = force * speed;
+  double power = force * speed;  // Watt = Newton * m/s
   double energy = watts2kwh(delta_time, power);
 
   return EnergyChange(power, energy, force);
@@ -20,22 +21,21 @@ EnergyChange V1Car::compute_rolling_loss(double speed, double delta_time) {
   double y_int_rr = yint_rolling_resistance.get_value(tire_pressure, mps2kph(speed));
   double slope_rr = slope_rolling_resistance.get_value(tire_pressure, mps2kph(speed));
 
-  double force_scaling = (y_int_rr + slope_rr * speed);
-  double normal_force = mass * GRAVITY_ACCELERATION;
+  double force_scaling = (y_int_rr + slope_rr * speed);  // Unitless, slope_rr is units of s / m
+  double normal_force = mass * GRAVITY_ACCELERATION;  // N
   double force = force_scaling * normal_force;
-  double power = force * speed;
+  double power = force * speed;  // Watt = Newton * m/s
   double energy = watts2kwh(delta_time, power);
 
   return EnergyChange(power, energy, force);
 }
 
-EnergyChange V1Car::compute_gravitational_loss(double delta_altitude, double delta_time) {
-  // TODO(kevin): the full equation should be mass * g * sin(theta)
-  double force = mass * GRAVITY_ACCELERATION * delta_altitude;
-  double power = force / delta_time;
-  double energy = watts2kwh(delta_time, power);
+EnergyChange V1Car::compute_gravitational_loss(double distance, double delta_time, double sin_theta) {
+  const double force = mass * GRAVITY_ACCELERATION * sin_theta;  // N
+  const double power = force * distance;  // Joule = Newton * m
+  const double energy = joules2kwh(power);
 
-  return EnergyChange(power, energy, force);
+  return EnergyChange(joules2watts(power, delta_time), energy, force);
 }
 
 double V1Car::compute_electric_loss(double delta_time) {
@@ -43,8 +43,8 @@ double V1Car::compute_electric_loss(double delta_time) {
 }
 
 EnergyChange V1Car::compute_array_gain(double delta_time, double dni, double dhi, double az, double el) {
-  double power_factor = power_factors.get_value(round(el), round(az));
-  double power = (power_factor * dni) + (dhi * array_efficiency * array_area);
+  double power_factor = power_factors.get_value(round(el), round(az));  // Unitless
+  double power = (power_factor * dni) + (dhi * array_efficiency * array_area);  // Watts
   double energy = watts2kwh(delta_time, power);
   return EnergyChange(power, energy);
 }
@@ -74,6 +74,8 @@ CarUpdate V1Car::compute_travel_update(Coord coord_one, Coord coord_two, double 
   /* Get time and distance travelled */
   const double delta_distance = distance == -1.0 ? get_distance(coord_one, coord_two) : distance;
   const double delta_time = delta_distance / init_speed;
+  const double delta_altitude = coord_two.alt - coord_one.alt;
+  const double sin_angle = delta_altitude / delta_distance;
 
   /* Calculate energy losses */
   double electric_loss = compute_electric_loss(delta_time);
@@ -81,13 +83,12 @@ CarUpdate V1Car::compute_travel_update(Coord coord_one, Coord coord_two, double 
   EnergyChange aero_loss;
   EnergyChange rolling_loss;
   EnergyChange gravity_loss;
-  double delta_altitude = coord_two.alt - coord_one.alt;
 
   // Ensure that motor power does not exceed its maximum draw
   while (init_speed > 0) {
     aero_loss = compute_aero_loss(init_speed, bearing, wind, delta_time);
     rolling_loss = compute_rolling_loss(init_speed, delta_time);
-    gravity_loss = compute_gravitational_loss(delta_altitude, delta_time);
+    gravity_loss = compute_gravitational_loss(distance, delta_time, sin_angle);
 
     motor_loss = aero_loss.energy + rolling_loss.energy + gravity_loss.energy;
     if (motor_loss < max_power) {

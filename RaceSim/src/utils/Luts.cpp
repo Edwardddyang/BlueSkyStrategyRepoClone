@@ -349,8 +349,10 @@ void ForecastLut::update_index_cache(std::pair<size_t, size_t>* index_caches,
     row_cache = dist_from_current_coord <= dist_from_next_coord ? row_cache : row_cache+1;
   }
   if (column_cache < num_cols-1) {
-    uint64_t current_time = forecast_times[column_cache];
-    uint64_t next_time = forecast_times[column_cache+1];
+    // time_t is usually a 64 bit signed integer, though its precision is not actually
+    // specified in the c/c++ standard (crazy)
+    int64_t current_time = static_cast<int64_t>(forecast_times[column_cache]);
+    int64_t next_time = static_cast<int64_t>(forecast_times[column_cache+1]);
 
     uint64_t diff_time_from_current = abs(static_cast<double>(time - current_time));
     uint64_t diff_time_from_next = abs(static_cast<double>(time - next_time));
@@ -359,6 +361,12 @@ void ForecastLut::update_index_cache(std::pair<size_t, size_t>* index_caches,
   }
   index_caches->first = row_cache;
   index_caches->second = column_cache;
+}
+
+void ForecastLut::update_index_cache(std::pair<size_t, size_t>* index_caches,
+                                     Coord coord, time_t time) {
+  ForecastCoord forecast_coord(coord.lat, coord.lon);
+  this->update_index_cache(index_caches, forecast_coord, time);
 }
 
 ResultsLut::ResultsLut(const std::filesystem::path lut_path) : BaseLut<double>(lut_path) {

@@ -76,7 +76,7 @@ void WSCSimulator::run_sim(const std::shared_ptr<Route>& route, RacePlan* race_p
   }
   next_day_start.copy_hh_mm_ss(day_start_time);
   // Advance the timestamp by 24 hours => 24 * 3600 seconds / hour = 86400 seconds
-  next_day_start.update_time_seconds(86400);
+  next_day_start.update_time_seconds(SECONDS_IN_DAY);
 
   Time race_start_time(curr_time);  // Save starting time to calculate total elapsed time
   size_t segment_counter = 0;
@@ -174,7 +174,7 @@ void WSCSimulator::run_sim(const std::shared_ptr<Route>& route, RacePlan* race_p
       current_day_end.copy_hh_mm_ss(day_end_time);
       next_day_start = curr_time;
       next_day_start.copy_hh_mm_ss(day_start_time);
-      next_day_start.update_time_seconds(86400);
+      next_day_start.update_time_seconds(SECONDS_IN_DAY);
     }
 
     /* Overflowed control stop */

@@ -1,7 +1,6 @@
 # Gen 12 Blue Sky Strategy
 
-Contains code for three independent projects:
-- Telemetry Visualizer
+Contains code for two independent projects:
 - Race Simulations
 - Array Simulation
 
@@ -9,5 +8,5 @@ Specific build and usage instructions can be found inside their respective direc
 
 # Python
 
-Python 3.12.8 is the version that all scripts were tested with (and the only one available on Kevin's laptop lol). Please install it from https://www.python.org/downloads/release/python-3128/. If you plan to use git bash from windows, remember to add the following to your ~/.bash_profile \
+Gen 12 Strategy uses python 3.13.0. Please install it from https://www.python.org/downloads/release/python-3130/. If you plan to use git bash from windows, remember to add the following to your ~/.bash_profile \
 ```alias python='winpty python.exe'```

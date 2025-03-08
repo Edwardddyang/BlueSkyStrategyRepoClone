@@ -1,0 +1,70 @@
+# For Gen 11.5
+/Version: "FSGP_2025"
+/Car: # Car characterizationss
+  max_soc: 5.2 # kwh
+  max_car_speed: 104 # kph
+  max_deceleration: 6.00 # m/s^2
+  tire_pressure: 5.5 # bar
+  array_area: 3.98 # m^2
+  car_mass: 305 # in kg
+  air_density: 1.17 # in kg/m^3
+  passive_electric_loss: 20 # in w
+  cda: 0.16
+  max_motor_power: 3.5 # in kwh
+  array_power_max: 950 # in W
+  array_efficiency: 0.252 
+  motor_efficiency: 0.9
+  regen_efficiency: 0.8
+  battery_efficiency: 0.95
+  tire_inertia: 0.00125 # in kg * m^2
+  tire_radius: 0.508 # in m
+  num_tires: 3
+
+\LutPaths:
+  # All following luts are relative to gen12_strategy/RaceSim/
+  base_route_path: data/luts/TestData/wsc_route.csv # 3 column csv --> latitude (degrees) | longitude (degrees) | altitude (km)
+  speed_limits_path: data/luts/TestData/speed_limits.csv # Unused
+  traffic_signals_path: data/luts/TestData/traffic_signals.csv # Unused
+  power_factor_path: data/luts/TestData/power_factor.csv
+  roll_res_slope_path: data/luts/TestData/rr2.csv
+  roll_res_yint_path: data/luts/TestData/rr1.csv
+  # driving_efficiency: /luts/wsc_2023/static/drivingeff.csv # Unused
+  # regen_efficiency: /luts/wsc_2023/static/regeneff.csv # Unused
+  # battery_efficiency: /luts/wsc_2023/static/batteff.csv # Unused
+  dni_path: data/luts/TestData/dni.csv
+  dhi_path: data/luts/TestData/dhi.csv
+  wind_direction_path: data/luts/TestData/wind_direction_10m.csv
+  wind_speed_path: data/luts/TestData/wind_speed_10m.csv
+  precomputed_distances_path: data/luts/fsgp/static/precomputed_distances.csv # Precomputed distances between each pair of
+                                                                              # coordinates in base_route_path.
+                                                                              # If calculate_distances is true, it will
+                                                                              # write the result to this path
+  calculate_distances: False # Whether to pre-compute distances. If you're passing in a new base route never seen before,
+                             # set this to true
+
+\Route: # Route conditions
+  init_control_stops: False # Use control stops or not
+  day_one_start_time: 2024-08-16 10:00:00 # Start time of the first day in YYYY-MM-DD HH:MM:SS local 24 hour format
+  day_one_end_time: 2024-08-16 18:00:00 # End time of the first day in YYYY-MM-DD HH:MM:SS local 24 hour format
+  day_start_time: 9:00:00 # Start time from second day onwards in HH:MM:SS local 24 hour format
+  day_end_time: 17:00:00 # End time from second day onwards in HH:MM:SS local 24 hour format
+  race_end_time: 2024-08-18 17:00:00 # YYYY-MM-DD HH:MM:SS local 24 hour time
+  impounding_release_time: 07:00:00 # HH:MM:SS of the morning battery release time
+  impounding_start_time: 20:00:00 # HH:MM:SS of the nightly battery impounding time
+  overnight_charging_location: 37.000823,-86.367676,0.157135 # Coordinates of the charging location
+  max_num_loops: 3 # Maximum number of loops that can be completed
+
+\Telemetry: # Current state of the car
+  current_soc: 5.2 # in kWh, should be <= max_soc
+  gps_coordinates: 37.0011542,-86.3683294,0.157135 # Lat(degrees),Lon(degrees),Alt(metres)
+  current_date_time: 2024-08-16 10:00:00 # YYYY-MM-DD HH:MM:SS local 24 hour time
+  utc_adjustment: +6.0 # Hour conversion from local time to UTC. This will be applied to all times. 
+                       # This parameter MUST be present
+
+\Optimizer:
+  model: Gen 12 # Force model of the car to use
+  optimizer: Acceleration # type of optimization
+
+\Simulation:
+  simulator: FSGP # Type of simulator
+  save_csv: true # Save simulation results to CSVs

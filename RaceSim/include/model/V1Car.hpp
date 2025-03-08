@@ -25,7 +25,7 @@ class V1Car : public Car {
     EnergyChange compute_rolling_loss(double speed, double delta_time) override;
 
     /* Compute the gravitational loss */
-    EnergyChange compute_gravitational_loss(double delta_altitude, double delta_time) override;
+    EnergyChange compute_gravitational_loss(double distance, double delta_time, double sin_theta) override;
 
     /* Compute electric loss */
     double compute_electric_loss(double delta_time) override;

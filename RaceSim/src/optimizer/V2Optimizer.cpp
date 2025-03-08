@@ -53,17 +53,6 @@ RacePlan V2Optimizer::optimize() {
     race_plan_is_valid = race_plan.is_viable();
     idx++;
     spdlog::info("Tried {} race plans", idx);
-    if (!race_plan_is_valid) {
-      std::cout << "Reason for inviability: " << race_plan.get_inviability_reason() << std::endl;
-    }
-  bool save_csv = Config::get_instance()->get_save_csv();
-  std::filesystem::path results_folder;
-  if (save_csv) {
-    const std::string strat_root = Config::get_instance()->get_strat_root();
-    results_folder = std::filesystem::path(strat_root) / "Acceleration_Results";
-    std::filesystem::create_directory(results_folder);
-    result_lut->write_logs((results_folder / ("Acceleration.csv")).string());
-  }
   }
 
   bool save_csv = Config::get_instance()->get_save_csv();

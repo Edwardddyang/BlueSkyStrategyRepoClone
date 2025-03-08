@@ -3,13 +3,13 @@
 /Car: # Car characterizationss
   max_soc: 5.2 # kwh
   max_car_speed: 104 # kph
-  max_deceleration: 6.00 # m/s^2
+  max_deceleration: 3.0 # m/s^2
   tire_pressure: 5.5 # bar
   array_area: 3.98 # m^2
   car_mass: 305 # in kg
   air_density: 1.17 # in kg/m^3
   passive_electric_loss: 20 # in w
-  cda: 0.16
+  cda: 0.12
   max_motor_power: 3.5 # in kwh
   array_power_max: 950 # in W
   array_efficiency: 0.252 

@@ -44,11 +44,12 @@ SolarAngle get_az_el_from_bearing(double bearing, Coord coord, const Time* time)
 
 /** @brief Get car speed relative to wind speed
  * 
- * Note: Only headwind considered
+ * Note: Only longitudinal direction considered
  * 
  * @param car_speed: Speed of the car in m/s
  * @param car_bearing: Bearing of the car nose in degrees. Convention is clockwise from north
- * @param wind: Wind speed (m/s) and direction (degrees cw from north)
+ * @param wind: Wind speed (m/s) and direction (degrees cw from north) pointing towards the origin
+ * @return Positive wind speed for a headwind and negative wind speed for a tailwind 
  */
 double get_speed_relative_to_wind(double car_speed, double car_bearing, Wind wind);
 
