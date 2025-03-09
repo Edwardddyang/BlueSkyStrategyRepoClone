@@ -172,7 +172,7 @@ file(GLOB_RECURSE UTIL_HEADERS "${CMAKE_SOURCE_DIR}/include/utils/*.hpp")
 set(RACESIM_HEADERS ${CONFIG_HEADERS} ${MODEL_HEADERS} ${OPT_HEADERS} ${ROUTE_HEADERS} ${SIM_HEADERS} ${UTIL_HEADERS})
 set(RACESIM_TEST_SOURCES ${CMAKE_SOURCE_DIR}/tests/RouteTest.cpp ${CMAKE_SOURCE_DIR}/tests/v1CarTest.cpp
                          ${CMAKE_SOURCE_DIR}/tests/GeographyTest.cpp ${CMAKE_SOURCE_DIR}/tests/TimeTest.cpp
-                         # ${CMAKE_SOURCE_DIR}/tests/v2CarTest.cpp
+                         ${CMAKE_SOURCE_DIR}/tests/v2CarTest.cpp
                          ${CMAKE_SOURCE_DIR}/tests/LutsTest.cpp
                          ${CMAKE_SOURCE_DIR}/tests/SimTest.cpp)
 add_custom_target(lint ALL
@@ -192,7 +192,7 @@ install(TARGETS RaceSim
         LIBRARY DESTINATION ${CMAKE_SOURCE_DIR}/install/lib)
 install(TARGETS opt
         RUNTIME DESTINATION ${CMAKE_SOURCE_DIR}/install/bin)
-install(TARGETS GeographyTest TimeTest LutsTest v1CarTest RouteTest SimTest OptimizerTest# v2CarTest
+install(TARGETS GeographyTest TimeTest LutsTest v1CarTest RouteTest SimTest OptimizerTest v2CarTest
         RUNTIME DESTINATION ${CMAKE_SOURCE_DIR}/install/tests/)
 # ---------------------------------------------------------
 
