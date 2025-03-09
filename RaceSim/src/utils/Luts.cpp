@@ -472,6 +472,14 @@ void ResultsLut::load_LUT() {
 
     std::getline(file_linestream, cell, ',');
     RUNTIME_EXCEPTION(isDouble(cell), "Value {} is not a number in Results csv {}", cell, lut_path.string());
+    acceleration_power.emplace_back(std::stod(cell));
+
+    std::getline(file_linestream, cell, ',');
+    RUNTIME_EXCEPTION(isDouble(cell), "Value {} is not a number in Results csv {}", cell, lut_path.string());
+    acceleration_energy.emplace_back(std::stod(cell));
+
+    std::getline(file_linestream, cell, ',');
+    RUNTIME_EXCEPTION(isDouble(cell), "Value {} is not a number in Results csv {}", cell, lut_path.string());
     electric_energy.emplace_back(std::stod(cell));
 
     std::getline(file_linestream, cell, ',');
@@ -501,6 +509,8 @@ void ResultsLut::reset_logs() {
   rolling_energy.clear();
   gravitational_power.clear();
   gravitational_energy.clear();
+  acceleration_power.clear();
+  acceleration_energy.clear();
   electric_energy.clear();
   delta_energy.clear();
 }
@@ -530,6 +540,8 @@ void ResultsLut::write_logs(const std::string lut_path) const {
               << "Rolling Energy(kWh),"
               << "Gravitational Power(W),"
               << "Gravitational Energy(kWh),"
+              << "Acceleration Power(W),"
+              << "Acceleration Energy(kWh),"
               << "Electric Energy(W),"
               << "Delta Battery(kWh),\n";
 
@@ -556,6 +568,8 @@ void ResultsLut::write_logs(const std::string lut_path) const {
       output_csv << std::to_string(rolling_energy[i]) + ",";
       output_csv << std::to_string(gravitational_power[i]) + ",";
       output_csv << std::to_string(gravitational_energy[i]) + ",";
+      output_csv << std::to_string(acceleration_power[i]) + ",";
+      output_csv << std::to_string(acceleration_energy[i]) + ",";
       output_csv << std::to_string(electric_energy[i]) + ",";
       output_csv << std::to_string(delta_energy[i]) + ",\n";
   }
@@ -585,6 +599,8 @@ void ResultsLut::update_logs(const CarUpdate update, double battery, double d_en
   rolling_energy.push_back(update.rolling.energy);
   gravitational_power.push_back(update.gravitational.power);
   gravitational_energy.push_back(update.gravitational.energy);
+  acceleration_power.push_back(update.acceleration.power);
+  acceleration_energy.push_back(update.acceleration.energy);
   electric_energy.push_back(update.electric);
   time.push_back(curr_time.get_local_readable_time());
 }

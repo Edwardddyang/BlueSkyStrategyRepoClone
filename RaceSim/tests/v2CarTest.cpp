@@ -38,7 +38,7 @@ TEST_F(v2CarTest, AccelerationTest) {
   EXPECT_NEAR(result.az_el.Az, 240.723463989025, 0.0001);
   EXPECT_NEAR(result.delta_time, 7.486253353, 0.0001);
   EXPECT_NEAR(result.delta_distance, 100.0, 0.0001);
-  EXPECT_NEAR(result.aero.energy, 0.00913885, 0.0001);
-  EXPECT_NEAR(result.rolling.energy, 0.0040957, 0.0001);
-  EXPECT_NEAR(result.motor_energy, 0.0147054, 0.0001);
+  EXPECT_NEAR(result.aero.energy, 0.000491823203, 0.0001);
+  EXPECT_NEAR(result.rolling.energy, 0.000259202086, 0.0001);
+  EXPECT_NEAR(result.motor_energy, 0.0243149, 0.0001);
 }

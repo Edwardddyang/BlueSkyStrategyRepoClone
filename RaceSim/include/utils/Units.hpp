@@ -107,6 +107,7 @@ struct CarUpdate {
   EnergyChange rolling;
   EnergyChange gravitational;
   EnergyChange array;
+  EnergyChange acceleration;
   SolarAngle az_el;
   double motor_power;
   double motor_energy;
@@ -120,6 +121,7 @@ struct CarUpdate {
             EnergyChange rolling = EnergyChange(),
             EnergyChange gravitational = EnergyChange(),
             EnergyChange array = EnergyChange(),
+            EnergyChange accel = EnergyChange(),
             SolarAngle az_el = SolarAngle(),
             double motor_power = 0.0,
             double motor_energy = 0.0,
@@ -128,7 +130,7 @@ struct CarUpdate {
             double delta_energy = 0.0,
             double delta_distance = 0.0,
             double delta_time = 0.0) : aero(aero), rolling(rolling), gravitational(gravitational),
-            array(array), az_el(az_el), motor_power(motor_power), motor_energy(motor_energy),
+            array(array), acceleration(accel), az_el(az_el), motor_power(motor_power), motor_energy(motor_energy),
             bearing(bearing), electric(electric), delta_energy(delta_energy), delta_distance(delta_distance),
             delta_time(delta_time) {}
 };
@@ -147,3 +149,4 @@ inline double watts2kwh(double time, double watts) { return watts * (secs2hours(
 inline double joules2watts(double joules, double time) { return joules / time; }
 inline double meters2km(double m) {return m/KM_TO_M;}
 inline double km2meters(double km) {return km * KM_TO_M;}
+inline double kwh2joules(double kwh) { return kwh * JOULES_TO_KWH; }
