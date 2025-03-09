@@ -48,8 +48,8 @@ CarUpdate V2Car::compute_travel_update(Coord coord_one,
     }
 
     const double delta_battery = -1.0 * electric_loss;
-    return CarUpdate(EnergyChange(), EnergyChange(), EnergyChange(), array_gain, az_el, 0.0, 0.0, bearing,
-                    electric_loss, delta_battery, delta_distance, delta_time);
+    return CarUpdate(EnergyChange(), EnergyChange(), EnergyChange(), array_gain, EnergyChange(), az_el,
+                    0.0, 0.0, bearing, electric_loss, delta_battery, delta_distance, delta_time);
   } else if (acceleration == 0.0) {
     aero_loss = compute_aero_loss(init_speed, bearing, wind, delta_time);
     rolling_loss = compute_rolling_loss(init_speed, delta_time);
@@ -72,61 +72,77 @@ CarUpdate V2Car::compute_travel_update(Coord coord_one,
     const double delta_battery = battery_energy_in - battery_energy_out;
 
     return CarUpdate(aero_loss, rolling_loss, gravity_loss,
-                    array_gain, az_el, motor_power, motor_loss,
+                    array_gain, EnergyChange(), az_el, motor_power, motor_loss,
                     bearing, electric_loss, delta_battery,
                     delta_distance, delta_time);
   } else {
     const int num_data_points = static_cast<int>(delta_time * num_data_points_per_second);
 
+    // y-axes of integration (in watts)
     std::vector<double> aero_power_data(num_data_points, 0.0);
     std::vector<double> rolling_power_data(num_data_points, 0.0);
-    std::vector<double> position_data(num_data_points);  // x-axis of integration
+    std::vector<double> acceleration_power_data(num_data_points, 0.0);
+    std::vector<double> gravity_power_data(num_data_points, 0.0);
 
-    const double position_increments = delta_distance / num_data_points;
-    double position = 0.0;
+    // x-axis of integration
+    std::vector<double> timestep_data(num_data_points);
 
-    /* Take steps from 0 to delta_distance and compute the integral numerically */
+    const double timestep = delta_time / num_data_points;
+    double time = 0.0;
+
+    // This is constant for the duration of the acceleration
+    gravity_loss = compute_gravitational_loss(delta_distance, delta_time, sin_angle);
+    /* Take steps from 0 to delta_time and compute the integral numerically */
     for (size_t i=0; i < num_data_points; i++) {
-      double speed = std::sqrt(init_speed * init_speed + 2.0 * acceleration * position);
+      const double speed = calc_final_speed(init_speed, acceleration, time);
+      time = time + timestep;
 
       if (speed == 0.0) {
         aero_power_data[i] = 0.0;
         rolling_power_data[i] = 0.0;
       } else {
-        const double timestep = position_increments / speed;
-
         aero_loss = compute_aero_loss(speed, bearing, wind, timestep);
         rolling_loss = compute_rolling_loss(speed, timestep);
+        const double acceleration_power = mass * acceleration * speed;
 
         aero_power_data[i] = aero_loss.power;
         rolling_power_data[i] = rolling_loss.power;
+        acceleration_power_data[i] = acceleration_power;
+        gravity_power_data[i] = gravity_loss.power;
       }
-      position_data[i] = position;
-      position = position + position_increments;
+
+      timestep_data[i] = time;
     }
 
-    gravity_loss = compute_gravitational_loss(delta_distance, delta_time, sin_angle);
-    const double aero_energy_loss = joules2kwh(integrator(position_data, aero_power_data));
-    const double rolling_energy_loss = joules2kwh(integrator(position_data, rolling_power_data));
-    double motor_energy = (aero_energy_loss + rolling_energy_loss + gravity_loss.energy) / motor_efficiency;
+    const double aero_energy_loss = joules2kwh(integrator(timestep_data, aero_power_data));
+    const double rolling_energy_loss = joules2kwh(integrator(timestep_data, rolling_power_data));
+    const double acceleration_energy_loss = joules2kwh(integrator(timestep_data, acceleration_power_data));
+    const double gravitational_energy_loss = joules2kwh(integrator(timestep_data, gravity_power_data));
+    double motor_energy = (aero_energy_loss + rolling_energy_loss +
+                          acceleration_energy_loss + gravitational_energy_loss)
+                          / motor_efficiency;
 
     // Assume no regen
     if (motor_energy < 0.0) {
       motor_energy = 0.0;
     }
 
-    const double average_motor_power = motor_energy / delta_time;
-
     const double battery_energy_in = array_gain.energy * battery_efficiency;
     const double battery_energy_out = (motor_energy + electric_loss)  / battery_efficiency;
-
     const double delta_battery = battery_energy_in - battery_energy_out;
 
-    const EnergyChange average_aero_loss(aero_energy_loss / delta_time, aero_energy_loss);
-    const EnergyChange average_rolling_loss(rolling_energy_loss / delta_time, rolling_energy_loss);
+    const double average_motor_power = kwh2joules(motor_energy) / delta_time;
 
-    return CarUpdate(average_aero_loss, average_rolling_loss, gravity_loss,
-                    array_gain, az_el, average_motor_power, motor_energy,
+    const EnergyChange average_aero_loss(kwh2joules(aero_energy_loss) / delta_time, aero_energy_loss);
+    const EnergyChange average_rolling_loss(kwh2joules(rolling_energy_loss) / delta_time, rolling_energy_loss);
+    const EnergyChange average_acceleration_loss(kwh2joules(acceleration_energy_loss / delta_time),
+                                                  acceleration_energy_loss);
+    const EnergyChange average_gravity_loss(kwh2joules(gravitational_energy_loss / delta_time),
+                                            gravitational_energy_loss);
+
+    return CarUpdate(average_aero_loss, average_rolling_loss, average_gravity_loss,
+                    array_gain, average_acceleration_loss,
+                    az_el, average_motor_power, motor_energy,
                     bearing, electric_loss, delta_battery,
                     delta_distance, delta_time);
   }

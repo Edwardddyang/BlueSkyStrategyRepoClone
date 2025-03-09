@@ -165,6 +165,8 @@ class ResultsLut : public BaseLut<double> {
   std::vector<double> rolling_energy;
   std::vector<double> gravitational_power;
   std::vector<double> gravitational_energy;
+  std::vector<double> acceleration_power;
+  std::vector<double> acceleration_energy;
   std::vector<double> electric_energy;
   std::vector<double> delta_energy;
 
@@ -198,6 +200,8 @@ class ResultsLut : public BaseLut<double> {
   inline std::vector<double> get_motor_energy() const { return motor_energy; }
   inline std::vector<double> get_aero_power() const { return aero_power; }
   inline std::vector<double> get_aero_energy() const { return aero_energy; }
+  inline std::vector<double> get_acceleration_power() const { return acceleration_power; }
+  inline std::vector<double> get_acceleration_energy() const { return acceleration_energy; }
   inline std::vector<double> get_rolling_power() const { return rolling_power; }
   inline std::vector<double> get_rolling_energy() const { return rolling_energy; }
   inline std::vector<double> get_gravitational_power() const { return gravitational_power; }

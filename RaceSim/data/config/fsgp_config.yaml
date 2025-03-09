@@ -10,7 +10,7 @@
   air_density: 1.17 # in kg/m^3
   passive_electric_loss: 20 # in w
   cda: 0.12
-  max_motor_power: 3.5 # in kwh
+  max_motor_power: 5.0 # in kwh
   array_power_max: 950 # in W
   array_efficiency: 0.252 
   motor_efficiency: 0.9

@@ -103,7 +103,7 @@ CarUpdate V1Car::compute_travel_update(Coord coord_one, Coord coord_two, double 
                                                     gravity_loss.energy, electric_loss, motor_loss);
 
   return CarUpdate(aero_loss, rolling_loss, gravity_loss,
-                  array_gain, az_el, motor_power, motor_loss,
+                  array_gain, EnergyChange(), az_el, motor_power, motor_loss,
                   bearing, electric_loss, delta_battery,
                   delta_distance, delta_time);
 }
