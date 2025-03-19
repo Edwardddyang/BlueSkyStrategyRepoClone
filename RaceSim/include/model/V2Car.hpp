@@ -14,6 +14,7 @@ class V2Car : public V1Car {
   double tire_radius;
   double tire_inertia;
   double max_braking_force;
+  double max_motor_power;  // In W
   _1D::SimpsonRule<double> integrator;
 
  public:

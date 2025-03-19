@@ -33,7 +33,7 @@
   PARAM(air_density, double, double, 1.17)                                                  \
   PARAM(passive_electric_loss, double, double, 20)                                          \
   PARAM(cda, double, double, 0.16)                                                          \
-  PARAM(max_motor_power, double, double, 3.5)                                               \
+  PARAM(max_motor_power, double, double, 5.0)                                               \
   PARAM(max_car_speed, double, double, 104)                                                 \
   PARAM(max_deceleration, double, double, 0.6152)                                           \
   PARAM(array_power_max, double, double, 950)                                               \

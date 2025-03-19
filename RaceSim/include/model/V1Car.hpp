@@ -22,7 +22,7 @@ class V1Car : public Car {
     EnergyChange compute_aero_loss(double speed, double car_bearing, Wind wind, double delta_time) override;
 
     /* Compute the rolling resistance loss */
-    EnergyChange compute_rolling_loss(double speed, double delta_time) override;
+    EnergyChange compute_rolling_loss(double speed, double delta_time, double cos_theta) override;
 
     /* Compute the gravitational loss */
     EnergyChange compute_gravitational_loss(double distance, double delta_time, double sin_theta) override;

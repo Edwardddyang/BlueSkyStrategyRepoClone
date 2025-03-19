@@ -26,6 +26,12 @@ CarUpdate V2Car::compute_travel_update(Coord coord_one,
   const double delta_time = calc_time(init_speed, acceleration, delta_distance);
   const double delta_altitude = coord_two.alt - coord_one.alt;
   const double sin_angle = delta_altitude / delta_distance;
+  const double base_squared = delta_distance * delta_distance - delta_altitude * delta_altitude;
+  if (base_squared < 0.0) {
+    throw InvalidCalculation("Negative square root in base calculation error.");
+  }
+  const double base_distance = std::sqrt(base_squared);
+  const double cos_angle = base_distance / delta_distance;
 
   EnergyChange aero_loss;
   EnergyChange rolling_loss;
@@ -37,7 +43,7 @@ CarUpdate V2Car::compute_travel_update(Coord coord_one,
     // When decelerating, we must ensure that the maximum braking force is not exceeded
     // Use init_speed since it will be the maximum speed
     aero_loss = compute_aero_loss(init_speed, bearing, wind, 0.0);
-    rolling_loss = compute_rolling_loss(init_speed, 0.0);
+    rolling_loss = compute_rolling_loss(init_speed, 0.0, cos_angle);
     gravity_loss = compute_gravitational_loss(delta_distance, 0.0, sin_angle);
 
     const double resistive_force = aero_loss.force + rolling_loss.force + gravity_loss.force;
@@ -52,7 +58,7 @@ CarUpdate V2Car::compute_travel_update(Coord coord_one,
                     0.0, 0.0, bearing, electric_loss, delta_battery, delta_distance, delta_time);
   } else if (acceleration == 0.0) {
     aero_loss = compute_aero_loss(init_speed, bearing, wind, delta_time);
-    rolling_loss = compute_rolling_loss(init_speed, delta_time);
+    rolling_loss = compute_rolling_loss(init_speed, delta_time, cos_angle);
     gravity_loss = compute_gravitational_loss(delta_distance, delta_time, sin_angle);
     double motor_power = aero_loss.power + rolling_loss.power + gravity_loss.power;
     double motor_loss = aero_loss.energy + rolling_loss.energy + gravity_loss.energy;
@@ -102,13 +108,18 @@ CarUpdate V2Car::compute_travel_update(Coord coord_one,
         rolling_power_data[i] = 0.0;
       } else {
         aero_loss = compute_aero_loss(speed, bearing, wind, timestep);
-        rolling_loss = compute_rolling_loss(speed, timestep);
+        rolling_loss = compute_rolling_loss(speed, timestep, cos_angle);
         const double acceleration_power = mass * acceleration * speed;
 
         aero_power_data[i] = aero_loss.power;
         rolling_power_data[i] = rolling_loss.power;
         acceleration_power_data[i] = acceleration_power;
         gravity_power_data[i] = gravity_loss.power;
+        const double instataneous_motor_power = aero_loss.power + rolling_loss.power +
+        acceleration_power + gravity_loss.power;
+        if (instataneous_motor_power > max_motor_power) {
+          throw InvalidCalculation("Maximum motor power exceeded");
+        }
       }
 
       timestep_data[i] = time;
@@ -151,4 +162,5 @@ CarUpdate V2Car::compute_travel_update(Coord coord_one,
 V2Car::V2Car() : V1Car() {tire_inertia = Config::get_instance()->get_tire_inertia();
                           num_tires = Config::get_instance()->get_num_tires();
                           tire_radius = Config::get_instance()->get_tire_radius();
-                          max_braking_force = Config::get_instance()->get_max_deceleration() * mass;}
+                          max_braking_force = Config::get_instance()->get_max_deceleration() * mass;
+                          max_motor_power = kwh2watts(Config::get_instance()->get_max_motor_power());}

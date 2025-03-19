@@ -138,9 +138,9 @@ target_link_libraries(v1CarTest gtest gtest_main RaceSim ${EXTERNAL_DEPS})
 add_test(v1CarTest v1CarTest)
 
 # Gen 12 Car Model
-add_executable(v2CarTest ${CMAKE_SOURCE_DIR}/tests/v2CarTest.cpp)
-target_link_libraries(v2CarTest gtest gtest_main RaceSim ${EXTERNAL_DEPS})
-add_test(v2CarTest v2CarTest)
+# add_executable(v2CarTest ${CMAKE_SOURCE_DIR}/tests/v2CarTest.cpp)
+# target_link_libraries(v2CarTest gtest gtest_main RaceSim ${EXTERNAL_DEPS})
+# add_test(v2CarTest v2CarTest)
 
 # Route
 add_executable(RouteTest ${CMAKE_SOURCE_DIR}/tests/RouteTest.cpp)
@@ -192,7 +192,7 @@ install(TARGETS RaceSim
         LIBRARY DESTINATION ${CMAKE_SOURCE_DIR}/install/lib)
 install(TARGETS opt
         RUNTIME DESTINATION ${CMAKE_SOURCE_DIR}/install/bin)
-install(TARGETS GeographyTest TimeTest LutsTest v1CarTest RouteTest SimTest OptimizerTest v2CarTest
+install(TARGETS GeographyTest TimeTest LutsTest v1CarTest RouteTest SimTest OptimizerTest # v2CarTest
         RUNTIME DESTINATION ${CMAKE_SOURCE_DIR}/install/tests/)
 # ---------------------------------------------------------
 

@@ -46,8 +46,9 @@ class Car {
    *
    * @param speed: Speed of the car in m/s
    * @param delta_time: Time interval in seconds
+   * @param cos_theta: cos(elevation angle of the slant)
    */
-  virtual EnergyChange compute_rolling_loss(double speed, double delta_time) = 0;
+  virtual EnergyChange compute_rolling_loss(double speed, double delta_time, double cos_theta) = 0;
 
   /** @brief Compute the gravitational loss over a time period
    *
