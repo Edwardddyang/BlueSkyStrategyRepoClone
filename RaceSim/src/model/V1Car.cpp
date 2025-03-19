@@ -7,25 +7,26 @@ Model of the car implemented for gen 11.5
 
 #include "model/V1Car.hpp"
 #include "utils/Geography.hpp"
+#include "utils/CustomException.hpp"
 
 EnergyChange V1Car::compute_aero_loss(double speed, double car_bearing, Wind wind, double delta_time) {
-  double speed_relative_to_wind = get_speed_relative_to_wind(speed, car_bearing, wind);
-  double force = 0.5 * air_density * cda * pow(speed_relative_to_wind, 2);
-  double power = force * speed;  // Watt = Newton * m/s
-  double energy = watts2kwh(delta_time, power);
+  const double speed_relative_to_wind = get_speed_relative_to_wind(speed, car_bearing, wind);  // m/s
+  const double force = 0.5 * air_density * cda * pow(speed_relative_to_wind, 2);  // N
+  const double power = force * speed;  // Watt = Newton * m/s
+  const double energy = watts2kwh(delta_time, power);  // kwh
 
   return EnergyChange(power, energy, force);
 }
 
-EnergyChange V1Car::compute_rolling_loss(double speed, double delta_time) {
-  double y_int_rr = yint_rolling_resistance.get_value(tire_pressure, mps2kph(speed));
-  double slope_rr = slope_rolling_resistance.get_value(tire_pressure, mps2kph(speed));
+EnergyChange V1Car::compute_rolling_loss(double speed, double delta_time, double cos_theta) {
+  const double y_int_rr = yint_rolling_resistance.get_value(tire_pressure, mps2kph(speed));
+  const double slope_rr = slope_rolling_resistance.get_value(tire_pressure, mps2kph(speed));
 
-  double force_scaling = (y_int_rr + slope_rr * speed);  // Unitless, slope_rr is units of s / m
-  double normal_force = mass * GRAVITY_ACCELERATION;  // N
-  double force = force_scaling * normal_force;
-  double power = force * speed;  // Watt = Newton * m/s
-  double energy = watts2kwh(delta_time, power);
+  const double rolling_coefficient = (y_int_rr + slope_rr * speed);  // Unitless, slope_rr is units of s / m
+  const double normal_force = mass * GRAVITY_ACCELERATION * cos_theta;  // N
+  const double force = rolling_coefficient * normal_force;  // N
+  const double power = force * speed;  // Watt = Newton * m/s
+  const double energy = watts2kwh(delta_time, power);  // kwh
 
   return EnergyChange(power, energy, force);
 }
@@ -33,7 +34,7 @@ EnergyChange V1Car::compute_rolling_loss(double speed, double delta_time) {
 EnergyChange V1Car::compute_gravitational_loss(double distance, double delta_time, double sin_theta) {
   const double force = mass * GRAVITY_ACCELERATION * sin_theta;  // N
   const double power = force * distance;  // Joule = Newton * m
-  const double energy = joules2kwh(power);
+  const double energy = joules2kwh(power);  // kwh
 
   return EnergyChange(joules2watts(power, delta_time), energy, force);
 }
@@ -43,9 +44,9 @@ double V1Car::compute_electric_loss(double delta_time) {
 }
 
 EnergyChange V1Car::compute_array_gain(double delta_time, double dni, double dhi, double az, double el) {
-  double power_factor = power_factors.get_value(round(el), round(az));  // Unitless
-  double power = (power_factor * dni) + (dhi * array_efficiency * array_area);  // Watts
-  double energy = watts2kwh(delta_time, power);
+  const double power_factor = power_factors.get_value(round(el), round(az));  // Unitless
+  const double power = (power_factor * dni) + (dhi * array_efficiency * array_area);  // Watts
+  const double energy = watts2kwh(delta_time, power);  // kwh
   return EnergyChange(power, energy);
 }
 
@@ -76,6 +77,12 @@ CarUpdate V1Car::compute_travel_update(Coord coord_one, Coord coord_two, double 
   const double delta_time = delta_distance / init_speed;
   const double delta_altitude = coord_two.alt - coord_one.alt;
   const double sin_angle = delta_altitude / delta_distance;
+  const double base_squared = delta_distance * delta_distance - delta_altitude * delta_altitude;
+  if (base_squared < 0.0) {
+    throw InvalidCalculation("Negative square root in base calculation error.");
+  }
+  const double base_distance = std::sqrt(base_squared);
+  const double cos_angle = base_distance / delta_distance;
 
   /* Calculate energy losses */
   double electric_loss = compute_electric_loss(delta_time);
@@ -87,7 +94,7 @@ CarUpdate V1Car::compute_travel_update(Coord coord_one, Coord coord_two, double 
   // Ensure that motor power does not exceed its maximum draw
   while (init_speed > 0) {
     aero_loss = compute_aero_loss(init_speed, bearing, wind, delta_time);
-    rolling_loss = compute_rolling_loss(init_speed, delta_time);
+    rolling_loss = compute_rolling_loss(init_speed, delta_time, cos_angle);
     gravity_loss = compute_gravitational_loss(distance, delta_time, sin_angle);
 
     motor_loss = aero_loss.energy + rolling_loss.energy + gravity_loss.energy;
