@@ -354,6 +354,10 @@ RacePlan Route::segment_route_acceleration(const unsigned segment_idx_seed,
                                                               corner_start,
                                                               segment_speed.second,
                                                               max_corner_speed * 0.95);  // Keep the driver safe
+          if (deceleration_start_idx == 0) {
+            return RacePlan("Too much backoff");  
+          }
+
           if (std::abs(deceleration) > max_acceleration) {
             deceleration_start_idx--;
           } else {
