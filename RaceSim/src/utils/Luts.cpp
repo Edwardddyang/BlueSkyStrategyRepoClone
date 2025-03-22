@@ -44,7 +44,8 @@ void BasicLut::load_LUT() {
 
 double BasicLut::get_value(size_t row_idx, size_t col_idx) const {
   RUNTIME_EXCEPTION(0 <= row_idx && row_idx < num_rows && col_idx < num_cols && col_idx >= 0,
-                    "Invalid access in BasicLut {}", lut_path.string());
+                    "Invalid access in BasicLut {} with {} rows and {} cols. Attempted access on row {}, col {}",
+                    lut_path.string(), num_rows, num_cols, row_idx, col_idx);
   return values[row_idx][col_idx];
 }
 

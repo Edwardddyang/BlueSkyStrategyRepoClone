@@ -9,6 +9,7 @@ if __name__ == "__main__":
   parser.add_argument("--convert_km", action="store_true", help="Convert altitude from m to km")
   parser.add_argument("--csv", type=str, default=None, help="Path to csv")
   parser.add_argument("--output_csv", type=str, default="out.csv", help="Output csv name")
+  parser.add_argument("--index_rows", action="store_true", help="Attach an index column")
 
   args = parser.parse_args()
   if args.csv is None:
@@ -22,4 +23,4 @@ if __name__ == "__main__":
   if (args.convert_km):
     df[args.alt_column] = df[args.alt_column] / 1000
 
-  df.to_csv(args.output_csv, index=False, header=False)
+  df.to_csv(args.output_csv, index=args.index_rows, header=False)

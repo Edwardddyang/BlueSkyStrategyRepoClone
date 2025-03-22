@@ -68,7 +68,9 @@ class RacePlan {
            std::vector<std::vector<std::pair<double, double>>> segment_speeds,
            std::vector<std::vector<bool>> acceleration_segments = {},
            std::vector<std::vector<double>> acceleration = {});
-  explicit RacePlan(std::string inviability_reason) { reason_for_inviability = inviability_reason; viable = false; }
+  explicit RacePlan(std::string inviability_reason) : empty(true) {
+    reason_for_inviability = inviability_reason; viable = false;
+  }
 
   inline std::vector<std::vector<std::pair<size_t, size_t>>> get_segments() const {return segments;}
   inline std::vector<std::vector<std::pair<double, double>>> get_speed_profile() const {return segment_speeds;}

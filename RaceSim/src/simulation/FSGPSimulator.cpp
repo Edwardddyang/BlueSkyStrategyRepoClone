@@ -12,7 +12,12 @@ void FSGPSimulator::run_sim(const std::shared_ptr<Route>& route, RacePlan* race_
   RUNTIME_EXCEPTION(route != nullptr, "Route pointer is null");
   RUNTIME_EXCEPTION(results_lut != nullptr, "Results lut is null");
   RUNTIME_EXCEPTION(race_plan != nullptr, "Race plan is null");
-  RUNTIME_EXCEPTION(race_plan->validate_members(route->get_route_points()), "Race Plan is improperly created");
+  if (race_plan->is_empty()) {
+    std::cout << "Empty race plan, reason: " << race_plan->get_inviability_reason() << std::endl;
+    return;
+  } else {
+    RUNTIME_EXCEPTION(race_plan->validate_members(route->get_route_points()), "Race Plan is improperly created");
+  }
   const BasicLut& route_distances = route->get_precomputed_distances();
   RUNTIME_EXCEPTION(!route_distances.is_empty(), "FSGP Simulator must use pre-computed distances,"
                                                  "but no data was loaded");
