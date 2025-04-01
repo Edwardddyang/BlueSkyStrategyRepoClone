@@ -63,6 +63,10 @@ CarUpdate V2Car::compute_travel_update(Coord coord_one,
     double motor_power = aero_loss.power + rolling_loss.power + gravity_loss.power;
     double motor_loss = aero_loss.energy + rolling_loss.energy + gravity_loss.energy;
 
+    // If the instataneous power draw from the motor is too high, then error out
+    if (motor_power > max_motor_power) {
+      throw InvalidCalculation("Maximum motor power exceeded during constant speed segment");
+    }
     // If the energy draw is negative i.e. resistive forces propel the car forward, assume we don't
     // draw energy from the motor
     if (motor_loss < 0.0) {
@@ -116,9 +120,9 @@ CarUpdate V2Car::compute_travel_update(Coord coord_one,
         acceleration_power_data[i] = acceleration_power;
         gravity_power_data[i] = gravity_loss.power;
         const double instataneous_motor_power = aero_loss.power + rolling_loss.power +
-        acceleration_power + gravity_loss.power;
+                                                acceleration_power + gravity_loss.power;
         if (instataneous_motor_power > max_motor_power) {
-          throw InvalidCalculation("Maximum motor power exceeded");
+          throw InvalidCalculation("Maximum motor power exceeded during acceleration segment");
         }
       }
 
@@ -163,4 +167,4 @@ V2Car::V2Car() : V1Car() {tire_inertia = Config::get_instance()->get_tire_inerti
                           num_tires = Config::get_instance()->get_num_tires();
                           tire_radius = Config::get_instance()->get_tire_radius();
                           max_braking_force = Config::get_instance()->get_max_deceleration() * mass;
-                          max_motor_power = kwh2watts(Config::get_instance()->get_max_motor_power());}
+                          max_motor_power = kwh2wh(Config::get_instance()->get_max_motor_power());}

@@ -38,11 +38,20 @@ RacePlan V2Optimizer::optimize() {
     unsigned int acceleration_seed = dis(gen);
     unsigned int loop_seed = dis(gen);
     unsigned int skip_seed = dis(gen);
-    race_plan = route->segment_route_acceleration(idx_seed, speed_seed, acceleration_seed,
-                                                  skip_seed, loop_seed,
-                                                  Config::get_instance()->get_max_num_loops(),
-                                                  kph2mps(Config::get_instance()->get_max_car_speed()),
-                                                  Config::get_instance()->get_max_deceleration());
+    race_plan = route->segment_route_corners(Config::get_instance()->get_max_num_loops(),
+                                             Config::get_instance()->get_car_mass(),
+                                             kph2mps(Config::get_instance()->get_max_route_speed()),
+                                             kw2watts(Config::get_instance()->get_max_motor_power()),
+                                             Config::get_instance()->get_max_acceleration(),
+                                             Config::get_instance()->get_max_deceleration());
+    // race_plan = route->segment_route_acceleration(idx_seed, speed_seed, acceleration_seed,
+    //                                               skip_seed, loop_seed,
+    //                                               Config::get_instance()->get_max_num_loops(),
+    //                                               Config::get_instance()->get_car_mass(),
+    //                                               kph2mps(Config::get_instance()->get_max_car_speed()),
+    //                                               kw2watts(Config::get_instance()->get_max_motor_power()),
+    //                                               Config::get_instance()->get_max_acceleration(),
+    //                                               Config::get_instance()->get_max_deceleration());
     race_plan.print_plan();
     auto start = std::chrono::high_resolution_clock::now();
     simulator->run_sim(route, &race_plan, result_lut);

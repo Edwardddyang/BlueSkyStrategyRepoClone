@@ -11,6 +11,7 @@
 #include <vector>
 #include <unordered_set>
 #include <limits>
+#include <utility>
 
 #include "utils/Units.hpp"
 #include "utils/Luts.hpp"
@@ -125,14 +126,42 @@ class Route {
   /* Maximum speed of cornering segments */
   std::vector<double> cornering_speed_bounds;
 
-  /* Speed bounds */
-  std::vector<double> max_speed;
-
   /* Lookup table for all distances between any two points. Should be num_points x num_points*/
   BasicLut route_distances;
 
   /* Longest straight path */
   double longest_straight;
+
+  /* Maximum speed of the route (mps) - comes from regulations */
+  double max_route_speed;
+
+  /** @brief Helper function to segment_route_acceleration that determines the set of speeds
+   * valid for a particular acceleration to not exceed the maximum motor power
+   *
+   * @param acceleration acceleration in m/s^2
+   * @param mass Mass of the car in kg
+   * @param max_car_speed Maximum speed of the car in m/s
+   * @param max_motor_power Maximum motor power in W
+   * @return {min_speed, max_speed} inclusive on both sides for the range of viable speeds
+   * If no speeds can be found, return {-1, -1}
+   */
+  std::pair<double, double> find_valid_speeds(const double& acceleration, const double& mass,
+    const double& max_car_speed, const double& max_motor_power);
+
+  /** @brief Helper function to segment_route_acceleration to determine if an acceleration a < max_bound exists
+  * such that given some initial speed, distance to cover and acceptable ending speed range, the acceleration will
+  * take the initial speed to some final speed within the acceptable range
+  *
+  * @param init_speed Initial speed in m/s
+  * @param distance Distance to cover in m
+  * @param speed_range Range of [min_speed, max_speed] inclusive on both sides. Units in m/s
+  * @param deceleration_bound Maximum deceleration magnitude in m/s^2
+  * @param acceleration_bound Maximum acceleration magnitude in m/s^2
+  */
+  bool does_acceleration_exist(double init_speed, double distance,
+                                std::pair<double, double> speed_range,
+                                double deceleration_bound,
+                                double acceleration_bound);
 
  public:
   /** @brief Load information about the race route
@@ -192,8 +221,11 @@ class Route {
    * @param skip_seed Random seed for skipping acceleration segments
    * @param loop_seed Random seed for selecting the number of loops to complete
    * @param max_num_loops Maximum possible number of loops around the track
+   * @param car_mass Car mass in kg
    * @param max_speed Maximum speed of the car in m/s
-   * @param max_acceleration Maximum magnitude for acceleration and deceleration in m/s^2
+   * @param max_motor_power Maximum instataneous motor power draw from the motor
+   * @param max_acceleration Maximum magnitude for acceleration in m/s^2
+   * @param max_deceleration Maximum magnitude for deceleration ini m/s^2
    * @param max_iterations Maximum number of iterations when searching for speeds/accelerations/indices
    * This is to prevent hanging from infinite loops
    * 
@@ -205,9 +237,58 @@ class Route {
                                       const unsigned skip_seed,
                                       const unsigned loop_seed,
                                       const int max_num_loops,
+                                      const double car_mass,
                                       const double max_speed,
+                                      const double max_motor_power,
                                       const double max_acceleration,
+                                      const double max_deceleration,
                                       const int max_iters = 1000);
+
+  /** @brief Segment a rourte by assigning corner speeds
+   *
+   * @param speed_seed Random seed for selecting speeds
+   * @param loop_seed Random seed for selecting number of loops to complete
+   * @param aggressive_seed Random seed for taking a straight aggressively
+   * @param idx_seed Random seed for selecting route indices
+   * @param max_num_loops Maximum number of loops
+   * @param car_mass Mass of the car in kg
+   * @param max_speed Maximum speed of the car in m/s
+   * @param max_motor_power Maximum instataneous motor power draw from the motor in W
+   * @param max_acceleration Maximum magnitude for acceleration in m/s^2
+   * @param max_deceleration Maximum magnitude for deceleration in m/s^2
+   * @param preferred_acceleration Magnitude of preferred acceleration value
+   * @param preferred_deceleration Magnitude of preferred deceleration value
+   * @param corner_speed_min The fractional value to clamp the lower bound of speed ranges
+   * @param corner_speed_max The fractional value to clamp the upper bound of speed ranges
+   * @param aggressive_straight_threshold Threshold value in meters to take a straight aggressively
+   * This means accelerating out of a corner and decelerating into the next corner
+   * @param num_repetitions Number of loops to repeat in a single chunk
+   * @param acceleration_power_budget Fraction of total motor power that can be allocated to
+   * acceleration
+   * @param max_iters Number of iterations to try selecting a corner speed until we give up and return
+   * empty
+   * @param log Whether to log the segmentation process to a file
+   */
+  RacePlan segment_route_corners(const int max_num_loops,
+                                 const double car_mass,
+                                 const double max_speed,
+                                 const double max_motor_power,
+                                 const double max_acceleration,
+                                 const double max_deceleration,
+                                 const double preferred_acceleration = 1.0,
+                                 const double preferred_deceleration = 1.0,
+                                 const unsigned speed_seed = 1,
+                                 const unsigned loop_seed = 1,
+                                 const unsigned aggressive_seed = 1,
+                                 const unsigned idx_seed = 1,
+                                 const unsigned acceleration_seed = 1,
+                                 const double corner_speed_min = 0.05,
+                                 const double corner_speed_max = 0.9,
+                                 const double aggressive_straight_threshold = 200.0,
+                                 const int num_repetitions = 5,
+                                 const double acceleration_power_budget = 0.5,
+                                 const int max_iters = 1000,
+                                 bool log = true);
 
   /** @brief Find segment length
    *

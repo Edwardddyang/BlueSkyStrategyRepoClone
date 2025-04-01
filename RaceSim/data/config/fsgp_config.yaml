@@ -3,14 +3,15 @@
 /Car: # Car characterizationss
   max_soc: 5.2 # kwh
   max_car_speed: 104 # kph
+  max_acceleration: 2.0 # m/s^2
   max_deceleration: 3.0 # m/s^2
   tire_pressure: 5.5 # bar
   array_area: 3.98 # m^2
-  car_mass: 305 # in kg
+  car_mass: 284 # in kg
   air_density: 1.17 # in kg/m^3
   passive_electric_loss: 20 # in w
   cda: 0.12
-  max_motor_power: 5.0 # in kwh
+  max_motor_power: 5.0 # in kw
   array_power_max: 950 # in W
   array_efficiency: 0.252 
   motor_efficiency: 0.9
@@ -49,6 +50,7 @@
   impounding_start_time: 20:00:00 # HH:MM:SS of the nightly battery impounding time
   overnight_charging_location: 37.000823,-86.367676,0.157135 # Coordinates of the charging location
   max_num_loops: 3 # Maximum number of loops that can be completed
+  max_route_speed: 108 # kph - comes from FSGP regulations
 
 \Telemetry: # Current state of the car
   current_soc: 5.2 # in kWh, should be <= max_soc

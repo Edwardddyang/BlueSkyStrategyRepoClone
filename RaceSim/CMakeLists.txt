@@ -66,6 +66,7 @@ set(UTILS_SOURCES
     src/utils/Geography.cpp
     src/utils/Luts.cpp
     src/utils/Utilities.cpp
+    src/utils/Logger.cpp
 )
 set(RACESIM_SOURCES
     ${CONFIG_SOURCES}

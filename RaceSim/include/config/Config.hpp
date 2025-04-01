@@ -35,7 +35,9 @@
   PARAM(cda, double, double, 0.16)                                                          \
   PARAM(max_motor_power, double, double, 5.0)                                               \
   PARAM(max_car_speed, double, double, 104)                                                 \
-  PARAM(max_deceleration, double, double, 0.6152)                                           \
+  PARAM(max_route_speed, double, double, 104)                                               \
+  PARAM(max_acceleration, double, double, 2.0)                                              \
+  PARAM(max_deceleration, double, double, 3.0)                                              \
   PARAM(array_power_max, double, double, 950)                                               \
   PARAM(array_efficiency, double, double, 0.252)                                            \
   PARAM(motor_efficiency, double, double, 0.9)                                              \
