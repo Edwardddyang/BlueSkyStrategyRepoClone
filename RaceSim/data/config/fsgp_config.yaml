@@ -4,7 +4,7 @@
   max_soc: 5.2 # kwh
   max_car_speed: 104 # kph
   max_acceleration: 2.0 # m/s^2
-  max_deceleration: 3.0 # m/s^2
+  max_deceleration: -3.0 # m/s^2
   tire_pressure: 5.5 # bar
   array_area: 3.98 # m^2
   car_mass: 284 # in kg

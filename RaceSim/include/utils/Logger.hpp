@@ -11,9 +11,11 @@ class FileLogger {
  private:
   std::string file_name;
   std::ofstream file_stream;
+  bool log;
 
  public:
-  FileLogger(std::string file_name) : file_name(file_name) {
+  FileLogger(std::string file_name, bool use_logger = false) : file_name(file_name), log(use_logger) {
+    if (!use_logger) return;
     file_stream.open(file_name);
   }
   FileLogger() {}
@@ -28,6 +30,7 @@ class FileLogger {
   FileLogger& operator=(const FileLogger& other) {
     if (this != &other) {
       file_name = other.file_name;
+      log = other.log;
       if (file_stream.is_open()) {
         file_stream.close();
       }
@@ -40,8 +43,8 @@ class FileLogger {
 
   FileLogger& operator<<(const std::string text);
   FileLogger& operator<<(const char* txt);
-  void operator()(const std::string text, bool use_log = true, bool add_newline = true);
-  void operator()(const char* txt, bool use_log = true, bool add_newline = true);
+  void operator()(const std::string text, bool add_newline = true);
+  void operator()(const char* txt, bool add_newline = true);
 
   ~FileLogger() {
     if (file_stream.is_open()) {

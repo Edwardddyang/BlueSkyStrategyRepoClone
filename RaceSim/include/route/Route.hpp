@@ -276,7 +276,7 @@ class Route {
                                  const double max_acceleration,
                                  const double max_deceleration,
                                  const double preferred_acceleration = 1.0,
-                                 const double preferred_deceleration = 1.0,
+                                 const double preferred_deceleration = -1.0,
                                  const unsigned speed_seed = 1,
                                  const unsigned loop_seed = 1,
                                  const unsigned aggressive_seed = 1,

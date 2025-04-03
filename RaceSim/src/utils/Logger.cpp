@@ -12,8 +12,8 @@ FileLogger& FileLogger::operator<<(const char* txt) {
   return *this;
 }
 
-void FileLogger::operator()(const std::string text, bool use_log, bool add_newline) {
-  if (!use_log) {
+void FileLogger::operator()(const std::string text, bool add_newline) {
+  if (!log) {
     return;
   }
 
@@ -25,8 +25,8 @@ void FileLogger::operator()(const std::string text, bool use_log, bool add_newli
   file_stream.flush();
 }
 
-void FileLogger::operator()(const char* txt, bool use_log, bool add_newline) {
-  if (!use_log) {
+void FileLogger::operator()(const char* txt, bool add_newline) {
+  if (!log) {
     return;
   }
 
