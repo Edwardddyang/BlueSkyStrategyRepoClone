@@ -50,6 +50,10 @@ class RacePlan {
   is true, then the car accelerates at a rate of acceleration[loop][segment] m/s */
   std::vector<std::vector<double>> acceleration;
 
+  /* 2D matrix where each row is a single loop of the track. Cell values are the distances covered by 
+     a segment in m */
+  std::vector<std::vector<double>> distances;
+
   // Note that acceleration.size() = acceleration_segments.size() = segments.size() = segment_speeds.size()
   // AND acceleration[i].size() = acceleration_segments[i].size() = segments[i].size() = segment_speeds[i].size()
   // for all i in the range of [0, acceleration.size()-1]
@@ -68,7 +72,8 @@ class RacePlan {
   RacePlan(std::vector<std::vector<std::pair<size_t, size_t>>> segments,
            std::vector<std::vector<std::pair<double, double>>> segment_speeds,
            std::vector<std::vector<bool>> acceleration_segments = {},
-           std::vector<std::vector<double>> acceleration = {});
+           std::vector<std::vector<double>> acceleration = {},
+           std::vector<std::vector<double>> distances = {});
   explicit RacePlan(std::string inviability_reason) : empty(true) {
     reason_for_inviability = inviability_reason; viable = false;
   }
@@ -77,6 +82,7 @@ class RacePlan {
   inline std::vector<std::vector<std::pair<double, double>>> get_speed_profile() const {return segment_speeds;}
   inline std::vector<std::vector<bool>> get_acceleration_segments() const {return acceleration_segments;}
   inline std::vector<std::vector<double>> get_acceleration_values() const {return acceleration;}
+  inline std::vector<std::vector<double>> get_distances() const {return distances;}
   inline std::string get_inviability_reason() const {return reason_for_inviability;}
   inline int get_num_loops() const {return num_loops;}
   inline bool is_viable() const {return viable;}
@@ -195,9 +201,6 @@ class Route {
   */
   void init_cornering_bounds(const std::filesystem::path cornering_bounds_path,
                              double max_car_speed = std::numeric_limits<double>::infinity());
-
-  /** @brief Initialize the straights, non-acceleration zones in the route */
-  void init_straights();
 
   /** @brief Read a num_points x num_points csv of pre-computed distances */
   void init_precomputed_distances(const std::filesystem::path precomputed_distances_path);

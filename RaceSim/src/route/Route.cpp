@@ -34,7 +34,6 @@ Route::Route(const std::filesystem::path route_path, const bool init_control_sto
   if (!cornering_bounds_path.empty()) {
     this->max_route_speed = kph2mps(Config::get_instance()->get_max_route_speed());
     this->init_cornering_bounds(cornering_bounds_path, kph2mps(Config::get_instance()->get_max_car_speed()));
-    this->init_straights();
   }
 
   if (!precomputed_distances_path.empty() && !precompute_distances) {
@@ -659,6 +658,7 @@ RacePlan Route::segment_route_corners(const int max_num_loops,
   std::vector<std::vector<std::pair<double, double>>> all_segment_speeds;
   std::vector<std::vector<bool>> all_acceleration_segments;
   std::vector<std::vector<double>> all_acceleration_values;
+  std::vector<std::vector<double>> all_segment_distances;
 
   // Randomly select the number of loops to complete
   std::uniform_int_distribution<unsigned int> dis(1, max_num_loops);
@@ -770,6 +770,7 @@ RacePlan Route::segment_route_corners(const int max_num_loops,
     std::vector<std::pair<double, double>> loop_segment_speeds;
     std::vector<bool> loop_acceleration_segments;
     std::vector<double> loop_acceleration_values;
+    std::vector<double> loop_segment_distances;
 
     // Labmda to add a new segment to the loop
     auto add_segment = [&]() {
@@ -777,6 +778,7 @@ RacePlan Route::segment_route_corners(const int max_num_loops,
       loop_segment_speeds.emplace_back(segment_speed);
       loop_acceleration_segments.emplace_back(acceleration);
       loop_acceleration_values.emplace_back(acceleration_value);
+      loop_segment_distances.emplace_back(segment_distance);
     };
 
     // Lambda to convert segment information into a string (debugging purposes)
@@ -786,7 +788,7 @@ RacePlan Route::segment_route_corners(const int max_num_loops,
       ss << "Segment Distance: " << segment_distance << "m\n";
       ss << "Segment Speeds: [" << segment_speed.first << "," << segment_speed.second << "]\n";
       ss << "Acceleration: " << (acceleration ? "True\n" : "False\n");
-      ss << "Acceleration: " << acceleration_value << "\n";
+      ss << "Acceleration Value: " << acceleration_value << "\n";
       return ss.str();
     };
 
@@ -980,16 +982,16 @@ RacePlan Route::segment_route_corners(const int max_num_loops,
             // Select a location to start decelerating
             if (corner_start - 1 < acceleration_end_idx) {
               // Crossover from one loop to the next
-              idx_dist = std::uniform_int_distribution<size_t>(acceleration_end_idx,
+              idx_dist = std::uniform_int_distribution<size_t>(acceleration_end_idx + 1,
                                                                this->num_points + corner_start - 1);
               logger("Created deceleration index distribution with lower bound " +
-                    std::to_string(acceleration_end_idx) +
+                    std::to_string(acceleration_end_idx + 1) +
                     " and upper bound " + std::to_string(this->num_points + corner_start) +
                     ". This is crossover from one loop to the next");
             } else {
-              idx_dist = std::uniform_int_distribution<size_t>(acceleration_end_idx, corner_start - 1);
+              idx_dist = std::uniform_int_distribution<size_t>(acceleration_end_idx + 1, corner_start - 1);
               logger("Created deceleration index distribution with lower bound " +
-                    std::to_string(acceleration_end_idx) +
+                    std::to_string(acceleration_end_idx + 1) +
                     " and upper bound " + std::to_string(corner_start-1));
             }
             deceleration_start_idx = idx_dist(idx_rng);
@@ -1166,7 +1168,7 @@ RacePlan Route::segment_route_corners(const int max_num_loops,
             // Add the acceleration segment
             segment = {last_real_corner_end, acceleration_end_idx};
             segment_speed = {last_real_corner_speed, proposed_corner_speed};
-            segment_distance = route_distances.get_value(segment.second, acceleration_end_idx);
+            segment_distance = route_distances.get_value(last_real_corner_end, acceleration_end_idx);
             acceleration = true;
             acceleration_value = preferred_acceleration;
             add_segment();
@@ -1271,9 +1273,11 @@ RacePlan Route::segment_route_corners(const int max_num_loops,
     all_segment_speeds.push_back(loop_segment_speeds);
     all_acceleration_segments.push_back(loop_acceleration_segments);
     all_acceleration_values.push_back(loop_acceleration_values);
+    all_segment_distances.push_back(loop_segment_distances);
   }
 
-  return RacePlan(all_segments, all_segment_speeds, all_acceleration_segments, all_acceleration_values);
+  return RacePlan(all_segments, all_segment_speeds, all_acceleration_segments,
+                  all_acceleration_values, all_segment_distances);
 }
 
 void Route::init_cornering_bounds(const std::filesystem::path cornering_bounds_path,
@@ -1314,16 +1318,6 @@ void Route::init_cornering_bounds(const std::filesystem::path cornering_bounds_p
   }
 }
 
-void Route::init_straights() {
-  if (cornering_segment_bounds.size() == 0) {
-    straight_segment_bounds.push_back({0, num_points-1});
-    return;
-  }
-
-  const size_t num_corners = cornering_segment_bounds.size();
-  for (size_t i=0; i < num_corners; i++) {
-  }
-}
 
 double Route::get_segment_length(const size_t start_idx, const size_t end_idx) const {
   RUNTIME_EXCEPTION(route_points.size() > 0, "Route points not loaded");
@@ -1372,43 +1366,70 @@ void Route::init_longest_straight() {
 }
 
 void RacePlan::print_plan() const {
-  std::cout << "---------Segments---------" << std::endl;
-  for (size_t i=0; i < segments.size(); i++) {
-    std::cout << "Loop " << i+1 << " -> ";
-    for (size_t j=0; j < segments[i].size(); j++) {
-      std::cout << "[" << segments[i][j].first << "," << segments[i][j].second << "]";
-      if (j == segments[i].size()-1) {
-        std::cout << "\n";
-      } else {
-        std::cout << ",";
+  const size_t num_loops = segments.size();
+
+  auto print_spaces = [](size_t num_spaces) {
+    for (size_t i = 0; i < num_spaces; i++) {
+      std::cout << " ";
+    }
+    std::cout << std::flush;
+  };
+
+  const bool print_distances = distances.size() > 0;
+  auto print_header = [&]() {
+    if (print_distances) {
+      std::cout << "+-----------+---------------+-----------------------+----------------" << std::endl;
+      std::cout << "; Segments  ; Speeds (m/s)  ; Acceleration (m/s^2)  ; Distances (m) ;" << std::endl;
+      std::cout << "+-----------+---------------+-----------------------+----------------" << std::endl;
+    } else {
+      std::cout << "+-----------+---------------+-----------------------+" << std::endl;
+      std::cout << "; Segments  ; Speeds (m/s)  ; Acceleration (m/s^2)  ;" << std::endl;
+      std::cout << "+-----------+---------------+-----------------------+" << std::endl;
+    }
+  };
+
+  for (size_t loop_idx = 0; loop_idx < num_loops; loop_idx++) {
+    std::cout << "\nLOOP " << loop_idx << std::endl;
+    print_header();
+
+    const size_t num_segments = segments[loop_idx].size();
+    for (size_t seg_idx = 0; seg_idx < num_segments; seg_idx++) {
+      std::cout << "| [" << std::setw(3) << segments[loop_idx][seg_idx].first << ","
+                << std::setw(3) << segments[loop_idx][seg_idx].second << "] |";
+      print_spaces(6);
+      std::cout << "[" << std::setw(3) << segment_speeds[loop_idx][seg_idx].first << ","
+                << std::setw(3) << segment_speeds[loop_idx][seg_idx].second << "] |";
+      print_spaces(18);
+      // Truncate the acceleration
+      std::ostringstream oss;
+      oss << acceleration[loop_idx][seg_idx];
+      std::string num_str = oss.str();
+      if (num_str.size() > 5) {
+        num_str = num_str.substr(0, 5);
       }
+      std::cout << std::setw(5) << num_str;
+      std::cout << "|";
+
+      if (print_distances) {
+        // Truncate the distance
+        print_spaces(9);
+        std::ostringstream dss;
+        dss << distances[loop_idx][seg_idx];
+        std::string dist_str = dss.str();
+        if (dist_str.size() > 5) {
+          dist_str = dist_str.substr(0, 5);
+        }
+        std::cout << std::setw(5) << dist_str;
+        std::cout << "|";
+      }
+      std::cout << std::endl;
+    }
+    if (print_distances) {
+      std::cout << "---------------------------------------------------------------------" << std::endl;
+    } else {
+      std::cout << "-----------------------------------------------------" << std::endl;
     }
   }
-  std::cout << "------Segment Speeds------" << std::endl;
-  for (size_t i=0; i < segment_speeds.size(); i++) {
-    std::cout << "Loop " << i+1 << " -> ";
-    for (size_t j=0; j < segment_speeds[i].size(); j++) {
-      std::cout << "[" << segment_speeds[i][j].first << "," << segment_speeds[i][j].second << "]";
-      if (j == segment_speeds[i].size()-1) {
-        std::cout << "\n";
-      } else {
-        std::cout << ",";
-      }
-    }
-  }
-  std::cout << "-------Acceleration-------" << std::endl;
-  for (size_t i=0; i < acceleration.size(); i++) {
-    std::cout << "Loop " << i+1 << " -> ";
-    for (size_t j=0; j < acceleration[i].size(); j++) {
-      std::cout << "[" << acceleration[i][j] << "]";
-      if (j == acceleration[i].size()-1) {
-        std::cout << "\n";
-      } else {
-        std::cout << ",";
-      }
-    }
-  }
-  std::cout << std::flush;
 }
 
 bool RacePlan::validate_members(const std::vector<Coord>& route_points) const {
@@ -1489,15 +1510,18 @@ bool RacePlan::validate_members(const std::vector<Coord>& route_points) const {
 RacePlan::RacePlan(std::vector<std::vector<std::pair<size_t, size_t>>> segments,
                    std::vector<std::vector<std::pair<double, double>>> segment_speeds,
                    std::vector<std::vector<bool>> acceleration_segments,
-                   std::vector<std::vector<double>> acceleration)
+                   std::vector<std::vector<double>> acceleration,
+                   std::vector<std::vector<double>> distances)
                   : segments(segments), segment_speeds(segment_speeds), acceleration_segments(acceleration_segments),
-                  acceleration(acceleration) {
+                  acceleration(acceleration), distances(distances) {
   if (acceleration_segments.size() == 0 || acceleration.size() == 0) {
     this->acceleration_segments.resize(segments.size());
     this->acceleration.resize(segments.size());
+    this->distances.resize(segments.size());
     for (size_t i=0; i < segments.size(); i++) {
       this->acceleration_segments[i] = std::vector<bool>(segments[i].size(), false);
       this->acceleration[i] = std::vector<double>(segments.size(), 0.0);
+      this->distances[i] = std::vector<double>(segments.size(), 0.0);
     }
   }
 
