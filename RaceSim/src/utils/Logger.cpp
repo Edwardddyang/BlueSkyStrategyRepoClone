@@ -1,4 +1,5 @@
 #include "utils/Logger.hpp"
+#include <string>
 
 FileLogger& FileLogger::operator<<(const std::string text) {
   file_stream << text << "\n";

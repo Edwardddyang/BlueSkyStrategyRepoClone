@@ -2,9 +2,10 @@
 
 #pragma once
 
+#include <stdlib.h>
+
 #include <fstream>
 #include <iostream>
-#include <stdlib.h>
 #include <string>
 
 class FileLogger {
@@ -14,7 +15,7 @@ class FileLogger {
   bool log;
 
  public:
-  FileLogger(std::string file_name, bool use_logger = false) : file_name(file_name), log(use_logger) {
+  explicit FileLogger(std::string file_name, bool use_logger = false) : file_name(file_name), log(use_logger) {
     if (!use_logger) return;
     file_stream.open(file_name);
   }

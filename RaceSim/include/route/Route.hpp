@@ -123,6 +123,10 @@ class Route {
   /* Cornering segments */
   std::vector<std::pair<size_t, size_t>> cornering_segment_bounds;
 
+  /* Straight segments - straight_segment_bounds[i] denotes the straight segment between
+     corner index i - 1 and corner index i */
+  std::vector<std::pair<size_t, size_t>> straight_segment_bounds;
+
   /* Maximum speed of cornering segments */
   std::vector<double> cornering_speed_bounds;
 
@@ -191,6 +195,9 @@ class Route {
   */
   void init_cornering_bounds(const std::filesystem::path cornering_bounds_path,
                              double max_car_speed = std::numeric_limits<double>::infinity());
+
+  /** @brief Initialize the straights, non-acceleration zones in the route */
+  void init_straights();
 
   /** @brief Read a num_points x num_points csv of pre-computed distances */
   void init_precomputed_distances(const std::filesystem::path precomputed_distances_path);
