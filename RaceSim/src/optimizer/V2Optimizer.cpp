@@ -62,6 +62,7 @@ RacePlan V2Optimizer::optimize() {
     race_plan_is_valid = race_plan.is_viable();
     idx++;
     spdlog::info("Tried {} race plans", idx);
+    exit(0);
   }
 
   bool save_csv = Config::get_instance()->get_save_csv();
