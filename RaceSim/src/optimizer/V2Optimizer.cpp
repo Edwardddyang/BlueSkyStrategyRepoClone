@@ -60,8 +60,15 @@ RacePlan V2Optimizer::optimize() {
     auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
     std::cout << "Function execution time: " << duration.count() << " microseconds" << std::endl;
     race_plan_is_valid = race_plan.is_viable();
-    idx++;
-    spdlog::info("Tried {} race plans", idx);
+    const std::string strat_root = Config::get_instance()->get_strat_root();
+    std::filesystem::path results_folder = std::filesystem::path(strat_root) / "Acceleration_Results";
+    std::filesystem::create_directory(results_folder);
+    result_lut->write_logs((results_folder / ("Acceleration.csv")).string());
+    if (!race_plan_is_valid) {
+      spdlog::info("Race plan was not valid. Reason: {}", race_plan.get_inviability_reason());
+    } else {
+      spdlog::info("Race plan is valid somehow");
+    }
     exit(0);
   }
 

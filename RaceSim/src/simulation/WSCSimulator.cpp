@@ -196,8 +196,8 @@ void WSCSimulator::run_sim(const std::shared_ptr<Route>& route, RacePlan* race_p
     }
 
     /* Compute state update of the car */
-    CarUpdate update = car->compute_travel_update(current_coord, next_coord, curr_speed, acceleration,
-                                                  &curr_time, wind, irr);
+    CarUpdate update = car->compute_travel_update(current_coord, next_coord, curr_speed,
+                                                  acceleration, &curr_time, wind, irr);
 
     /* Update the running state of the simulation */
     delta_energy += update.delta_energy;

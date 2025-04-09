@@ -96,6 +96,9 @@ class EffLut : public BaseLut<double> {
 
   /* Load a csv upon construction */
   explicit EffLut(const std::filesystem::path lut_path);
+
+  /* Empty constructor */
+  explicit EffLut() {}
 };
 
 /* Represents a forecast lookup table of double values. Is thread safe */

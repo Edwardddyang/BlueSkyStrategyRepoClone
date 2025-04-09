@@ -87,7 +87,9 @@ double calc_time(const double init_speed, const double acceleration, const doubl
   double discriminant = init_speed * init_speed + 2.0 * acceleration * distance;
 
   if (discriminant < 0.0) {
-    throw InvalidCalculation("Discriminant is negative");
+    throw InvalidCalculation("Discriminant is negative on acceleration time calculation with acceleration " +
+                             std::to_string(acceleration) + ", distance " + std::to_string(distance) +
+                             ", and initial speed " + std::to_string(init_speed));
   }
 
   double result_1 = (-1.0 * init_speed + std::sqrt(discriminant)) / acceleration;
@@ -109,6 +111,9 @@ double calc_acceleration(const double init_speed, const double final_speed, cons
 }
 
 double calc_final_speed_a(const double init_speed, const double acceleration, const double distance) {
+  if (acceleration == 0.0) {
+    return init_speed;
+  }
   RUNTIME_EXCEPTION(init_speed >= 0.0, "Cannot have negative speed in final speed calculation");
   const double sqrt_operand = init_speed * init_speed + 2 * acceleration * distance;
   if (sqrt_operand < 0.0) {

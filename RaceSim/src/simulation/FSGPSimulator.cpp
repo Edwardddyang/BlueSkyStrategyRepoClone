@@ -36,6 +36,7 @@ void FSGPSimulator::run_sim(const std::shared_ptr<Route>& route, RacePlan* race_
   Coord starting_coord = this->sim_start_coord;
   double delta_energy;
   double curr_speed;
+  double ending_speed;
   bool is_accelerating;
   double acceleration;
 
@@ -102,6 +103,7 @@ void FSGPSimulator::run_sim(const std::shared_ptr<Route>& route, RacePlan* race_
     is_accelerating = loop_segment_acceleration[segment_counter];
     acceleration = loop_segment_acceleration_values[segment_counter];
     curr_speed = segment_speeds.first;
+    ending_speed = segment_speeds.second;
 
     if (loop_idx == 0) {
       // Write starting condition of the car to the result csv
@@ -125,6 +127,7 @@ void FSGPSimulator::run_sim(const std::shared_ptr<Route>& route, RacePlan* race_
         is_accelerating = loop_segment_acceleration[segment_counter];
         acceleration = loop_segment_acceleration_values[segment_counter];
         curr_speed = segment_speeds.first;
+        ending_speed = segment_speeds.second;
       }
       const size_t coord_one = idx;
       const size_t coord_two = idx == num_points - 1 ? 0 : idx + 1;
@@ -203,21 +206,27 @@ void FSGPSimulator::run_sim(const std::shared_ptr<Route>& route, RacePlan* race_
 
       /* Compute state update of the car */
       try {
-        double distance;
+        double acceleration_distance;
+        double constant_distance;
         if (is_accelerating) {
           // When accelerating, we complete the segment in one shot from start_idx to end_idx
-          distance = route_distances.get_value(current_segment.first, current_segment.second);
+          acceleration_distance = calc_distance_a(curr_speed, ending_speed, acceleration);
+          constant_distance = route_distances.get_value(current_segment.first, current_segment.second)
+                              - acceleration_distance;
           car_update = car->compute_travel_update(route_points[current_segment.first],
                                                   route_points[current_segment.second],
-                                                  curr_speed, acceleration,
-                                                  &curr_time, wind, irr, distance);
+                                                  curr_speed, ending_speed, acceleration,
+                                                  &curr_time, wind, irr, acceleration_distance,
+                                                  constant_distance);
           // Move the loop index counter to the end of the segment - 1 (idx will +1 at the end
           // of the for loop)
           idx = current_segment.second - 1;
         } else {
-          distance = route_distances.get_value(coord_one, coord_two);
-          car_update = car->compute_travel_update(current_coord, next_coord, curr_speed, acceleration,
-                                                  &curr_time, wind, irr, distance);
+          acceleration_distance = 0.0;
+          constant_distance = route_distances.get_value(coord_one, coord_two);
+          car_update = car->compute_travel_update(current_coord, next_coord, curr_speed, curr_speed,
+                                                  acceleration, &curr_time, wind, irr, acceleration_distance,
+                                                  constant_distance);
         }
       } catch (const InvalidCalculation& e) {
         // Discriminant is negative. Some deceleration/acceleration cannot be completed and this race plan
@@ -267,4 +276,5 @@ FSGPSimulator::FSGPSimulator(std::shared_ptr<Car> model) :
   charging_coord(Config::get_instance()->get_overnight_charging_location()),
   impounding_start_time(Config::get_instance()->get_impounding_start_time()),
   impounding_release_time(Config::get_instance()->get_impounding_release_time()),
+  car(std::dynamic_pointer_cast<V2Car>(model)),
   WSCSimulator(model) {}

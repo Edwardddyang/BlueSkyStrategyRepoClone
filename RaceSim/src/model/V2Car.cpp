@@ -6,14 +6,17 @@
 #include "model/V2Car.hpp"
 #include "utils/CustomException.hpp"
 
+
 CarUpdate V2Car::compute_travel_update(Coord coord_one,
                                        Coord coord_two,
                                        double init_speed,
+                                       double final_speed,
                                        double acceleration,
                                        Time* time,
                                        Wind wind,
                                        Irradiance irr,
-                                       double distance) {
+                                       double acceleration_distance,
+                                       double constant_distance) {
   /* Get orientation of the car */
   const double bearing = get_bearing(coord_one, coord_two);
   SolarAngle az_el = get_az_el_from_bearing(bearing, coord_one, time);
@@ -22,8 +25,10 @@ CarUpdate V2Car::compute_travel_update(Coord coord_one,
   }
 
   /* Get time and distance travelled */
-  const double delta_distance = distance == -1.0 ? get_distance(coord_one, coord_two) : distance;
-  const double delta_time = calc_time(init_speed, acceleration, delta_distance);
+  const double delta_distance = acceleration_distance + constant_distance;
+  const double acceleration_ending_speed = calc_final_speed_a(init_speed, acceleration, acceleration_distance);
+  const double delta_time = calc_time(init_speed, acceleration, acceleration_distance) +
+                            calc_time(acceleration_ending_speed, 0.0, constant_distance);
   const double delta_altitude = coord_two.alt - coord_one.alt;
   const double sin_angle = delta_altitude / delta_distance;
   const double base_squared = delta_distance * delta_distance - delta_altitude * delta_altitude;
@@ -166,5 +171,5 @@ CarUpdate V2Car::compute_travel_update(Coord coord_one,
 V2Car::V2Car() : V1Car() {tire_inertia = Config::get_instance()->get_tire_inertia();
                           num_tires = Config::get_instance()->get_num_tires();
                           tire_radius = Config::get_instance()->get_tire_radius();
-                          max_braking_force = Config::get_instance()->get_max_deceleration() * mass;
+                          max_braking_force = std::abs(Config::get_instance()->get_max_deceleration()) * mass;
                           max_motor_power = kwh2wh(Config::get_instance()->get_max_motor_power());}

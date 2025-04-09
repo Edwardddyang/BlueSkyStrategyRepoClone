@@ -1511,7 +1511,7 @@ void RacePlan::print_plan() const {
     for (size_t seg_idx = 0; seg_idx < num_segments; seg_idx++) {
       std::cout << "| [" << std::setw(3) << segments[loop_idx][seg_idx].first << ","
                 << std::setw(3) << segments[loop_idx][seg_idx].second << "] |";
-      print_spaces(6);
+      print_spaces(5);
       std::cout << "[" << std::setw(3) << segment_speeds[loop_idx][seg_idx].first << ","
                 << std::setw(3) << segment_speeds[loop_idx][seg_idx].second << "] |";
       print_spaces(18);
@@ -1527,7 +1527,7 @@ void RacePlan::print_plan() const {
 
       if (print_distances) {
         // Truncate the distance
-        print_spaces(9);
+        print_spaces(10);
         std::ostringstream dss;
         dss << distances[loop_idx][seg_idx];
         std::string dist_str = dss.str();
