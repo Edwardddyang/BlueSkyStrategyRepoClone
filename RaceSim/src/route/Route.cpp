@@ -711,15 +711,18 @@ RacePlan Route::segment_route_corners(const int max_num_loops,
   logger("Randomly selected number of loops to complete: " + std::to_string(num_loops));
   logger("Motor power allowance is " + std::to_string(acceleration_power_allowance) + " W\n");
 
-  // NOTE:
-  // We use the phrase "route index" to denote an index in the route_points array
-  // We use the phrase "corner index" to denote an index in the cornering_segment_bounds array
+  ///////////////////////////////////////////////////////////////////////////////////
+  ////////////////////// NOTE ABOUT TERMINOLOGY USED ///////////////////////////////
+  ///////////////////////////////////////////////////////////////////////////////////
+  // "route index": Denotes an index in the route_points_array
+  // "corner index": Denotes an index in the cornering_segment_bouds array
+  // "real corner": A corner where the maximum cornering speed is less than the route's speed limit
 
-  // Construct plan loop by loop
-  bool is_first_segment = true;
   ///////////////////////////////////////////////////////////////////////////////////
   ///////////////////////// State variables for each corner /////////////////////////
   ///////////////////////////////////////////////////////////////////////////////////
+  // First corner of the first loop
+  bool is_first_segment = true;
 
   // Whether a straight is taken aggressively
   bool aggressive_straight = false;
@@ -776,28 +779,32 @@ RacePlan Route::segment_route_corners(const int max_num_loops,
   double acceleration_value = 0.0;
   double segment_distance = 0.0;
 
-  // Uniform distributions used to randomly select locations, speeds
-  // and accelerations
-  // Note that std::uniform_<type>_distribution is inclusive on both sides
-  std::uniform_int_distribution<size_t> idx_dist;
-  std::uniform_int_distribution<int> speed_dist;
-  std::uniform_real_distribution<double> acceleration_dist(0.1, max_acceleration);
-  std::uniform_real_distribution<double> aggressive_dist(0.0, 1.0);
-
-  // Store results for current loop
+  // Temp data holders for each loop
   std::vector<std::pair<size_t, size_t>> loop_segments;
   std::vector<std::pair<double, double>> loop_segment_speeds;
   std::vector<bool> loop_acceleration_segments;
   std::vector<double> loop_acceleration_values;
   std::vector<double> loop_segment_distances;
 
-  // Labmda to add a new segment to the loop
+  // Probability distributions used to randomly select locations, speeds
+  // and accelerations. Note that they are inclusive on both sides
+  // TODO: These should probably not be uniform distributions but at the very least,
+  // gaussian
+  std::uniform_int_distribution<size_t> idx_dist;
+  std::uniform_int_distribution<int> speed_dist;
+  std::uniform_real_distribution<double> acceleration_dist(0.1, max_acceleration);
+  std::uniform_real_distribution<double> aggressive_dist(0.0, 1.0);
+
+  /** @brief Lambda to add a new segment to the loop
+  *
+  * @param c_idx: The corner index of the segment(s) being added
+  */
   auto add_segment = [&](size_t c_idx) {
     if (c_idx == 0 && all_segments.size() >= 1 && segment.first > cornering_segment_bounds[0].second) {
-      // If this is the first corner and we're traversing from the last corner of the route
-      // from the last loop to this first corner, we need to add the segment to the end of the last loop
+      // If this is the first corner and we're traversing between the last corner of the last loop
+      // to this first corner, we need to add the segment to the end of the last loop
       if (segment.second < segment.first && !acceleration) {
-        // Wrap-around - break the segment into two sub-segments
+        // Wrap-around of constant speed segment - break the segment into two sub-segments
         std::pair<size_t, size_t> first_segment = {segment.first, 0};
 
         all_segments.back().push_back(first_segment);
@@ -813,6 +820,7 @@ RacePlan Route::segment_route_corners(const int max_num_loops,
         loop_acceleration_values.emplace_back(acceleration_value);
         loop_segment_distances.emplace_back(route_distances.get_value(0, segment.second));
       } else {
+        // Acceleration segment wraps around, cannot break it into smaller segments
         all_segments.back().push_back(segment);
         all_segment_speeds.back().push_back(segment_speed);
         all_acceleration_segments.back().push_back(acceleration);
@@ -829,7 +837,7 @@ RacePlan Route::segment_route_corners(const int max_num_loops,
   };
 
   for (size_t loop_idx = 0; loop_idx < num_loops; loop_idx++) {
-    // Clear all data holders
+    // Clear all temp data holders
     loop_segments.clear();
     loop_segment_speeds.clear();
     loop_acceleration_segments.clear();
@@ -850,7 +858,7 @@ RacePlan Route::segment_route_corners(const int max_num_loops,
       loop_segment_distances.pop_back();
     };
 
-    // Lambda to add the latest loop segment to the 2D matrix
+    // Lambda to add the latest loop to the overall race plan
     auto add_loop = [&]() {
       // Store results for this loop
       all_segments.push_back(loop_segments);
@@ -860,7 +868,7 @@ RacePlan Route::segment_route_corners(const int max_num_loops,
       all_segment_distances.push_back(loop_segment_distances);
     };
 
-    // Lambda to convert segment information into a string (debugging purposes)
+    // Lambda to convert segment information into a string (debugging + logging purposes)
     auto get_segment_string = [&]() {
       std::stringstream ss;
       ss << "Segment: [" << segment.first << "," << segment.second << "]\n";
@@ -875,7 +883,7 @@ RacePlan Route::segment_route_corners(const int max_num_loops,
     for (size_t corner_idx = 0; corner_idx < num_corners; corner_idx++) {
       logger("--------------CREATING SEGMENTS FOR CORNER " + std::to_string(corner_idx) +
              " OF LOOP " + std::to_string(loop_idx) + "--------------");
-      // Determine attributes for current corner
+      // Get attributes for current corner
       const size_t corner_start = cornering_segment_bounds[corner_idx].first;
       const size_t corner_end = cornering_segment_bounds[corner_idx].second;
       const double max_corner_speed = cornering_speed_bounds[corner_idx];
@@ -891,7 +899,7 @@ RacePlan Route::segment_route_corners(const int max_num_loops,
         continue;
       }
 
-      // Determine attributes for previous corner
+      // Get attributes for previous corner
       if (corner_idx > 0) {
         prev_corner_end = cornering_segment_bounds[corner_idx-1].second;
         prev_corner_max_speed = cornering_speed_bounds[corner_idx-1];
@@ -900,7 +908,7 @@ RacePlan Route::segment_route_corners(const int max_num_loops,
         prev_corner_max_speed = cornering_speed_bounds[num_corners-1];
       }
 
-      // Determine attributes for next corner
+      // Get attributes for next corner
       if (corner_idx < num_corners - 1) {
         next_corner_start = cornering_segment_bounds[corner_idx+1].first;
         next_corner_max_speed = cornering_speed_bounds[corner_idx+1];
@@ -1088,7 +1096,8 @@ RacePlan Route::segment_route_corners(const int max_num_loops,
             logger("Proposed deceleration is " + std::to_string(proposed_deceleration) + "m/s^2");
             // Deceleration could be positive if the selected corner speed is greater than
             // the acceleration ending speed.
-            if (proposed_deceleration > 0.0 && proposed_deceleration < max_acceleration) {
+            if (proposed_deceleration > 0.0 && proposed_deceleration < max_acceleration &&
+                proposed_deceleration * car_mass * proposed_corner_speed <= acceleration_power_allowance) {
               valid_corner_speed = true;
             } else if (proposed_deceleration < 0.0 && proposed_deceleration > max_deceleration) {
               valid_corner_speed = true;

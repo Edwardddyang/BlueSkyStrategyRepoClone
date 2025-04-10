@@ -36,6 +36,7 @@ RacePlan V2Optimizer::optimize() {
     unsigned int idx_seed = dis(gen);
     unsigned int speed_seed = dis(gen);
     unsigned int acceleration_seed = dis(gen);
+    unsigned int aggressive_seed = dis(gen);
     unsigned int loop_seed = dis(gen);
     unsigned int skip_seed = dis(gen);
     race_plan = route->segment_route_corners(Config::get_instance()->get_max_num_loops(),
@@ -43,7 +44,8 @@ RacePlan V2Optimizer::optimize() {
                                              kph2mps(Config::get_instance()->get_max_route_speed()),
                                              kw2watts(Config::get_instance()->get_max_motor_power()),
                                              Config::get_instance()->get_max_acceleration(),
-                                             Config::get_instance()->get_max_deceleration());
+                                             Config::get_instance()->get_max_deceleration(), 1.0, -1.0,
+                                             speed_seed, loop_seed, aggressive_seed, idx_seed, acceleration_seed);
     // race_plan = route->segment_route_acceleration(idx_seed, speed_seed, acceleration_seed,
     //                                               skip_seed, loop_seed,
     //                                               Config::get_instance()->get_max_num_loops(),
