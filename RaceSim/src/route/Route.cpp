@@ -308,6 +308,46 @@ bool Route::does_acceleration_exist(double init_speed, double distance, std::pai
   return false;
 }
 
+bool Route::can_reach_speeds(double initial_speed, double acceleration_power, double preferred_acceleration,
+                            double preferred_deceleration, std::pair<double, double> speed_range,
+                            double max_distance, double car_mass) {
+  RUNTIME_EXCEPTION(speed_range.first <= speed_range.second, "Speed range must be ordered as {smaller, bigger}");
+  RUNTIME_EXCEPTION(initial_speed >= 0.0, "Initial speed must be >= 0 m/s");
+  RUNTIME_EXCEPTION(max_distance >= 0.0, "Distance must be >= 0.0");
+
+  if (initial_speed >= speed_range.first && initial_speed <= speed_range.second) {
+    return true;
+  }
+
+  if (initial_speed <= speed_range.first) {
+    double distance = 0.0;
+    double final_speed;
+
+    do {
+      final_speed = calc_final_speed_a(initial_speed, preferred_acceleration, distance);
+      if (final_speed > speed_range.first) return true;
+      distance += 0.1;
+    } while (final_speed * car_mass * preferred_acceleration < acceleration_power && distance < max_distance);
+
+    return false;
+  }
+
+  if (initial_speed > speed_range.second) {
+    double distance = 0.0;
+    double final_speed;
+
+    do {
+      final_speed = calc_final_speed_a(initial_speed, preferred_deceleration, distance);
+      if (final_speed < speed_range.second) return true;
+      distance += 0.1;
+    } while (final_speed * car_mass * preferred_acceleration < acceleration_power && distance < max_distance);
+
+    return false;
+  }
+
+  return false;
+}
+
 RacePlan Route::segment_route_acceleration(const unsigned segment_idx_seed,
                                           const unsigned speed_seed,
                                           const unsigned acceleration_seed,
@@ -788,7 +828,7 @@ RacePlan Route::segment_route_corners(const int max_num_loops,
 
   // Probability distributions used to randomly select locations, speeds
   // and accelerations. Note that they are inclusive on both sides
-  // TODO: These should probably not be uniform distributions but at the very least,
+  // TODO(Ethan): These should probably not be uniform distributions but at the very least,
   // gaussian
   std::uniform_int_distribution<size_t> idx_dist;
   std::uniform_int_distribution<int> speed_dist;
@@ -962,10 +1002,13 @@ RacePlan Route::segment_route_corners(const int max_num_loops,
         double proposed_acceleration;
         double acceleration_end_speed;
         double acceleration_distance;
+
+        // Route index of the ending point for acceleration. This is selected
+        // by sampling an ending speed for the acceleration
         size_t acceleration_end_idx;
 
         // Route index of the starting point for deceleration. This must be in the range
-        // of [last_real_corner_end, corner_start]
+        // of [last_real_corner_end, corner_start-1]
         size_t deceleration_start_idx;
 
         // Aggressive straight
@@ -996,7 +1039,8 @@ RacePlan Route::segment_route_corners(const int max_num_loops,
           // Ensure that the acceleration power budget is not exceeded
           instataneous_motor_power = proposed_acceleration * car_mass * last_real_corner_speed;
           if (instataneous_motor_power > acceleration_power_allowance) {
-            logger(std::to_string(instataneous_motor_power) + " W exceeds maximum acceleration power budget");
+            logger(std::to_string(instataneous_motor_power) + " W exceeds maximum acceleration power budget. "
+                  "Trying again");
             continue;
           }
 
@@ -1074,7 +1118,7 @@ RacePlan Route::segment_route_corners(const int max_num_loops,
                                                                this->num_points + corner_start - 1);
               logger("Created deceleration index distribution with lower bound " +
                     std::to_string(acceleration_end_idx + 1) +
-                    " and upper bound " + std::to_string(this->num_points + corner_start) +
+                    " and upper bound " + std::to_string(this->num_points + corner_start - 1) +
                     ". This is crossover from one loop to the next");
             } else {
               idx_dist = std::uniform_int_distribution<size_t>(acceleration_end_idx + 1, corner_start - 1);
@@ -1111,8 +1155,8 @@ RacePlan Route::segment_route_corners(const int max_num_loops,
             distance_to_next_corner = route_distances.get_value(corner_end, next_corner_start) / 2.0;
             const std::pair<double, double> next_corner_range = {next_corner_max_speed * corner_speed_min,
                                                                  next_corner_max_speed * corner_speed_max};
-            if (!does_acceleration_exist(proposed_corner_speed, distance_to_next_corner, next_corner_range,
-                                         max_deceleration, max_acceleration)) {
+            if (!can_reach_speeds(proposed_corner_speed, acceleration_power_allowance, preferred_acceleration,
+                                  preferred_deceleration, next_corner_range, distance_to_next_corner, car_mass)) {
               logger("Corner speed is too high to reach the next corner");
               valid_corner_speed = false;
               continue;
@@ -1238,9 +1282,8 @@ RacePlan Route::segment_route_corners(const int max_num_loops,
             }
 
             // See if the car can reach the speed range of the next corner
-            if (!does_acceleration_exist(proposed_corner_speed, distance_to_next_corner,
-                                        next_corner_speed_range,
-                                        max_deceleration, max_acceleration)) {
+            if (!can_reach_speeds(proposed_corner_speed, acceleration_power_allowance, preferred_acceleration,
+                                  preferred_deceleration, next_corner_speed_range, distance_to_next_corner, car_mass)) {
               logger("This corner speed does not allow the car to reach the next corner's range of speeds");
               continue;
             }
