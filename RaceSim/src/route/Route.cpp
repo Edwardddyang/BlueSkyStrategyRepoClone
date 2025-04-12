@@ -782,6 +782,8 @@ RacePlan Route::segment_route_corners(const int max_num_loops,
   // The corner index of the last corner whose maximum speed is less than the route speed
   size_t last_real_corner_idx = 0;
 
+  size_t temp_real_corner_idx = 0;
+
   // The route index of the end of the last corner whose maximum speed is less than
   // the route speed
   size_t last_real_corner_end = 0;
@@ -800,6 +802,9 @@ RacePlan Route::segment_route_corners(const int max_num_loops,
 
   // General boolean variable for determining validity of a randomly chosen speed, acceleration, index etc.
   bool valid = false;
+
+  // If maximum iterations have been reached, rollback the last segment and try again
+  bool rollback = false;
 
   // Counter for tracking the number of sampling iterations
   int count = 0;
@@ -876,7 +881,8 @@ RacePlan Route::segment_route_corners(const int max_num_loops,
     }
   };
 
-  for (size_t loop_idx = 0; loop_idx < num_loops; loop_idx++) {
+  size_t loop_idx = 0;
+  while (loop_idx < num_loops) {
     // Clear all temp data holders
     loop_segments.clear();
     loop_segment_speeds.clear();
@@ -891,11 +897,19 @@ RacePlan Route::segment_route_corners(const int max_num_loops,
 
     // Labmda to remove the latest segment from the loop
     auto remove_last_segment = [&]() {
-      loop_segments.pop_back();
-      loop_segment_speeds.pop_back();
-      loop_acceleration_segments.pop_back();
-      loop_acceleration_values.pop_back();
-      loop_segment_distances.pop_back();
+      if (loop_segments.size() > 0) {
+        loop_segments.pop_back();
+        loop_segment_speeds.pop_back();
+        loop_acceleration_segments.pop_back();
+        loop_acceleration_values.pop_back();
+        loop_segment_distances.pop_back();
+      } else {
+        all_segments.back().pop_back();
+        all_segment_speeds.back().pop_back();
+        all_acceleration_segments.back().pop_back();
+        all_acceleration_values.back().pop_back();
+        all_segment_distances.back().pop_back();
+      }
     };
 
     // Lambda to add the latest loop to the overall race plan
@@ -920,500 +934,530 @@ RacePlan Route::segment_route_corners(const int max_num_loops,
     };
 
     // We construct the segments between the previous corner to the current corner
-    for (size_t corner_idx = 0; corner_idx < num_corners; corner_idx++) {
-      logger("--------------CREATING SEGMENTS FOR CORNER " + std::to_string(corner_idx) +
-             " OF LOOP " + std::to_string(loop_idx) + "--------------");
-      // Get attributes for current corner
-      const size_t corner_start = cornering_segment_bounds[corner_idx].first;
-      const size_t corner_end = cornering_segment_bounds[corner_idx].second;
-      const double max_corner_speed = cornering_speed_bounds[corner_idx];
-      logger("Corner maximum speed is " + std::to_string(max_corner_speed) + "m/s");
-      logger("Corner start is index " + std::to_string(corner_start));
-      logger("Corner end is index " + std::to_string(corner_end));
+    size_t corner_idx = 0;
+    while (corner_idx < num_corners) {
+    // for (size_t corner_idx = 0; corner_idx < num_corners; corner_idx++) {
+      auto create_segments = [&]() -> bool {
+        logger("--------------CREATING SEGMENTS FOR CORNER " + std::to_string(corner_idx) +
+              " OF LOOP " + std::to_string(loop_idx) + "--------------");
+        // Get attributes for current corner
+        const size_t corner_start = cornering_segment_bounds[corner_idx].first;
+        const size_t corner_end = cornering_segment_bounds[corner_idx].second;
+        const double max_corner_speed = cornering_speed_bounds[corner_idx];
+        logger("Corner maximum speed is " + std::to_string(max_corner_speed) + "m/s");
+        logger("Corner start is index " + std::to_string(corner_start));
+        logger("Corner end is index " + std::to_string(corner_end));
 
-      // If the maximum cornering speed is greater than the route speed, then we can treat this as a
-      // no acceleration zone and move onto the next corner
-      if (max_corner_speed > this->max_route_speed) {
-        logger("This corner has a speed greater than the route speed. "
-               "Skip segment generation and treat as no-acceleration zone\n");
-        continue;
-      }
-
-      // Get attributes for previous corner
-      if (corner_idx > 0) {
-        prev_corner_end = cornering_segment_bounds[corner_idx-1].second;
-        prev_corner_max_speed = cornering_speed_bounds[corner_idx-1];
-      } else {
-        prev_corner_end = cornering_segment_bounds[num_corners-1].second;
-        prev_corner_max_speed = cornering_speed_bounds[num_corners-1];
-      }
-
-      // Get attributes for next corner
-      if (corner_idx < num_corners - 1) {
-        next_corner_start = cornering_segment_bounds[corner_idx+1].first;
-        next_corner_max_speed = cornering_speed_bounds[corner_idx+1];
-      } else {
-        next_corner_start = cornering_segment_bounds[0].first;
-        next_corner_max_speed = cornering_speed_bounds[0];
-      }
-
-      // Get the length of the straight between the last real corner and the current corner
-      last_real_corner_end = is_first_segment ? 0 : cornering_segment_bounds[last_real_corner_idx].second;
-
-      const double straight_distance = route_distances.get_value(last_real_corner_end, corner_start);
-      logger("Last real corner index was " + std::to_string(last_real_corner_idx));
-      logger("Straight distance between index " + std::to_string(last_real_corner_end) + " and " +
-             std::to_string(corner_start) + " is " + std::to_string(straight_distance) + "m");
-
-      // In the case where the straight is composed of a non-acceleration zone (a corner with high speed limit),
-      // then there is a constraint to complete the acceleration prior to the beginning of the non-acceleration
-      // zone
-      bool straight_includes_corners = !is_first_segment && last_real_corner_idx != corner_idx - 1 &&
-                                       !(last_real_corner_idx == num_corners - 1 && corner_idx == 0);
-      if (straight_includes_corners) {
-        non_acceleration_zone_start = cornering_segment_bounds[last_real_corner_idx+1].first;
-        max_acceleration_distance = route_distances.get_value(last_real_corner_end, non_acceleration_zone_start);
-        logger("The straight includes corners with maximum speeds less than the route speed");
-        logger("Maximum acceleration distance is: " + std::to_string(max_acceleration_distance) +
-               " from index " + std::to_string(last_real_corner_end) + " to index " +
-               std::to_string(non_acceleration_zone_start));
-      } else {
-        non_acceleration_zone_start = corner_start;
-        // Spending half the straight accelerating seems wasteful. Maybe change later
-        max_acceleration_distance = straight_distance * 0.5;
-        logger("Maximum acceleration distance is: " + std::to_string(max_acceleration_distance) +
-               " which is half the distance from index " + std::to_string(last_real_corner_end) + " to index " +
-               std::to_string(corner_start));
-      }
-
-      // If the straight is long, sample a chance to take the straight aggressively
-      double probability = 0.0;
-      if (straight_distance > aggressive_straight_threshold) {
-        // If the straight distance >= 2 * aggressive straight threshold, then we are guaranteed to take
-        // the straight aggressively
-        probability = std::min(1.0, (straight_distance - aggressive_straight_threshold)
-                                    / aggressive_straight_threshold);
-      }
-      const double sample = aggressive_dist(aggressive_rng);
-      if (sample < probability) {
-        normal_straight = false;
-        // Parameters to search for
-        double proposed_deceleration;
-        double proposed_acceleration;
-        double acceleration_end_speed;
-        double acceleration_distance;
-
-        // Route index of the ending point for acceleration. This is selected
-        // by sampling an ending speed for the acceleration
-        size_t acceleration_end_idx;
-
-        // Route index of the starting point for deceleration. This must be in the range
-        // of [last_real_corner_end, corner_start-1]
-        size_t deceleration_start_idx;
-
-        // Aggressive straight
-        if (is_first_segment) {
-          logger("Taking straight between starting line and " +
-                  std::to_string(corner_idx) + " aggressively. Straight distance is " +
-                  std::to_string(straight_distance) + "m");
-        } else {
-          logger("Taking straight between corner " + std::to_string(last_real_corner_idx) + " and " +
-                  std::to_string(corner_idx) + " aggressively. Straight distance is " +
-                  std::to_string(straight_distance) + "m");
+        // If the maximum cornering speed is greater than the route speed, then we can treat this as a
+        // no acceleration zone and move onto the next corner
+        if (max_corner_speed > this->max_route_speed) {
+          logger("This corner has a speed greater than the route speed. "
+                "Skip segment generation and treat as no-acceleration zone\n");
+          return true;
         }
-        logger("Last real corner speed: " + std::to_string(last_real_corner_speed) + "m/s");
 
-        acceleration_dist = std::uniform_real_distribution<double>(0.0, max_acceleration);
+        // Get attributes for previous corner
+        if (corner_idx > 0) {
+          prev_corner_end = cornering_segment_bounds[corner_idx-1].second;
+          prev_corner_max_speed = cornering_speed_bounds[corner_idx-1];
+        } else {
+          prev_corner_end = cornering_segment_bounds[num_corners-1].second;
+          prev_corner_max_speed = cornering_speed_bounds[num_corners-1];
+        }
 
-        // Loop until we get valid parameters or we reach the maximum number of iterations
-        valid = false;
-        count = 0;
-        while (!valid) {
-          count++;
-          if (count == max_iters) {
-            return RacePlan("Maximum iterations reached");
+        // Get attributes for next corner
+        if (corner_idx < num_corners - 1) {
+          next_corner_start = cornering_segment_bounds[corner_idx+1].first;
+          next_corner_max_speed = cornering_speed_bounds[corner_idx+1];
+        } else {
+          next_corner_start = cornering_segment_bounds[0].first;
+          next_corner_max_speed = cornering_speed_bounds[0];
+        }
+
+        // Get the length of the straight between the last real corner and the current corner
+        temp_real_corner_idx = last_real_corner_idx;
+        last_real_corner_end = is_first_segment ? 0 : cornering_segment_bounds[last_real_corner_idx].second;
+
+        const double straight_distance = route_distances.get_value(last_real_corner_end, corner_start);
+        logger("Last real corner index was " + std::to_string(last_real_corner_idx));
+        logger("Straight distance between index " + std::to_string(last_real_corner_end) + " and " +
+              std::to_string(corner_start) + " is " + std::to_string(straight_distance) + "m");
+
+        // In the case where the straight is composed of a non-acceleration zone (a corner with high speed limit),
+        // then there is a constraint to complete the acceleration prior to the beginning of the non-acceleration
+        // zone
+        bool straight_includes_corners = !is_first_segment && last_real_corner_idx != corner_idx - 1 &&
+                                        !(last_real_corner_idx == num_corners - 1 && corner_idx == 0);
+        if (straight_includes_corners) {
+          non_acceleration_zone_start = cornering_segment_bounds[last_real_corner_idx+1].first;
+          max_acceleration_distance = route_distances.get_value(last_real_corner_end, non_acceleration_zone_start);
+          logger("The straight includes corners with maximum speeds less than the route speed");
+          logger("Maximum acceleration distance is: " + std::to_string(max_acceleration_distance) +
+                " from index " + std::to_string(last_real_corner_end) + " to index " +
+                std::to_string(non_acceleration_zone_start));
+        } else {
+          non_acceleration_zone_start = corner_start;
+          // Spending half the straight accelerating seems wasteful. Maybe change later
+          max_acceleration_distance = straight_distance * 0.5;
+          logger("Maximum acceleration distance is: " + std::to_string(max_acceleration_distance) +
+                " which is half the distance from index " + std::to_string(last_real_corner_end) + " to index " +
+                std::to_string(corner_start));
+        }
+
+        // If the straight is long, sample a chance to take the straight aggressively
+        double probability = 0.0;
+        if (straight_distance > aggressive_straight_threshold) {
+          // If the straight distance >= 2 * aggressive straight threshold, then we are guaranteed to take
+          // the straight aggressively
+          probability = std::min(1.0, (straight_distance - aggressive_straight_threshold)
+                                      / aggressive_straight_threshold);
+        }
+        const double sample = aggressive_dist(aggressive_rng);
+        if (sample < probability) {
+          normal_straight = false;
+          // Parameters to search for
+          double proposed_deceleration;
+          double proposed_acceleration;
+          double acceleration_end_speed;
+          double acceleration_distance;
+
+          // Route index of the ending point for acceleration. This is selected
+          // by sampling an ending speed for the acceleration
+          size_t acceleration_end_idx;
+
+          // Route index of the starting point for deceleration. This must be in the range
+          // of [last_real_corner_end, corner_start-1]
+          size_t deceleration_start_idx;
+
+          // Aggressive straight
+          if (is_first_segment) {
+            logger("Taking straight between starting line and " +
+                    std::to_string(corner_idx) + " aggressively. Straight distance is " +
+                    std::to_string(straight_distance) + "m");
+          } else {
+            logger("Taking straight between corner " + std::to_string(last_real_corner_idx) + " and " +
+                    std::to_string(corner_idx) + " aggressively. Straight distance is " +
+                    std::to_string(straight_distance) + "m");
           }
-          proposed_acceleration = acceleration_dist(acceleration_rng);
-          logger("Trying acceleration " + std::to_string(proposed_acceleration) + "m/s^2");
+          logger("Last real corner speed: " + std::to_string(last_real_corner_speed) + "m/s");
 
-          // Ensure that the acceleration power budget is not exceeded
-          instataneous_motor_power = proposed_acceleration * car_mass * last_real_corner_speed;
-          if (instataneous_motor_power > acceleration_power_allowance) {
-            logger(std::to_string(instataneous_motor_power) + " W exceeds maximum acceleration power budget. "
-                  "Trying again");
-            continue;
-          }
+          acceleration_dist = std::uniform_real_distribution<double>(0.0, max_acceleration);
 
-          // Identify the maximum possible speed for travelling at the proposed acceleration
-          double max_ending_speed = last_real_corner_speed - 0.1;
-          double distance_travelled;
-          do {
-            max_ending_speed += 0.1;
-            instataneous_motor_power = max_ending_speed * proposed_acceleration * car_mass;
-            distance_travelled = calc_distance_a(last_real_corner_speed,
-                                                 acceleration_end_speed,
-                                                 proposed_acceleration);
-          } while (instataneous_motor_power < acceleration_power_allowance &&
-                   distance_travelled < max_acceleration_distance);
-
-          logger("Maximum ending speed of the acceleration is " + std::to_string(max_ending_speed) + "m/s");
-
-          if (static_cast<int>(last_real_corner_speed + 1) >= static_cast<int>(max_ending_speed)) {
-            logger("Maximum ending speed is too close to the previous corner speed. "
-                   "The acceleration is too high. Trying again");
-            continue;
-          }
-
-          // Pick a speed to end the acceleration
+          // Loop until we get valid parameters or we reach the maximum number of iterations
           valid = false;
-          lower_bound_speed = static_cast<int>(last_real_corner_speed + 1.0);
-          upper_bound_speed = static_cast<int>(max_ending_speed);
-          speed_dist = std::uniform_int_distribution<int>(lower_bound_speed, upper_bound_speed);
-          logger("Acceleration ending speed distribution created with lower bound " +
-                  std::to_string(lower_bound_speed) + " m/s and upper bound " +
-                  std::to_string(upper_bound_speed) + " m/s");
+          count = 0;
+          while (!valid) {
+            count++;
+            if (count == max_iters) {
+              return false;
+            }
+            proposed_acceleration = acceleration_dist(acceleration_rng);
+            logger("Trying acceleration " + std::to_string(proposed_acceleration) + "m/s^2");
 
-          acceleration_end_speed = speed_dist(speed_rng);
-          logger("Trying acceleration ending speed " + std::to_string(acceleration_end_speed) + " m/s");
-          acceleration_distance = calc_distance_a(last_real_corner_speed, acceleration_end_speed,
+            // Ensure that the acceleration power budget is not exceeded
+            instataneous_motor_power = proposed_acceleration * car_mass * last_real_corner_speed;
+            if (instataneous_motor_power > acceleration_power_allowance) {
+              logger(std::to_string(instataneous_motor_power) + " W exceeds maximum acceleration power budget. "
+                    "Trying again");
+              continue;
+            }
+
+            // Identify the maximum possible speed for travelling at the proposed acceleration
+            double max_ending_speed = last_real_corner_speed - 0.1;
+            double distance_travelled;
+            do {
+              max_ending_speed += 0.1;
+              instataneous_motor_power = max_ending_speed * proposed_acceleration * car_mass;
+              distance_travelled = calc_distance_a(last_real_corner_speed,
+                                                  acceleration_end_speed,
                                                   proposed_acceleration);
-          logger("Acceleration distance is " + std::to_string(acceleration_distance) + " m");
-          if (acceleration_distance > max_acceleration_distance) {
-            logger("Acceleration distance exceeds maximum allowable distance");
-            continue;
-          }
+            } while (instataneous_motor_power < acceleration_power_allowance &&
+                    distance_travelled < max_acceleration_distance);
 
-          // Locate the smallest route index such that [last_real_corner_end, idx] is greater
-          // than the acceleration distance
-          acceleration_end_idx = last_real_corner_end;
-          while (route_distances.get_value(last_real_corner_end, acceleration_end_idx) < acceleration_distance) {
-            acceleration_end_idx = acceleration_end_idx == this->num_points - 1 ? 0 : acceleration_end_idx + 1;
-          }
+            logger("Maximum ending speed of the acceleration is " + std::to_string(max_ending_speed) + "m/s");
 
-          // Select corner speed
-          // This should likely be a distribution where the mean or mode (bump) considers both the acceleration
-          // ending speed AND the next corner speed
-          lower_bound_speed = static_cast<int>(max_corner_speed * corner_speed_min);
-          upper_bound_speed = static_cast<int>(max_corner_speed * corner_speed_max);
-          speed_dist = std::uniform_int_distribution<int>(lower_bound_speed, upper_bound_speed);
-          logger("Created corner speed distribution with lower bound " + std::to_string(lower_bound_speed) +
-                 " m/s and upper bound " + std::to_string(upper_bound_speed) + " m/s");
-
-          // Loop until we find a valid corner speed
-          int count2 = 0;
-          bool valid_corner_speed = false;
-          while (!valid_corner_speed) {
-            count2++;
-            if (count2 == max_iters) {
-              return RacePlan("Maximum iterations reached");
-            }
-
-            proposed_corner_speed = speed_dist(speed_rng);
-            logger("Trying corner speed " + std::to_string(proposed_corner_speed) + "m/s");
-
-            // Select a location to start decelerating
-            if (corner_start - 1 < acceleration_end_idx) {
-              // Crossover from one loop to the next
-              idx_dist = std::uniform_int_distribution<size_t>(acceleration_end_idx + 1,
-                                                               this->num_points + corner_start - 1);
-              logger("Created deceleration index distribution with lower bound " +
-                    std::to_string(acceleration_end_idx + 1) +
-                    " and upper bound " + std::to_string(this->num_points + corner_start - 1) +
-                    ". This is crossover from one loop to the next");
-            } else {
-              idx_dist = std::uniform_int_distribution<size_t>(acceleration_end_idx + 1, corner_start - 1);
-              logger("Created deceleration index distribution with lower bound " +
-                    std::to_string(acceleration_end_idx + 1) +
-                    " and upper bound " + std::to_string(corner_start-1));
-            }
-            deceleration_start_idx = idx_dist(idx_rng);
-            if (deceleration_start_idx >= this->num_points) {
-              deceleration_start_idx -= this->num_points;
-            }
-
-            logger("Trying deceleration starting index of " + std::to_string(deceleration_start_idx));
-            const double distance_to_corner = route_distances.get_value(deceleration_start_idx, corner_start);
-            logger("Deceleration distance is " + std::to_string(distance_to_corner) + "m");
-            proposed_deceleration = calc_acceleration(acceleration_end_speed,
-                                                      proposed_corner_speed,
-                                                      distance_to_corner);
-            logger("Proposed deceleration is " + std::to_string(proposed_deceleration) + "m/s^2");
-            // Deceleration could be positive if the selected corner speed is greater than
-            // the acceleration ending speed.
-            if (proposed_deceleration > 0.0 && proposed_deceleration < max_acceleration &&
-                proposed_deceleration * car_mass * proposed_corner_speed <= acceleration_power_allowance) {
-              valid_corner_speed = true;
-            } else if (proposed_deceleration < 0.0 && proposed_deceleration > max_deceleration) {
-              valid_corner_speed = true;
-            } else {
-              logger("Necessary deceleration to reach next corner exceeds maximum acceleration/deceleration or exceeds "
-                     "maximum acceleration power allowance");
-            }
-
-            // Check that the selected corner speed allows the car to reach the next corner's range of speeds in half
-            // the straight distance
-            distance_to_next_corner = route_distances.get_value(corner_end, next_corner_start) / 2.0;
-            const std::pair<double, double> next_corner_range = {next_corner_max_speed * corner_speed_min,
-                                                                 next_corner_max_speed * corner_speed_max};
-            if (!can_reach_speeds(proposed_corner_speed, acceleration_power_allowance, preferred_acceleration,
-                                  preferred_deceleration, next_corner_range, distance_to_next_corner, car_mass)) {
-              logger("Corner speed is too high to reach the next corner");
-              valid_corner_speed = false;
-              continue;
-            }
-          }
-
-          logger("Aggressive straight with valid parameters were found");
-
-          // Add acceleration segment
-          segment = {last_real_corner_end, acceleration_end_idx};
-          segment_distance = route_distances.get_value(last_real_corner_end, acceleration_end_idx);
-          acceleration_value = proposed_acceleration;
-          segment_speed = {last_real_corner_speed, acceleration_end_speed};
-          acceleration = true;
-          add_segment(corner_idx);
-
-          logger("\nACCELERATION SEGMENT");
-          logger(get_segment_string());
-
-          // Add constant speed segment
-          segment = {acceleration_end_idx, deceleration_start_idx};
-          segment_distance = route_distances.get_value(acceleration_end_idx, deceleration_start_idx);
-          acceleration_value = 0.0;
-          acceleration = false;
-          segment_speed = {acceleration_end_speed, acceleration_end_speed};
-          add_segment(corner_idx);
-
-          logger("\nCONSTANT SPEED SEGMENT");
-          logger(get_segment_string());
-
-          // Add deceleration speed segment
-          segment = {deceleration_start_idx, corner_start};
-          segment_distance = route_distances.get_value(deceleration_start_idx, corner_start);
-          acceleration_value = proposed_deceleration;
-          acceleration = acceleration_value != 0.0;
-          segment_speed = {acceleration_end_speed, proposed_corner_speed};
-          add_segment(corner_idx);
-
-          logger("\nDECELERATION SPEED SEGMENT");
-          logger(get_segment_string());
-
-          // Add the cornering segment
-          segment = {corner_start, corner_end};
-          segment_distance = route_distances.get_value(corner_start, corner_end);
-          acceleration_value = 0.0;
-          acceleration = acceleration_value != 0.0;
-          segment_speed = {proposed_corner_speed, proposed_corner_speed};
-          add_segment(corner_idx);
-
-          logger("\nCORNER SPEED SEGMENT");
-          logger(get_segment_string());
-
-          last_real_corner_speed = proposed_corner_speed;
-          last_real_corner_idx = corner_idx;
-
-          valid = true;
-        }
-      } else {
-        normal_straight = true;
-      }
-
-      // This if statement looks weird because I'm imagining that in the future, we'll fallback to a normal_straight
-      // if an aggressive_straight doesn't work out
-      if (normal_straight) {
-        if (is_first_segment) {
-          logger("Taking straight between starting line and " +
-          std::to_string(corner_idx) + " normally. Straight distance is " + std::to_string(straight_distance)
-          + "m");
-        } else {
-          logger("Taking straight between corner " + std::to_string(last_real_corner_idx) + " and " +
-          std::to_string(corner_idx) + " normally. Straight distance is " + std::to_string(straight_distance)
-          + "m");
-        }
-
-        // Again, this should probably be a distribution around a mean value that takes into account the
-        // previous corner speed and the next corner's maximum speed
-        lower_bound_speed = std::max<int>(1, static_cast<int>(max_corner_speed * corner_speed_min));
-        upper_bound_speed = static_cast<int>(max_corner_speed * corner_speed_max);
-        speed_dist = std::uniform_int_distribution<int>(lower_bound_speed, upper_bound_speed);
-        logger("Created corner speed distribution with lower bound " + std::to_string(lower_bound_speed) +
-               "m/s and upper bound " + std::to_string(upper_bound_speed) + "m/s");
-
-        valid = false;
-        count = 0;
-        while (!valid) {
-          // Pick a corner speed
-          proposed_corner_speed = speed_dist(speed_rng);
-          distance_to_next_corner = route_distances.get_value(corner_end, next_corner_start);
-          const std::pair<double, double> next_corner_speed_range = {next_corner_max_speed * corner_speed_min,
-                                                                    next_corner_max_speed * corner_speed_max};
-          if (proposed_corner_speed > last_real_corner_speed) {
-            // Need to accelerate to the current corner
-            // Parameters to search for
-            double acceleration_distance;
-            double acceleration_ending_speed;
-            size_t acceleration_end_idx;
-
-            logger("Selected corner speed is " + std::to_string(proposed_corner_speed) +
-                   " m/s which is greater than the last corner speed of " +
-                   std::to_string(last_real_corner_speed) + "m/s");
-
-            // First check if this corner speed is possible to reach with the preferred acceleration
-            double max_ending_speed = calc_final_speed_a(last_real_corner_speed, preferred_acceleration,
-                                                         max_acceleration_distance);
-            if (max_ending_speed < proposed_corner_speed) {
-              logger("The corner speed is too high to be reached within the maximum acceleration distance of " +
-                     std::to_string(max_acceleration_distance) + "m");
+            if (static_cast<int>(last_real_corner_speed + 1) > static_cast<int>(max_ending_speed)) {
+              logger("Maximum ending speed is too close to the previous corner speed. "
+                    "The acceleration is too high. Trying again");
               continue;
             }
 
-            // Use preferred acceleration
-            acceleration_distance = calc_distance_a(last_real_corner_speed,
-                                                    proposed_corner_speed,
-                                                    preferred_acceleration);
-            acceleration_ending_speed = calc_final_speed_a(last_real_corner_speed,
-                                                           preferred_acceleration,
-                                                           max_acceleration_distance);
-            instataneous_motor_power = car_mass * preferred_acceleration * proposed_corner_speed;
-            if (instataneous_motor_power >= acceleration_power_allowance) {
-              logger("Instataneous motor power " + std::to_string(instataneous_motor_power) +
-                     " W exceeds maximum acceleration power budget");
+            // Pick a speed to end the acceleration
+            valid = false;
+            lower_bound_speed = static_cast<int>(last_real_corner_speed + 1.0);
+            upper_bound_speed = static_cast<int>(max_ending_speed);
+            speed_dist = std::uniform_int_distribution<int>(lower_bound_speed, upper_bound_speed);
+            logger("Acceleration ending speed distribution created with lower bound " +
+                    std::to_string(lower_bound_speed) + " m/s and upper bound " +
+                    std::to_string(upper_bound_speed) + " m/s");
+
+            acceleration_end_speed = speed_dist(speed_rng);
+            logger("Trying acceleration ending speed " + std::to_string(acceleration_end_speed) + " m/s");
+            acceleration_distance = calc_distance_a(last_real_corner_speed, acceleration_end_speed,
+                                                    proposed_acceleration);
+            logger("Acceleration distance is " + std::to_string(acceleration_distance) + " m");
+            if (acceleration_distance > max_acceleration_distance) {
+              logger("Acceleration distance exceeds maximum allowable distance");
               continue;
             }
 
-            // See if the car can reach the speed range of the next corner
-            if (!can_reach_speeds(proposed_corner_speed, acceleration_power_allowance, preferred_acceleration,
-                                  preferred_deceleration, next_corner_speed_range, distance_to_next_corner, car_mass)) {
-              logger("This corner speed does not allow the car to reach the next corner's range of speeds");
-              continue;
-            }
-
-            // Find the route index such that [last_real_corner_end, route index] is greater than the acceleration
-            // distance
+            // Locate the smallest route index such that [last_real_corner_end, idx] is greater
+            // than the acceleration distance
             acceleration_end_idx = last_real_corner_end;
             while (route_distances.get_value(last_real_corner_end, acceleration_end_idx) < acceleration_distance) {
               acceleration_end_idx = acceleration_end_idx == this->num_points - 1 ? 0 : acceleration_end_idx + 1;
             }
 
-            logger("Proposed corner speed is valid");
+            // Select corner speed
+            // This should likely be a distribution where the mean or mode (bump) considers both the acceleration
+            // ending speed AND the next corner speed
+            lower_bound_speed = std::max<int>(1, static_cast<int>(max_corner_speed * corner_speed_min));
+            upper_bound_speed = static_cast<int>(max_corner_speed * corner_speed_max);
+            speed_dist = std::uniform_int_distribution<int>(lower_bound_speed, upper_bound_speed);
+            logger("Created corner speed distribution with lower bound " + std::to_string(lower_bound_speed) +
+                  " m/s and upper bound " + std::to_string(upper_bound_speed) + " m/s");
 
-            // Add the acceleration segment
+            // Loop until we find a valid corner speed
+            int count2 = 0;
+            bool valid_corner_speed = false;
+            while (!valid_corner_speed) {
+              count2++;
+              if (count2 == max_iters) {
+                return false;
+              }
+
+              proposed_corner_speed = speed_dist(speed_rng);
+              logger("Trying corner speed " + std::to_string(proposed_corner_speed) + "m/s");
+
+              // Select a location to start decelerating
+              if (corner_start - 1 < acceleration_end_idx) {
+                // Crossover from one loop to the next
+                idx_dist = std::uniform_int_distribution<size_t>(acceleration_end_idx + 1,
+                                                                this->num_points + corner_start - 1);
+                logger("Created deceleration index distribution with lower bound " +
+                      std::to_string(acceleration_end_idx + 1) +
+                      " and upper bound " + std::to_string(this->num_points + corner_start - 1) +
+                      ". This is crossover from one loop to the next");
+              } else {
+                idx_dist = std::uniform_int_distribution<size_t>(acceleration_end_idx + 1, corner_start - 1);
+                logger("Created deceleration index distribution with lower bound " +
+                      std::to_string(acceleration_end_idx + 1) +
+                      " and upper bound " + std::to_string(corner_start-1));
+              }
+              deceleration_start_idx = idx_dist(idx_rng);
+              if (deceleration_start_idx >= this->num_points) {
+                deceleration_start_idx -= this->num_points;
+              }
+
+              logger("Trying deceleration starting index of " + std::to_string(deceleration_start_idx));
+              const double distance_to_corner = route_distances.get_value(deceleration_start_idx, corner_start);
+              logger("Deceleration distance is " + std::to_string(distance_to_corner) + "m");
+              proposed_deceleration = calc_acceleration(acceleration_end_speed,
+                                                        proposed_corner_speed,
+                                                        distance_to_corner);
+              logger("Proposed deceleration is " + std::to_string(proposed_deceleration) + "m/s^2");
+              // Deceleration could be positive if the selected corner speed is greater than
+              // the acceleration ending speed.
+              if (proposed_deceleration > 0.0 && proposed_deceleration < max_acceleration &&
+                  proposed_deceleration * car_mass * proposed_corner_speed <= acceleration_power_allowance) {
+                valid_corner_speed = true;
+              } else if (proposed_deceleration < 0.0 && proposed_deceleration > max_deceleration) {
+                valid_corner_speed = true;
+              } else {
+                logger("Necessary deceleration to reach next corner exceeds maximum acceleration/deceleration "
+                       "or exceeds maximum acceleration power allowance");
+              }
+
+              // Check that the selected corner speed allows the car to reach the next corner's range of speeds in half
+              // the straight distance
+              distance_to_next_corner = route_distances.get_value(corner_end, next_corner_start) / 2.0;
+              const std::pair<double, double> next_corner_range = {next_corner_max_speed * corner_speed_min,
+                                                                  next_corner_max_speed * corner_speed_max};
+              if (!can_reach_speeds(proposed_corner_speed, acceleration_power_allowance, preferred_acceleration,
+                                    preferred_deceleration, next_corner_range, distance_to_next_corner, car_mass)) {
+                logger("Corner speed is too high to reach the next corner");
+                valid_corner_speed = false;
+                continue;
+              }
+            }
+
+            logger("Aggressive straight with valid parameters were found");
+
+            // Add acceleration segment
             segment = {last_real_corner_end, acceleration_end_idx};
-            segment_speed = {last_real_corner_speed, proposed_corner_speed};
             segment_distance = route_distances.get_value(last_real_corner_end, acceleration_end_idx);
+            acceleration_value = proposed_acceleration;
+            segment_speed = {last_real_corner_speed, acceleration_end_speed};
             acceleration = true;
-            acceleration_value = preferred_acceleration;
             add_segment(corner_idx);
 
             logger("\nACCELERATION SEGMENT");
             logger(get_segment_string());
 
-            // Add the corner segment
-            segment_distance = route_distances.get_value(acceleration_end_idx, corner_end);
-            segment = {acceleration_end_idx, corner_end};
-            segment_speed = {proposed_corner_speed, proposed_corner_speed};
+            // Add constant speed segment
+            segment = {acceleration_end_idx, deceleration_start_idx};
+            segment_distance = route_distances.get_value(acceleration_end_idx, deceleration_start_idx);
             acceleration_value = 0.0;
             acceleration = false;
+            segment_speed = {acceleration_end_speed, acceleration_end_speed};
             add_segment(corner_idx);
 
-            logger("\nCORNER SEGMENT");
+            logger("\nCONSTANT SPEED SEGMENT");
             logger(get_segment_string());
 
-            last_real_corner_idx = corner_idx;
-            last_real_corner_speed = proposed_corner_speed;
-            valid = true;
-          } else if (proposed_corner_speed < last_real_corner_speed) {
-            // Decelerate to corner speed
-            // Parameters to search for
-            size_t deceleration_end_idx;
-            size_t deceleration_distance;
-
-            logger("Selected corner speed is " + std::to_string(proposed_corner_speed) + "m/s which is less than "
-                   "the last corner speed of " + std::to_string(last_real_corner_speed) + "m/s");
-            // Chosen corner speed is less than the previous corner speed, need to decelerate
-            // First check if this corner speed is possible to reach with the preferred deceleration
-            double max_ending_speed = 0.0;
-            try {
-              max_ending_speed = calc_final_speed_a(last_real_corner_speed, preferred_deceleration,
-                                                    max_acceleration_distance);
-            } catch (const InvalidCalculation& e) {
-              // If the discriminant was negative, then the speed goes to 0 before the distance
-              // is achieved. This means that the deceleration can definitely be achieved
-              max_ending_speed = 0.0;
-            }
-            if (max_ending_speed > proposed_corner_speed) {
-              logger("Preferred deceleration cannot achieve the desired corner speed. Trying again");
-              continue;
-            }
-
-            // // See if the car can reach the speed range of the next corner
-            // if (proposed_corner_speed > next_corner_max_speed * corner_speed_max) {
-            //   const double ending_speed = calc_final_speed_a(proposed_corner_speed,
-            //                                                  preferred_deceleration,
-            //                                                  max_acceleration_distance);
-            // }
-            if (!does_acceleration_exist(proposed_corner_speed, distance_to_next_corner,
-                                        next_corner_speed_range,
-                                        max_deceleration, max_acceleration)) {
-              logger("The corner speed is too low to be reached within the maximum acceleration distance of " +
-                     std::to_string(max_acceleration_distance) + "m");
-              continue;
-            }
-
-            deceleration_end_idx = last_real_corner_end;
-            deceleration_distance = calc_distance_a(last_real_corner_speed,
-                                                    proposed_corner_speed,
-                                                    preferred_deceleration);
-            while (route_distances.get_value(last_real_corner_end, deceleration_end_idx) < deceleration_distance) {
-              deceleration_end_idx++;
-            }
-
-            logger("Proposed corner speed is valid");
-            // Add the deceleration
-            segment = {last_real_corner_end, deceleration_end_idx};
-            segment_speed = {last_real_corner_speed, proposed_corner_speed};
-            acceleration_value = preferred_deceleration;
-            acceleration = true;
-            segment_distance = route_distances.get_value(last_real_corner_end, deceleration_end_idx);
+            // Add deceleration speed segment
+            segment = {deceleration_start_idx, corner_start};
+            segment_distance = route_distances.get_value(deceleration_start_idx, corner_start);
+            acceleration_value = proposed_deceleration;
+            acceleration = acceleration_value != 0.0;
+            segment_speed = {acceleration_end_speed, proposed_corner_speed};
             add_segment(corner_idx);
 
-            logger("\nDECELERATION SEGMENT");
+            logger("\nDECELERATION SPEED SEGMENT");
             logger(get_segment_string());
 
-            // Add the corner segment
-            segment = {deceleration_end_idx, corner_end};
-            segment_speed = {proposed_corner_speed, proposed_corner_speed};
+            // Add the cornering segment
+            segment = {corner_start, corner_end};
+            segment_distance = route_distances.get_value(corner_start, corner_end);
             acceleration_value = 0.0;
-            acceleration = false;
-            segment_distance = route_distances.get_value(deceleration_end_idx, corner_end);
-            add_segment(corner_idx);
-
-            logger("\nCORNER SEGMENT");
-            logger(get_segment_string());
-
-            valid = true;
-            last_real_corner_idx = corner_idx;
-            last_real_corner_speed = proposed_corner_speed;
-          } else {
-            // Maintain same corner speed
-            logger("Proposed corner speed is the same as the current speed of the car. Adding one segment");
-
-            acceleration = false;
-            acceleration_value = 0.0;
+            acceleration = acceleration_value != 0.0;
             segment_speed = {proposed_corner_speed, proposed_corner_speed};
-            segment = {last_real_corner_end,  corner_end};
-            segment_distance = route_distances.get_value(last_real_corner_end, corner_end);
             add_segment(corner_idx);
 
-            logger("\nCORNER SEGMENT");
+            logger("\nCORNER SPEED SEGMENT");
             logger(get_segment_string());
-            last_real_corner_idx = corner_idx;
+
             last_real_corner_speed = proposed_corner_speed;
+            last_real_corner_idx = corner_idx;
+
             valid = true;
           }
+        } else {
+          normal_straight = true;
         }
+
+        // This if statement looks weird because I'm imagining that in the future, we'll fallback to a normal_straight
+        // if an aggressive_straight doesn't work out
+        if (normal_straight) {
+          if (is_first_segment) {
+            logger("Taking straight between starting line and " +
+            std::to_string(corner_idx) + " normally. Straight distance is " + std::to_string(straight_distance)
+            + "m");
+          } else {
+            logger("Taking straight between corner " + std::to_string(last_real_corner_idx) + " and " +
+            std::to_string(corner_idx) + " normally. Straight distance is " + std::to_string(straight_distance)
+            + "m");
+          }
+
+          // Again, this should probably be a distribution around a mean value that takes into account the
+          // previous corner speed and the next corner's maximum speed
+          lower_bound_speed = std::max<int>(1, static_cast<int>(max_corner_speed * corner_speed_min));
+          upper_bound_speed = static_cast<int>(max_corner_speed * corner_speed_max);
+          speed_dist = std::uniform_int_distribution<int>(lower_bound_speed, upper_bound_speed);
+          logger("Created corner speed distribution with lower bound " + std::to_string(lower_bound_speed) +
+                "m/s and upper bound " + std::to_string(upper_bound_speed) + "m/s");
+
+          valid = false;
+          count = 0;
+          while (!valid) {
+            count = count + 1;
+            if (count == max_iters) {
+              return false;
+            }
+            // Pick a corner speed
+            proposed_corner_speed = speed_dist(speed_rng);
+            distance_to_next_corner = route_distances.get_value(corner_end, next_corner_start);
+            const std::pair<double, double> next_corner_speed_range = {next_corner_max_speed * corner_speed_min,
+                                                                      next_corner_max_speed * corner_speed_max};
+            if (proposed_corner_speed > last_real_corner_speed) {
+              // Need to accelerate to the current corner
+              // Parameters to search for
+              double acceleration_distance;
+              double acceleration_ending_speed;
+              size_t acceleration_end_idx;
+
+              logger("Selected corner speed is " + std::to_string(proposed_corner_speed) +
+                    " m/s which is greater than the last corner speed of " +
+                    std::to_string(last_real_corner_speed) + "m/s");
+
+              // First check if this corner speed is possible to reach with the preferred acceleration
+              double max_ending_speed = calc_final_speed_a(last_real_corner_speed, preferred_acceleration,
+                                                          max_acceleration_distance);
+              if (max_ending_speed < proposed_corner_speed) {
+                logger("The corner speed is too high to be reached within the maximum acceleration distance of " +
+                      std::to_string(max_acceleration_distance) + "m");
+                continue;
+              }
+
+              // Use preferred acceleration
+              acceleration_distance = calc_distance_a(last_real_corner_speed,
+                                                      proposed_corner_speed,
+                                                      preferred_acceleration);
+              acceleration_ending_speed = calc_final_speed_a(last_real_corner_speed,
+                                                            preferred_acceleration,
+                                                            max_acceleration_distance);
+              instataneous_motor_power = car_mass * preferred_acceleration * proposed_corner_speed;
+              if (instataneous_motor_power >= acceleration_power_allowance) {
+                logger("Instataneous motor power " + std::to_string(instataneous_motor_power) +
+                      " W exceeds maximum acceleration power budget");
+                continue;
+              }
+
+              // See if the car can reach the speed range of the next corner
+              if (!can_reach_speeds(proposed_corner_speed, acceleration_power_allowance, preferred_acceleration,
+                                    preferred_deceleration, next_corner_speed_range, distance_to_next_corner,
+                                    car_mass)) {
+                logger("This corner speed does not allow the car to reach the next corner's range of speeds");
+                continue;
+              }
+
+              // Find the route index such that [last_real_corner_end, route index] is greater than the acceleration
+              // distance
+              acceleration_end_idx = last_real_corner_end;
+              while (route_distances.get_value(last_real_corner_end, acceleration_end_idx) < acceleration_distance) {
+                acceleration_end_idx = acceleration_end_idx == this->num_points - 1 ? 0 : acceleration_end_idx + 1;
+              }
+
+              logger("Proposed corner speed is valid");
+
+              // Add the acceleration segment
+              segment = {last_real_corner_end, acceleration_end_idx};
+              segment_speed = {last_real_corner_speed, proposed_corner_speed};
+              segment_distance = route_distances.get_value(last_real_corner_end, acceleration_end_idx);
+              acceleration = true;
+              acceleration_value = preferred_acceleration;
+              add_segment(corner_idx);
+
+              logger("\nACCELERATION SEGMENT");
+              logger(get_segment_string());
+
+              // Add the corner segment
+              segment_distance = route_distances.get_value(acceleration_end_idx, corner_end);
+              segment = {acceleration_end_idx, corner_end};
+              segment_speed = {proposed_corner_speed, proposed_corner_speed};
+              acceleration_value = 0.0;
+              acceleration = false;
+              add_segment(corner_idx);
+
+              logger("\nCORNER SEGMENT");
+              logger(get_segment_string());
+
+              last_real_corner_idx = corner_idx;
+              last_real_corner_speed = proposed_corner_speed;
+              valid = true;
+            } else if (proposed_corner_speed < last_real_corner_speed) {
+              // Decelerate to corner speed
+              // Parameters to search for
+              size_t deceleration_end_idx;
+              size_t deceleration_distance;
+
+              logger("Selected corner speed is " + std::to_string(proposed_corner_speed) + "m/s which is less than "
+                    "the last corner speed of " + std::to_string(last_real_corner_speed) + "m/s");
+              // Chosen corner speed is less than the previous corner speed, need to decelerate
+              // First check if this corner speed is possible to reach with the preferred deceleration
+              double max_ending_speed = 0.0;
+              try {
+                max_ending_speed = calc_final_speed_a(last_real_corner_speed, preferred_deceleration,
+                                                      max_acceleration_distance);
+              } catch (const InvalidCalculation& e) {
+                // If the discriminant was negative, then the speed goes to 0 before the distance
+                // is achieved. This means that the deceleration can definitely be achieved
+                max_ending_speed = 0.0;
+              }
+              if (max_ending_speed > proposed_corner_speed) {
+                logger("Preferred deceleration cannot achieve the desired corner speed. Trying again");
+                continue;
+              }
+
+              // // See if the car can reach the speed range of the next corner
+              // if (proposed_corner_speed > next_corner_max_speed * corner_speed_max) {
+              //   const double ending_speed = calc_final_speed_a(proposed_corner_speed,
+              //                                                  preferred_deceleration,
+              //                                                  max_acceleration_distance);
+              // }
+              if (!does_acceleration_exist(proposed_corner_speed, distance_to_next_corner,
+                                          next_corner_speed_range,
+                                          max_deceleration, max_acceleration)) {
+                logger("The corner speed is too low to be reached within the maximum acceleration distance of " +
+                      std::to_string(max_acceleration_distance) + "m");
+                continue;
+              }
+
+              deceleration_end_idx = last_real_corner_end;
+              deceleration_distance = calc_distance_a(last_real_corner_speed,
+                                                      proposed_corner_speed,
+                                                      preferred_deceleration);
+              while (route_distances.get_value(last_real_corner_end, deceleration_end_idx) < deceleration_distance) {
+                deceleration_end_idx++;
+              }
+
+              logger("Proposed corner speed is valid");
+              // Add the deceleration
+              segment = {last_real_corner_end, deceleration_end_idx};
+              segment_speed = {last_real_corner_speed, proposed_corner_speed};
+              acceleration_value = preferred_deceleration;
+              acceleration = true;
+              segment_distance = route_distances.get_value(last_real_corner_end, deceleration_end_idx);
+              add_segment(corner_idx);
+
+              logger("\nDECELERATION SEGMENT");
+              logger(get_segment_string());
+
+              // Add the corner segment
+              segment = {deceleration_end_idx, corner_end};
+              segment_speed = {proposed_corner_speed, proposed_corner_speed};
+              acceleration_value = 0.0;
+              acceleration = false;
+              segment_distance = route_distances.get_value(deceleration_end_idx, corner_end);
+              add_segment(corner_idx);
+
+              logger("\nCORNER SEGMENT");
+              logger(get_segment_string());
+
+              valid = true;
+              last_real_corner_idx = corner_idx;
+              last_real_corner_speed = proposed_corner_speed;
+            } else {
+              // Maintain same corner speed
+              logger("Proposed corner speed is the same as the current speed of the car. Adding one segment");
+
+              acceleration = false;
+              acceleration_value = 0.0;
+              segment_speed = {proposed_corner_speed, proposed_corner_speed};
+              segment = {last_real_corner_end,  corner_end};
+              segment_distance = route_distances.get_value(last_real_corner_end, corner_end);
+              add_segment(corner_idx);
+
+              logger("\nCORNER SEGMENT");
+              logger(get_segment_string());
+              last_real_corner_idx = corner_idx;
+              last_real_corner_speed = proposed_corner_speed;
+              valid = true;
+            }
+          }
+        }
+        is_first_segment = false;
+        return true;
+      };
+      if (!create_segments()) {
+        logger("Segments could NOT be created. Rolling back to the last segment");
+        last_real_corner_idx = temp_real_corner_idx;
+        remove_last_segment();
+        if (corner_idx == 0) {
+          corner_idx = num_corners - 1;
+          RUNTIME_EXCEPTION(loop_idx > 0, "Failed on the first segment");
+          loop_idx = loop_idx - 1;
+          loop_segments = all_segments.back();
+          loop_segment_speeds = all_segment_speeds.back();
+          loop_segment_distances = all_segment_distances.back();
+          loop_acceleration_segments = all_acceleration_segments.back();
+          loop_acceleration_values = all_acceleration_values.back();
+        } else {
+          corner_idx = corner_idx - 1;
+        }
+      } else {
+        corner_idx = corner_idx + 1;
       }
-      is_first_segment = false;
     }
 
     // For the very last segment of the last loop, just maintain corner speed until the end
@@ -1427,6 +1471,7 @@ RacePlan Route::segment_route_corners(const int max_num_loops,
       add_segment(num_corners-1);
     }
     add_loop();
+    loop_idx = loop_idx + 1;
   }
   // Fuse the loops together such that only one segment appears as a "crossover segment". This means
   // that if one loop starts with the following sequence of segments [573, 585], [585, 5], then the [573, 585]
