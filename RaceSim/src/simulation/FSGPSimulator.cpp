@@ -35,10 +35,6 @@ void FSGPSimulator::run_sim(const std::shared_ptr<Route>& route, RacePlan* race_
   double battery_energy = this->sim_start_soc;
   Coord starting_coord = this->sim_start_coord;
   double delta_energy;
-  double curr_speed;
-  double ending_speed;
-  bool is_accelerating;
-  double acceleration;
 
   // Initialize index caches for forecast lut lookups
   std::pair<size_t, size_t> wind_speed_cache = wind_speed_lut->initialize_caches(starting_coord,
@@ -97,13 +93,7 @@ void FSGPSimulator::run_sim(const std::shared_ptr<Route>& route, RacePlan* race_
     const std::vector<double>& loop_segment_acceleration_values = acceleration_values[loop_idx];
 
     // Get plan for current segment
-    size_t segment_counter = 0;
-    std::pair<size_t, size_t> current_segment = loop_segments[segment_counter];
-    std::pair<double, double> segment_speeds = loop_segment_speeds[segment_counter];
-    is_accelerating = loop_segment_acceleration[segment_counter];
-    acceleration = loop_segment_acceleration_values[segment_counter];
-    curr_speed = segment_speeds.first;
-    ending_speed = segment_speeds.second;
+    const size_t num_segments = loop_segments.size();
 
     if (loop_idx == 0) {
       // Write starting condition of the car to the result csv
@@ -111,55 +101,71 @@ void FSGPSimulator::run_sim(const std::shared_ptr<Route>& route, RacePlan* race_
                                route_points[0], 0.0, curr_time, 0.0);
     }
 
-    size_t idx = 0;
-    while (idx < num_points) {
-      // If we've wrapped around to the beginning of the loop, conclude this loop
-      if (idx == 0 && segment_counter == loop_segments.size() - 1) {
-        break;
+    // size_t route_idx = current_segment.first;
+    for (size_t segment_idx = 0; segment_idx < num_segments; segment_idx++) {
+      // Get segment information
+      const std::pair<size_t, size_t> current_segment = loop_segments[segment_idx];
+      const std::pair<double, double> segment_speeds = loop_segment_speeds[segment_idx];
+      const bool is_accelerating = loop_segment_acceleration[segment_idx];
+      const double acceleration = loop_segment_acceleration_values[segment_idx];
+      double curr_speed = segment_speeds.first;
+      const double ending_speed = segment_speeds.second;
+      const size_t starting_idx = current_segment.first;
+      const size_t ending_idx = current_segment.second;
+      // If accelerating, then we travel from segment start to end in one shot
+      size_t num_segment_points;
+      if (is_accelerating) {
+        num_segment_points = 1;
+      } else if (ending_idx < starting_idx) {
+        num_segment_points = num_points - starting_idx + ending_idx;
+      } else {
+        num_segment_points = ending_idx - starting_idx;
       }
+      // Traverse the segment
+      for (size_t cnt = 0; cnt < num_segment_points; cnt++) {
+        size_t coord_one, coord_two;
+        if (!is_accelerating) {
+          if (starting_idx + cnt >= num_points) {
+            // Wrap-around between loops. Don't expand the brackets, all of these data types
+            // are size_t
+            coord_one = cnt - (num_points - starting_idx);
+          } else {
+            coord_one = starting_idx + cnt;
+          }
+          coord_two = starting_idx + cnt == num_points - 1 ? 0 : coord_one + 1;
+        } else {
+          coord_one = starting_idx;
+          coord_two = ending_idx;
+        }
+        const Coord& current_coord = route_points[coord_one];
+        const Coord& next_coord = route_points[coord_two];
+        delta_energy = 0.0;
 
-      // Update segment counter. The only time when the ending index is 0 i.e. current_segment.second == 0
-      // is the last segment when the loop wraps around
-      if (idx == current_segment.second && current_segment.second != 0) {
-        segment_counter++;
-        current_segment = loop_segments[segment_counter];
-        segment_speeds = loop_segment_speeds[segment_counter];
-        is_accelerating = loop_segment_acceleration[segment_counter];
-        acceleration = loop_segment_acceleration_values[segment_counter];
-        curr_speed = segment_speeds.first;
-        ending_speed = segment_speeds.second;
-      }
-      const size_t coord_one = idx;
-      const size_t coord_two = idx == num_points - 1 ? 0 : idx + 1;
-      const Coord& current_coord = route_points[coord_one];
-      const Coord& next_coord = route_points[coord_two];
-      delta_energy = 0.0;
+        /* Update forecast lut index caches and get forecast data at the src coordinate */
+        ForecastCoord coord_one_forecast(current_coord.lat, current_coord.lon);
 
-      /* Update forecast lut index caches and get forecast data at the src coordinate */
-      ForecastCoord coord_one_forecast(current_coord.lat, current_coord.lon);
+        wind_speed_lut->update_index_cache(&wind_speed_cache, coord_one_forecast, curr_time.get_utc_time_point());
+        double wind_speed = wind_speed_lut->get_value(wind_speed_cache);
 
-      wind_speed_lut->update_index_cache(&wind_speed_cache, coord_one_forecast, curr_time.get_utc_time_point());
-      double wind_speed = wind_speed_lut->get_value(wind_speed_cache);
+        wind_dir_lut->update_index_cache(&wind_dir_cache, coord_one_forecast, curr_time.get_utc_time_point());
+        double wind_dir = wind_dir_lut->get_value(wind_dir_cache);
 
-      wind_dir_lut->update_index_cache(&wind_dir_cache, coord_one_forecast, curr_time.get_utc_time_point());
-      double wind_dir = wind_dir_lut->get_value(wind_dir_cache);
+        dni_lut->update_index_cache(&dni_cache, coord_one_forecast, curr_time.get_utc_time_point());
+        double dni = dni_lut->get_value(dni_cache);
 
-      dni_lut->update_index_cache(&dni_cache, coord_one_forecast, curr_time.get_utc_time_point());
-      double dni = dni_lut->get_value(dni_cache);
+        dhi_lut->update_index_cache(&dhi_cache, coord_one_forecast, curr_time.get_utc_time_point());
+        double dhi = dhi_lut->get_value(dhi_cache);
 
-      dhi_lut->update_index_cache(&dhi_cache, coord_one_forecast, curr_time.get_utc_time_point());
-      double dhi = dhi_lut->get_value(dhi_cache);
+        Wind wind = Wind(wind_dir, wind_speed);
+        Irradiance irr = Irradiance(dni, dhi);
 
-      Wind wind = Wind(wind_dir, wind_speed);
-      Irradiance irr = Irradiance(dni, dhi);
-
-      /** @brief Lambda function for charging between the start and end time
-       * @param start_time: The starting time of the charging period. This will be modified
-       * to eventually match the timestamp of end_time
-       * @param end_time: The ending time of the charging period
-       * Note: Captures parameters by reference, start_time will be updated
-       */
-      auto charge_in_time_interval = [&](Time& start_time, const Time& end_time) {
+        /** @brief Lambda function for static charging between the start and end time
+         * @param start_time: The starting time of the charging period. This will be modified
+         * to eventually match the timestamp of end_time
+         * @param end_time: The ending time of the charging period
+         * Note: Captures parameters by reference, start_time will be updated
+         */
+        auto charge_in_time_interval = [&](Time& start_time, const Time& end_time) {
           while (start_time < end_time) {
             /* Step in 30-second intervals */
             SolarAngle sun = SolarAngle();
@@ -182,91 +188,88 @@ void FSGPSimulator::run_sim(const std::shared_ptr<Route>& route, RacePlan* race_
               start_time.update_time_seconds(step_size);
             }
           }
-      };
-      /* Overnight stop */
-      if (curr_time >= day_end_time) {
-        // Charge from EoD to impounding start time
-        charge_in_time_interval(curr_time, impounding_start_time);
+        };
+        /* Overnight stop */
+        if (curr_time >= day_end_time) {
+          // Charge from EoD to impounding start time
+          charge_in_time_interval(curr_time, impounding_start_time);
 
-        // Move curr_time to the next day's impounding release time
-        curr_time = next_day_start;
-        curr_time.copy_hh_mm_ss(impounding_release_time);
+          // Move curr_time to the next day's impounding release time
+          curr_time = next_day_start;
+          curr_time.copy_hh_mm_ss(impounding_release_time);
 
-        // Charge from impounding release time to the race start
-        charge_in_time_interval(curr_time, next_day_start);
+          // Charge from impounding release time to the race start
+          charge_in_time_interval(curr_time, next_day_start);
 
-        // Update the EoD and next day start timestamps
-        current_day_end = curr_time;
-        current_day_end.copy_hh_mm_ss(day_end_time);
+          // Update the EoD and next day start timestamps
+          current_day_end = curr_time;
+          current_day_end.copy_hh_mm_ss(day_end_time);
 
-        next_day_start = curr_time;
-        next_day_start.copy_hh_mm_ss(day_start_time);
-        next_day_start.update_time_seconds(SECONDS_IN_DAY);
-      }
-
-      /* Compute state update of the car */
-      try {
-        double acceleration_distance;
-        double constant_distance;
-        if (is_accelerating) {
-          // When accelerating, we complete the segment in one shot from start_idx to end_idx
-          acceleration_distance = calc_distance_a(curr_speed, ending_speed, acceleration);
-          constant_distance = route_distances.get_value(current_segment.first, current_segment.second)
-                              - acceleration_distance;
-          car_update = car->compute_travel_update(route_points[current_segment.first],
-                                                  route_points[current_segment.second],
-                                                  curr_speed, ending_speed, acceleration,
-                                                  &curr_time, wind, irr, acceleration_distance,
-                                                  constant_distance);
-          // Move the loop index counter to the end of the segment - 1 (idx will +1 at the end
-          // of the for loop)
-          idx = current_segment.second - 1;
-        } else {
-          acceleration_distance = 0.0;
-          constant_distance = route_distances.get_value(coord_one, coord_two);
-          car_update = car->compute_travel_update(current_coord, next_coord, curr_speed, curr_speed,
-                                                  acceleration, &curr_time, wind, irr, acceleration_distance,
-                                                  constant_distance);
+          next_day_start = curr_time;
+          next_day_start.copy_hh_mm_ss(day_start_time);
+          next_day_start.update_time_seconds(SECONDS_IN_DAY);
         }
-      } catch (const InvalidCalculation& e) {
-        // Discriminant is negative. Some deceleration/acceleration cannot be completed and this race plan
-        // should be thrown out. Any good route segmentation function should create RacePlans such that this
-        // exception is never thrown
-        race_plan->set_viability(false);
-        race_plan->set_inviability_reason(std::string(e.what()));
-        return;
-      }
 
-      /* Update the running state of the simulation */
-      delta_energy += car_update.delta_energy;
-      accumulated_distance += car_update.delta_distance;
-      curr_time.update_time_seconds(car_update.delta_time);
-      curr_speed = calc_final_speed(curr_speed, acceleration, car_update.delta_time);
+        /* Compute state update of the car */
+        try {
+          double acceleration_distance;
+          double constant_distance;
+          if (is_accelerating) {
+            // When accelerating, we complete the segment in one shot from start_idx to end_idx
+            acceleration_distance = calc_distance_a(curr_speed, ending_speed, acceleration);
+            constant_distance = route_distances.get_value(current_segment.first, current_segment.second)
+                                - acceleration_distance;
+            car_update = car->compute_travel_update(route_points[current_segment.first],
+                                                    route_points[current_segment.second],
+                                                    curr_speed, ending_speed, acceleration,
+                                                    &curr_time, wind, irr, acceleration_distance,
+                                                    constant_distance);
+          } else {
+            acceleration_distance = 0.0;
+            constant_distance = route_distances.get_value(coord_one, coord_two);
+            car_update = car->compute_travel_update(current_coord, next_coord, curr_speed, curr_speed,
+                                                    acceleration, &curr_time, wind, irr, acceleration_distance,
+                                                    constant_distance);
+          }
+        } catch (const InvalidCalculation& e) {
+          // Discriminant is negative. Some deceleration/acceleration cannot be completed and this race plan
+          // should be thrown out. Any good route segmentation function should create RacePlans such that this
+          // exception is never thrown
+          race_plan->set_viability(false);
+          race_plan->set_inviability_reason(std::string(e.what()));
+          return;
+        }
 
-      /* Make sure the battery doesn't exceed the maximum bound */
-      if (battery_energy + delta_energy > max_soc) {
-        battery_energy = max_soc;
-      } else {
-        battery_energy += delta_energy;
-      }
-      spdlog::debug("Battery Energy: {}", battery_energy);
+        /* Update the running state of the simulation */
+        delta_energy += car_update.delta_energy;
+        accumulated_distance += car_update.delta_distance;
+        curr_time.update_time_seconds(car_update.delta_time);
+        curr_speed = calc_final_speed(curr_speed, acceleration, car_update.delta_time);
 
-      /* Update the logs */
-      if (!is_accelerating) {
-        results_lut->update_logs(car_update, battery_energy, delta_energy, accumulated_distance,
-                                next_coord, curr_speed, curr_time, acceleration);
-      } else {
-        results_lut->update_logs(car_update, battery_energy, delta_energy, accumulated_distance,
-                                 route_points[current_segment.second], curr_speed, curr_time, acceleration);
-      }
+        /* Make sure the battery doesn't exceed the maximum bound */
+        if (battery_energy + delta_energy > max_soc) {
+          battery_energy = max_soc;
+        } else {
+          battery_energy += delta_energy;
+        }
+        spdlog::debug("Battery Energy: {}", battery_energy);
 
-      /* Invalid simulation if battery goes below 0 or if the end of the race has been reached */
-      if (battery_energy < 0.0) {
-        race_plan->set_viability(false);
-        race_plan->set_inviability_reason("Out of battery charge");
-        return;
+        /* Update the logs */
+        if (!is_accelerating) {
+          results_lut->update_logs(car_update, battery_energy, delta_energy, accumulated_distance,
+                                  next_coord, curr_speed, curr_time, acceleration);
+        } else {
+          results_lut->update_logs(car_update, battery_energy, delta_energy, accumulated_distance,
+                                  route_points[current_segment.second], curr_speed, curr_time, acceleration);
+        }
+
+        /* Invalid simulation if battery goes below 0 or if the end of the race has been reached */
+        if (battery_energy < 0.0) {
+          race_plan->set_viability(false);
+          race_plan->set_inviability_reason("Out of battery charge");
+          return;
+        }
       }
-      idx++;
     }
   }
   race_plan->set_viability(true);
