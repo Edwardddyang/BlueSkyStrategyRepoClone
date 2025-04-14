@@ -785,11 +785,10 @@ RacePlan Route::segment_route_corners(const int max_num_loops,
   std::stack<size_t> real_corner_indices;
   real_corner_indices.push(0);
 
-  // Counted for each corner
-  size_t num_segments_added = 0;
-
-  // Number of segments created for the last real corner
-  size_t num_segments_of_last_corner = 0;
+  // Stack of # segments added for each real corner
+  std::stack<uint64_t> num_segments_added;
+  num_segments_added.push(0);
+  uint64_t segment_counter = 0;
 
   // The route index of the end of the last corner whose maximum speed is less than
   // the route speed
@@ -864,10 +863,13 @@ RacePlan Route::segment_route_corners(const int max_num_loops,
     // Labmda to remove the latest corner segments added to the loop
     auto remove_last_corner_segments = [&]() {
       const size_t curr_loop_num_segments = loop_segments.size();
+      const size_t num_segments_of_last_corner = static_cast<size_t>(num_segments_added.top());
+      logger("Number of segments in current loop: " + std::to_string(curr_loop_num_segments));
       const size_t num_remove_from_curr_loop = std::min(curr_loop_num_segments, num_segments_of_last_corner);
       if (num_segments_of_last_corner == 0) {
         return;
       }
+      logger("Removing " + std::to_string(num_segments_of_last_corner) + " segments");
 
       for (size_t idx = 0; idx < num_remove_from_curr_loop; idx++) {
         loop_segments.pop_back();
@@ -879,11 +881,12 @@ RacePlan Route::segment_route_corners(const int max_num_loops,
 
       const size_t num_remove_from_last_loop = num_segments_of_last_corner > curr_loop_num_segments ?
                                                num_segments_of_last_corner - curr_loop_num_segments : 0;
+      logger("Removed " + std::to_string(num_remove_from_curr_loop) + " segments from current loop and " +
+             std::to_string(num_remove_from_last_loop) + " from last loop");
       if (all_segments.size() > 0 && num_remove_from_last_loop > 0) {
         RUNTIME_EXCEPTION(num_remove_from_last_loop <= all_segments.back().size(), "Last loop has too few segments");
       }
       for (size_t idx = 0; idx < num_remove_from_last_loop; idx++) {
-        std::cout << idx + 1 << std::endl;
         all_segments.back().pop_back();
         all_segment_speeds.back().pop_back();
         all_acceleration_segments.back().pop_back();
@@ -897,9 +900,8 @@ RacePlan Route::segment_route_corners(const int max_num_loops,
     * @param c_idx: The corner index of the segment(s) being added
     */
     auto add_segment = [&](size_t c_idx) {
-      num_segments_added = num_segments_added + 1;
       if (c_idx == 0 && all_segments.size() >= 1 && segment.first > cornering_segment_bounds[0].second) {
-        // If this is the first corner and we're traversing between the last corner of the last loop
+        // If this is the first corner and we're traversing from the last corner of the last loop
         // to this first corner, we need to add the segment to the end of the last loop
         if (segment.second < segment.first && !acceleration) {
           // Wrap-around of constant speed segment - break the segment into two sub-segments
@@ -910,6 +912,7 @@ RacePlan Route::segment_route_corners(const int max_num_loops,
           all_acceleration_segments.back().push_back(acceleration);
           all_acceleration_values.back().push_back(acceleration_value);
           all_segment_distances.back().push_back(route_distances.get_value(segment.first, 0));
+          segment_counter = segment_counter + 1;
 
           std::pair<size_t, size_t> second_segment = {0, segment.second};
           loop_segments.emplace_back(second_segment);
@@ -917,6 +920,7 @@ RacePlan Route::segment_route_corners(const int max_num_loops,
           loop_acceleration_segments.emplace_back(acceleration);
           loop_acceleration_values.emplace_back(acceleration_value);
           loop_segment_distances.emplace_back(route_distances.get_value(0, segment.second));
+          segment_counter = segment_counter + 1;
         } else {
           // Acceleration segment wraps around, cannot break it into smaller segments
           all_segments.back().push_back(segment);
@@ -924,6 +928,7 @@ RacePlan Route::segment_route_corners(const int max_num_loops,
           all_acceleration_segments.back().push_back(acceleration);
           all_acceleration_values.back().push_back(acceleration_value);
           all_segment_distances.back().push_back(segment_distance);
+          segment_counter = segment_counter + 1;
         }
       } else {
         loop_segments.emplace_back(segment);
@@ -931,6 +936,7 @@ RacePlan Route::segment_route_corners(const int max_num_loops,
         loop_acceleration_segments.emplace_back(acceleration);
         loop_acceleration_values.emplace_back(acceleration_value);
         loop_segment_distances.emplace_back(segment_distance);
+        segment_counter = segment_counter + 1;
       }
     };
 
@@ -958,7 +964,7 @@ RacePlan Route::segment_route_corners(const int max_num_loops,
     // We construct the segments between the previous corner to the current corner
     size_t corner_idx = 0;
     while (corner_idx < num_corners) {
-      num_segments_added = 0;
+      segment_counter = 0;
       auto create_segments = [&]() -> bool {
         logger("--------------CREATING SEGMENTS FOR CORNER " + std::to_string(corner_idx) +
               " OF LOOP " + std::to_string(loop_idx) + "--------------");
@@ -1456,7 +1462,6 @@ RacePlan Route::segment_route_corners(const int max_num_loops,
             }
           }
         }
-        is_first_segment = false;
         return true;
       };
       if (!create_segments()) {
@@ -1466,6 +1471,7 @@ RacePlan Route::segment_route_corners(const int max_num_loops,
         real_corner_indices.pop();
         real_corner_speeds.pop();
         remove_last_corner_segments();
+        num_segments_added.pop();  // This must be called after remove_last_corner_segments()
         if (corner_idx == 0) {
           RUNTIME_EXCEPTION(loop_idx > 0, "Failed on the first segment");
           logger("Rolling back to the last loop");
@@ -1486,9 +1492,13 @@ RacePlan Route::segment_route_corners(const int max_num_loops,
           all_acceleration_values.pop_back();
         }
         corner_idx = last_real_corner_idx;
+        if (corner_idx == 0 && loop_idx == 0) {
+          is_first_segment = true;
+        }
       } else {
-        if (num_segments_added > 0) {
-          num_segments_of_last_corner = num_segments_added;
+        is_first_segment = false;
+        if (segment_counter > 0) {
+          num_segments_added.push(segment_counter);
         }
         corner_idx = corner_idx + 1;
       }
@@ -1507,20 +1517,6 @@ RacePlan Route::segment_route_corners(const int max_num_loops,
     add_loop();
     logger("Added loop " + std::to_string(loop_idx));
     loop_idx = loop_idx + 1;
-  }
-  // Fuse the loops together such that only one segment appears as a "crossover segment". This means
-  // that if one loop starts with the following sequence of segments [573, 585], [585, 5], then the [573, 585]
-  // segment should be moved to the end of the previous loop
-  for (size_t loop_idx = 0; loop_idx < num_loops - 1; loop_idx++) {
-    std::vector<std::pair<size_t, size_t>> next_loop_segments = all_segments[loop_idx+1];
-    std::vector<std::pair<double, double>> next_loop_speeds = all_segment_speeds[loop_idx+1];
-    std::vector<double> next_loop_acceleration = all_acceleration_values[loop_idx+1];
-    std::vector<double> next_loop_distances = all_segment_distances[loop_idx+1];
-
-    std::vector<std::pair<size_t, size_t>> curr_loop_segments = all_segments[loop_idx];
-    std::vector<std::pair<double, double>> curr_loop_speeds = all_segment_speeds[loop_idx];
-    std::vector<double> curr_loop_acceleration = all_acceleration_values[loop_idx];
-    std::vector<double> curr_loop_distances = all_segment_distances[loop_idx];
   }
 
   return RacePlan(all_segments, all_segment_speeds, all_acceleration_segments,
@@ -1715,7 +1711,8 @@ bool RacePlan::validate_members(const std::vector<Coord>& route_points) const {
     }
     if (loop_idx > 0) {
       RUNTIME_EXCEPTION(loop_segments_speeds[0].first == last_segment_speeds.second,
-                        "Last loop's ending speed must be the starting speed of the first segment in the next loop.");
+                        "Last loop's ending speed must be the starting speed of the first segment in the next loop. "
+                        "Error found in loop {}", loop_idx);
     }
     for (size_t i=0; i < num_segments; i++) {
       RUNTIME_EXCEPTION(loop_segments_speeds[i].first >= 0.0 && loop_segments_speeds[i].second >= 0.0,

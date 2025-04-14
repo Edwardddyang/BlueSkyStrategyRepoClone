@@ -190,7 +190,7 @@ void FSGPSimulator::run_sim(const std::shared_ptr<Route>& route, RacePlan* race_
           }
         };
         /* Overnight stop */
-        if (curr_time >= day_end_time) {
+        if (curr_time >= current_day_end) {
           // Charge from EoD to impounding start time
           charge_in_time_interval(curr_time, impounding_start_time);
 

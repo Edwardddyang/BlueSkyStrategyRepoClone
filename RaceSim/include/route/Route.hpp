@@ -308,13 +308,13 @@ class Route {
                                  const unsigned aggressive_seed = 1,
                                  const unsigned idx_seed = 1,
                                  const unsigned acceleration_seed = 1,
-                                 const double corner_speed_min = 0.3,
+                                 const double corner_speed_min = 0.2,
                                  const double corner_speed_max = 0.9,
-                                 const double aggressive_straight_threshold = 200.0,
+                                 const double aggressive_straight_threshold = 100.0,
                                  const int num_repetitions = 5,
-                                 const double acceleration_power_budget = 0.5,
+                                 const double acceleration_power_budget = 0.7,
                                  const int max_iters = 1000,
-                                 bool log = true);
+                                 bool log = false);
 
   /** @brief Find segment length
    *

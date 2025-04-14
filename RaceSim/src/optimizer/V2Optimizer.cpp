@@ -39,25 +39,29 @@ RacePlan V2Optimizer::optimize() {
     unsigned int aggressive_seed = dis(gen);
     unsigned int loop_seed = dis(gen);
     unsigned int skip_seed = dis(gen);
-    // Loop seed: 2042925788
-    // Speed seed: 1826443621
-    // Aggressive straight sampling seed: 4121210991
-    // Index selection seed: 1907294600
-    // Acceleration seed: 2001434136
+    if (Config::get_instance()->get_fix_seeds()) {
+      idx_seed = Config::get_instance()->get_idx_seed();
+      speed_seed = Config::get_instance()->get_speed_seed();
+      acceleration_seed = Config::get_instance()->get_acceleration_seed();
+      aggressive_seed = Config::get_instance()->get_aggressive_seed();
+      loop_seed = Config::get_instance()->get_loop_seed();
+      skip_seed = Config::get_instance()->get_skip_seed();
+    }
     race_plan = route->segment_route_corners(Config::get_instance()->get_max_num_loops(),
                                              Config::get_instance()->get_car_mass(),
                                              kph2mps(Config::get_instance()->get_max_route_speed()),
                                              kw2watts(Config::get_instance()->get_max_motor_power()),
                                              Config::get_instance()->get_max_acceleration(),
-                                             Config::get_instance()->get_max_deceleration(), 1.0, -1.0,
-                                             speed_seed, loop_seed, aggressive_seed, idx_seed, acceleration_seed);
-    // race_plan = route->segment_route_corners(Config::get_instance()->get_max_num_loops(),
-    //                                          Config::get_instance()->get_car_mass(),
-    //                                          kph2mps(Config::get_instance()->get_max_route_speed()),
-    //                                          kw2watts(Config::get_instance()->get_max_motor_power()),
-    //                                          Config::get_instance()->get_max_acceleration(),
-    //                                          Config::get_instance()->get_max_deceleration(), 1.0, -1.0,
-    //                                          1826443621, 2042925788, 4121210991, 1907294600, 2001434136);
+                                             Config::get_instance()->get_max_deceleration(),
+                                             Config::get_instance()->get_preferred_acceleration(),
+                                             Config::get_instance()->get_preferred_deceleration(),
+                                             speed_seed, loop_seed, aggressive_seed, idx_seed, acceleration_seed,
+                                             Config::get_instance()->get_corner_speed_min(),
+                                             Config::get_instance()->get_corner_speed_max(),
+                                             Config::get_instance()->get_aggressive_straight_threshold(),
+                                             Config::get_instance()->get_num_repetitions(),
+                                             Config::get_instance()->get_acceleration_power_budget(),
+                                             1000, Config::get_instance()->get_log_segmenting());
     race_plan.print_plan();
     auto start = std::chrono::high_resolution_clock::now();
     simulator->run_sim(route, &race_plan, result_lut);

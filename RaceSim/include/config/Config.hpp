@@ -99,6 +99,21 @@
   PARAM(save_csv, bool, bool, true)                                                         \
   PARAM(simulator, std::string, std::string, "FSGP")                                        \
   PARAM(threads, double, double, 0.5)                                                       \
+  PARAM(acceleration_power_budget, double, double, 0.7)                                     \
+  PARAM(preferred_acceleration, double, double, 1.0)                                        \
+  PARAM(preferred_deceleration, double, double, -1.0)                                       \
+  PARAM(corner_speed_min, double, double, 0.2)                                              \
+  PARAM(corner_speed_max, double, double, 0.9)                                              \
+  PARAM(aggressive_straight_threshold, double, double, 200.0)                               \
+  PARAM(num_repetitions, int, int, 5)                                                       \
+  PARAM(log_segmenting, bool, bool, false)                                                  \
+  PARAM(fix_seeds, bool, bool, false)                                                       \
+  PARAM(loop_seed, unsigned int, unsigned int, 1)                                           \
+  PARAM(speed_seed, unsigned int, unsigned int, 1)                                          \
+  PARAM(aggressive_seed, unsigned int, unsigned int, 1)                                     \
+  PARAM(acceleration_seed, unsigned int, unsigned int, 1)                                   \
+  PARAM(idx_seed, unsigned int, unsigned int, 1)                                            \
+  PARAM(skip_seed, unsigned int, unsigned int, 1)                                           \
 
 /* Class that holds all information from a .yaml file storing configuration parameters for
  * a race simulation
