@@ -669,6 +669,8 @@ RacePlan Route::segment_route_corners(const int max_num_loops,
                                       const double max_motor_power,
                                       const double max_acceleration,
                                       const double max_deceleration,
+                                      const Time* start_time,
+                                      const Time* end_time,
                                       const double preferred_acceleration,
                                       const double preferred_deceleration,
                                       const unsigned speed_seed,
@@ -684,7 +686,7 @@ RacePlan Route::segment_route_corners(const int max_num_loops,
                                       const int max_iters,
                                       bool log) {
   RUNTIME_EXCEPTION(route_points.size() > 0, "Route points not yet loaded");
-  RUNTIME_EXCEPTION(cornering_segment_bounds.size() > 0, "There must exist at least 1 corner");
+  RUNTIME_EXCEPTION(cornering_segment_bounds.size() > 1, "There must exist at least 2 corners");
   RUNTIME_EXCEPTION(cornering_segment_bounds.size() == cornering_speed_bounds.size(),
                     "Number of corners must equal the length of the cornering speeds");
   RUNTIME_EXCEPTION(max_speed > 0.0 && max_acceleration > 0.0,
@@ -704,6 +706,8 @@ RacePlan Route::segment_route_corners(const int max_num_loops,
                     "Preferred deceleration must have lower magnitude than maximum deceleration");
   RUNTIME_EXCEPTION(preferred_acceleration <= max_acceleration,
                     "Preferred acceleration must have lower magnitude than maximum acceleration");
+  RUNTIME_EXCEPTION(start_time != nullptr && end_time != nullptr, "Start time or End time is null");
+  RUNTIME_EXCEPTION(*start_time < *end_time, "Start time must be before the end time");
 
   // Create random number generators
   std::mt19937 speed_rng(speed_seed);
@@ -727,6 +731,7 @@ RacePlan Route::segment_route_corners(const int max_num_loops,
   const size_t num_loops = static_cast<size_t>(dis(loop_rng));
 
   const double acceleration_power_allowance = max_motor_power * acceleration_power_budget;
+  Time curr_time = *start_time;
 
   FileLogger logger;
   logger = FileLogger("segment_route_corners.log", log);
@@ -750,7 +755,9 @@ RacePlan Route::segment_route_corners(const int max_num_loops,
   logger("Maximum iteration count for sampling: " + std::to_string(max_iters));
   logger("Fractional acceleration power budget: " + std::to_string(acceleration_power_budget));
   logger("Randomly selected number of loops to complete: " + std::to_string(num_loops));
-  logger("Motor power allowance is " + std::to_string(acceleration_power_allowance) + " W\n");
+  logger("Acceleration power allowance is " + std::to_string(acceleration_power_allowance) + " W\n");
+  logger("Race Plan start time is " + curr_time.get_local_readable_time());
+  logger("Race Plan end time is " + end_time->get_local_readable_time());
 
   ///////////////////////////////////////////////////////////////////////////////////
   ////////////////////// NOTE ABOUT TERMINOLOGY USED ///////////////////////////////
@@ -815,6 +822,12 @@ RacePlan Route::segment_route_corners(const int max_num_loops,
   // Counter for tracking the number of sampling iterations
   int count = 0;
 
+  // Counter for the number of loops in a single block
+  size_t loop_counter_in_block = 0;
+
+  // Counter for the number of blocks
+  size_t block_counter = 0;
+
   // Estimated instataneous motor power in W
   double instataneous_motor_power = 0.0;
 
@@ -848,6 +861,11 @@ RacePlan Route::segment_route_corners(const int max_num_loops,
 
   size_t loop_idx = 0;
   while (loop_idx < num_loops) {
+    // Create new block
+    if (loop_counter_in_block == num_repetitions) {
+      loop_counter_in_block = 0;
+      
+    }
     // Clear all temp data holders
     loop_segments.clear();
     loop_segment_speeds.clear();
@@ -942,12 +960,14 @@ RacePlan Route::segment_route_corners(const int max_num_loops,
 
     // Lambda to add the latest loop to the overall race plan
     auto add_loop = [&]() {
+      RUNTIME_EXCEPTION(loop_counter_in_block < num_repetitions, "Loop counter has exceeded number of repetitions per block");
       // Store results for this loop
       all_segments.push_back(loop_segments);
       all_segment_speeds.push_back(loop_segment_speeds);
       all_acceleration_segments.push_back(loop_acceleration_segments);
       all_acceleration_values.push_back(loop_acceleration_values);
       all_segment_distances.push_back(loop_segment_distances);
+      loop_counter_in_block = loop_counter_in_block + 1;
     };
 
     // Lambda to convert segment information into a string (debugging + logging purposes)
@@ -961,17 +981,26 @@ RacePlan Route::segment_route_corners(const int max_num_loops,
       return ss.str();
     };
 
-    // We construct the segments between the previous corner to the current corner
+    // We construct the segments between the previous corner to the current corner.
+    // We consider a complete loop as one that wraps back around to the first corner
+    // of the route.
     size_t corner_idx = 0;
-    while (corner_idx < num_corners) {
+    while (corner_idx < num_corners + 1) {
       segment_counter = 0;
       auto create_segments = [&]() -> bool {
+        bool wrap_around_corner = false;
         logger("--------------CREATING SEGMENTS FOR CORNER " + std::to_string(corner_idx) +
-              " OF LOOP " + std::to_string(loop_idx) + "--------------");
+              " OF LOOP " + std::to_string(loop_idx));
+        if (corner_idx == num_corners) {
+          logger("[WRAP-AROUND CORNER]--------------");
+          wrap_around_corner = true;
+        } else {
+          logger("--------------");
+        }
         // Get attributes for current corner
-        const size_t corner_start = cornering_segment_bounds[corner_idx].first;
-        const size_t corner_end = cornering_segment_bounds[corner_idx].second;
-        const double max_corner_speed = cornering_speed_bounds[corner_idx];
+        const size_t corner_start = cornering_segment_bounds[corner_idx % num_corners].first;
+        const size_t corner_end = cornering_segment_bounds[corner_idx % num_corners].second;
+        const double max_corner_speed = cornering_speed_bounds[corner_idx % num_corners];
         logger("Corner maximum speed is " + std::to_string(max_corner_speed) + "m/s");
         logger("Corner start is index " + std::to_string(corner_start));
         logger("Corner end is index " + std::to_string(corner_end));
@@ -985,7 +1014,7 @@ RacePlan Route::segment_route_corners(const int max_num_loops,
         }
 
         // Get attributes for previous corner
-        if (corner_idx > 0) {
+        if (corner_idx > 0) {  // Note this includes the wrap-around corner e.g. corner_idx = num_corners
           prev_corner_end = cornering_segment_bounds[corner_idx-1].second;
           prev_corner_max_speed = cornering_speed_bounds[corner_idx-1];
         } else {
@@ -997,6 +1026,9 @@ RacePlan Route::segment_route_corners(const int max_num_loops,
         if (corner_idx < num_corners - 1) {
           next_corner_start = cornering_segment_bounds[corner_idx+1].first;
           next_corner_max_speed = cornering_speed_bounds[corner_idx+1];
+        } else if (corner_idx == num_corners) {  // First corner
+          next_corner_start = cornering_segment_bounds[1].first;
+          next_corner_max_speed = cornering_speed_bounds[1];
         } else {
           next_corner_start = cornering_segment_bounds[0].first;
           next_corner_max_speed = cornering_speed_bounds[0];
@@ -1515,7 +1547,8 @@ RacePlan Route::segment_route_corners(const int max_num_loops,
       add_segment(num_corners-1);
     }
     add_loop();
-    logger("Added loop " + std::to_string(loop_idx));
+    logger("Added loop " + std::to_string(loop_idx) + ", number " + std::to_string(loop_counter_in_block) +
+           " in its block");
     loop_idx = loop_idx + 1;
   }
 

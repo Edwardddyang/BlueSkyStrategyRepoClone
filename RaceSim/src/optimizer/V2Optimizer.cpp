@@ -47,12 +47,20 @@ RacePlan V2Optimizer::optimize() {
       loop_seed = Config::get_instance()->get_loop_seed();
       skip_seed = Config::get_instance()->get_skip_seed();
     }
+    // We create a separate RacePlan object for each day
+    const Time curr_time = Config::get_instance()->get_current_date_time();
+    const Time day_one_start_time = Config::get_instance()->get_day_one_start_time();
+    const Time day_one_end_time = Config::get_instance()->get_day_one_end_time();
+    const Time day_end_time = Config::get_instance()->get_day_end_time();  // Second and third day
+    const bool is_first_day = curr_time >= day_one_start_time && curr_time < day_one_end_time;
+    const Time race_plan_end_time = is_first_day ? day_one_end_time : day_end_time;
     race_plan = route->segment_route_corners(Config::get_instance()->get_max_num_loops(),
                                              Config::get_instance()->get_car_mass(),
                                              kph2mps(Config::get_instance()->get_max_route_speed()),
                                              kw2watts(Config::get_instance()->get_max_motor_power()),
                                              Config::get_instance()->get_max_acceleration(),
                                              Config::get_instance()->get_max_deceleration(),
+                                             &curr_time, &race_plan_end_time,
                                              Config::get_instance()->get_preferred_acceleration(),
                                              Config::get_instance()->get_preferred_deceleration(),
                                              speed_seed, loop_seed, aggressive_seed, idx_seed, acceleration_seed,

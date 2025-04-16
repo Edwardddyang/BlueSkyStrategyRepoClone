@@ -282,6 +282,8 @@ class Route {
    * @param max_motor_power Maximum instataneous motor power draw from the motor in W
    * @param max_acceleration Maximum magnitude for acceleration in m/s^2
    * @param max_deceleration Maximum magnitude for deceleration in m/s^2
+   * @param start_time Start time of the race plan
+   * @param end_time End time of the race plan
    * @param preferred_acceleration Magnitude of preferred acceleration value
    * @param preferred_deceleration Magnitude of preferred deceleration value
    * @param corner_speed_min The fractional value to clamp the lower bound of speed ranges
@@ -294,6 +296,8 @@ class Route {
    * @param max_iters Number of iterations to try selecting a corner speed until we give up and return
    * empty
    * @param log Whether to log the segmentation process to a file
+   *
+   * Note: This function can only create a plan for a single day at a time
    */
   RacePlan segment_route_corners(const int max_num_loops,
                                  const double car_mass,
@@ -301,6 +305,8 @@ class Route {
                                  const double max_motor_power,
                                  const double max_acceleration,
                                  const double max_deceleration,
+                                 const Time* start_time,
+                                 const Time* end_time,
                                  const double preferred_acceleration = 1.0,
                                  const double preferred_deceleration = -1.0,
                                  const unsigned speed_seed = 1,
