@@ -797,6 +797,14 @@ RacePlan Route::segment_route_corners(const int max_num_loops,
   num_segments_added.push(0);
   uint64_t segment_counter = 0;
 
+  // Stack of first corner speeds - pushed after constructing each new loop
+  std::stack<uint64_t> first_corner_speeds;
+  first_corner_speeds.push(0);
+
+  // Stack of first corner indices inside loop_segments - pushed after constructing each new loop
+  std::stack<uint64_t> first_corner_indices;
+  first_corner_indices.push(0);
+
   // The route index of the end of the last corner whose maximum speed is less than
   // the route speed
   size_t last_real_corner_end = 0;
@@ -815,9 +823,6 @@ RacePlan Route::segment_route_corners(const int max_num_loops,
 
   // General boolean variable for determining validity of a randomly chosen speed, acceleration, index etc.
   bool valid = false;
-
-  // If maximum iterations have been reached, rollback the last segment and try again
-  bool rollback = false;
 
   // Counter for tracking the number of sampling iterations
   int count = 0;
@@ -861,10 +866,24 @@ RacePlan Route::segment_route_corners(const int max_num_loops,
 
   size_t loop_idx = 0;
   while (loop_idx < num_loops) {
+    // Lambda to add the latest loop to the overall race plan
+    auto add_loop = [&]() {
+      RUNTIME_EXCEPTION(loop_counter_in_block < num_repetitions, "Loop counter has exceeded number of repetitions per block");
+      // Store results for this loop
+      all_segments.push_back(loop_segments);
+      all_segment_speeds.push_back(loop_segment_speeds);
+      all_acceleration_segments.push_back(loop_acceleration_segments);
+      all_acceleration_values.push_back(loop_acceleration_values);
+      all_segment_distances.push_back(loop_segment_distances);
+      loop_counter_in_block = loop_counter_in_block + 1;
+    };
+
     // Create new block
     if (loop_counter_in_block == num_repetitions) {
       loop_counter_in_block = 0;
-      
+    } else if (loop_counter_in_block > 0) {
+      add_loop();
+      continue;
     }
     // Clear all temp data holders
     loop_segments.clear();
@@ -958,18 +977,6 @@ RacePlan Route::segment_route_corners(const int max_num_loops,
       }
     };
 
-    // Lambda to add the latest loop to the overall race plan
-    auto add_loop = [&]() {
-      RUNTIME_EXCEPTION(loop_counter_in_block < num_repetitions, "Loop counter has exceeded number of repetitions per block");
-      // Store results for this loop
-      all_segments.push_back(loop_segments);
-      all_segment_speeds.push_back(loop_segment_speeds);
-      all_acceleration_segments.push_back(loop_acceleration_segments);
-      all_acceleration_values.push_back(loop_acceleration_values);
-      all_segment_distances.push_back(loop_segment_distances);
-      loop_counter_in_block = loop_counter_in_block + 1;
-    };
-
     // Lambda to convert segment information into a string (debugging + logging purposes)
     auto get_segment_string = [&]() {
       std::stringstream ss;
@@ -988,12 +995,11 @@ RacePlan Route::segment_route_corners(const int max_num_loops,
     while (corner_idx < num_corners + 1) {
       segment_counter = 0;
       auto create_segments = [&]() -> bool {
-        bool wrap_around_corner = false;
+        // Wrap-around corner is index 0
         logger("--------------CREATING SEGMENTS FOR CORNER " + std::to_string(corner_idx) +
-              " OF LOOP " + std::to_string(loop_idx));
+              " OF LOOP " + std::to_string(loop_idx), false);
         if (corner_idx == num_corners) {
-          logger("[WRAP-AROUND CORNER]--------------");
-          wrap_around_corner = true;
+          logger(" [WRAP-AROUND CORNER]--------------");
         } else {
           logger("--------------");
         }
@@ -1017,7 +1023,7 @@ RacePlan Route::segment_route_corners(const int max_num_loops,
         if (corner_idx > 0) {  // Note this includes the wrap-around corner e.g. corner_idx = num_corners
           prev_corner_end = cornering_segment_bounds[corner_idx-1].second;
           prev_corner_max_speed = cornering_speed_bounds[corner_idx-1];
-        } else {
+        } else {  // Last corner
           prev_corner_end = cornering_segment_bounds[num_corners-1].second;
           prev_corner_max_speed = cornering_speed_bounds[num_corners-1];
         }
@@ -1169,7 +1175,7 @@ RacePlan Route::segment_route_corners(const int max_num_loops,
               acceleration_end_idx = acceleration_end_idx == this->num_points - 1 ? 0 : acceleration_end_idx + 1;
             }
 
-            // Select corner speed
+            // Select corner speed - if wrap-around, then the corner speed is fixed
             // This should likely be a distribution where the mean or mode (bump) considers both the acceleration
             // ending speed AND the next corner speed
             lower_bound_speed = std::max<int>(1, static_cast<int>(max_corner_speed * corner_speed_min));
@@ -1187,7 +1193,11 @@ RacePlan Route::segment_route_corners(const int max_num_loops,
                 return false;
               }
 
-              proposed_corner_speed = speed_dist(speed_rng);
+              if (corner_idx == num_corners) {
+                proposed_corner_speed = first_corner_speeds.top();
+              } else {
+                proposed_corner_speed = speed_dist(speed_rng);
+              }
               logger("Trying corner speed " + std::to_string(proposed_corner_speed) + "m/s");
 
               // Select a location to start decelerating
@@ -1288,9 +1298,6 @@ RacePlan Route::segment_route_corners(const int max_num_loops,
             logger("\nCORNER SPEED SEGMENT");
             logger(get_segment_string());
 
-            real_corner_speeds.push(proposed_corner_speed);
-            real_corner_indices.push(corner_idx);
-
             valid = true;
           }
         } else {
@@ -1326,7 +1333,11 @@ RacePlan Route::segment_route_corners(const int max_num_loops,
               return false;
             }
             // Pick a corner speed
-            proposed_corner_speed = speed_dist(speed_rng);
+            if (corner_idx == num_corners) {
+              proposed_corner_speed = first_corner_speeds.top();
+            } else {
+              proposed_corner_speed = speed_dist(speed_rng);
+            }
             distance_to_next_corner = route_distances.get_value(corner_end, next_corner_start);
             const std::pair<double, double> next_corner_speed_range = {next_corner_max_speed * corner_speed_min,
                                                                       next_corner_max_speed * corner_speed_max};
@@ -1402,9 +1413,7 @@ RacePlan Route::segment_route_corners(const int max_num_loops,
 
               logger("\nCORNER SEGMENT");
               logger(get_segment_string());
-
-              real_corner_indices.push(corner_idx);
-              real_corner_speeds.push(proposed_corner_speed);
+  
               valid = true;
             } else if (proposed_corner_speed < last_real_corner_speed) {
               // Decelerate to corner speed
@@ -1473,8 +1482,6 @@ RacePlan Route::segment_route_corners(const int max_num_loops,
               logger(get_segment_string());
 
               valid = true;
-              real_corner_indices.push(corner_idx);
-              real_corner_speeds.push(proposed_corner_speed);
             } else {
               // Maintain same corner speed
               logger("Proposed corner speed is the same as the current speed of the car. Adding one segment");
@@ -1488,9 +1495,7 @@ RacePlan Route::segment_route_corners(const int max_num_loops,
 
               logger("\nCORNER SEGMENT");
               logger(get_segment_string());
-              real_corner_indices.push(corner_idx);
-              real_corner_speeds.push(proposed_corner_speed);
-              valid = true;
+              valid = true;  
             }
           }
         }
@@ -1500,14 +1505,17 @@ RacePlan Route::segment_route_corners(const int max_num_loops,
         logger("Segments could NOT be created. Rolling back to the last segment");
         size_t last_real_corner_idx = real_corner_indices.top();
         logger("Re-creating segments for corner " + std::to_string(last_real_corner_idx));
+        // Rollback will occur for the last real corner. We need to remove those indices and speeds
         real_corner_indices.pop();
         real_corner_speeds.pop();
         remove_last_corner_segments();
         num_segments_added.pop();  // This must be called after remove_last_corner_segments()
+
+        // If we failed on corner index 0, we need to rollback the entire last loop block
         if (corner_idx == 0) {
-          RUNTIME_EXCEPTION(loop_idx > 0, "Failed on the first segment");
+          RUNTIME_EXCEPTION(loop_idx > num_repetitions - 1, "Failed on the first segment");
           logger("Rolling back to the last loop");
-          loop_idx = loop_idx - 1;
+          loop_idx = loop_idx - num_repetitions;
           loop_segments = all_segments.back();
           loop_segment_speeds = all_segment_speeds.back();
           loop_segment_distances = all_segment_distances.back();
@@ -1516,12 +1524,17 @@ RacePlan Route::segment_route_corners(const int max_num_loops,
 
           RUNTIME_EXCEPTION(all_segments.size() > 0, "Segment plan has no vectors");
 
-          // Remove the last loop's properties since they're going to be replaced
-          all_segments.pop_back();
-          all_segment_speeds.pop_back();
-          all_segment_distances.pop_back();
-          all_acceleration_segments.pop_back();
-          all_acceleration_values.pop_back();
+          // Remove the last loop block
+          all_segments.erase(all_segments.end() - num_repetitions, all_segments.end());
+          all_segment_speeds.erase(all_segment_speeds.end() - num_repetitions, all_segment_speeds.end());
+          all_segment_distances.erase(all_segment_distances.end() - num_repetitions, all_segment_distances.end());
+          all_acceleration_segments.erase(all_acceleration_segments.end() - num_repetitions,
+                                          all_acceleration_segments.end());
+          all_acceleration_values.erase(all_acceleration_values.end() - num_repetitions,
+                                        all_acceleration_values.end());
+        }
+        if (corner_idx == num_corners) {
+          first_corner_speeds.pop();
         }
         corner_idx = last_real_corner_idx;
         if (corner_idx == 0 && loop_idx == 0) {
@@ -1529,8 +1542,15 @@ RacePlan Route::segment_route_corners(const int max_num_loops,
         }
       } else {
         is_first_segment = false;
+        // Update stacks only for real corners
         if (segment_counter > 0) {
           num_segments_added.push(segment_counter);
+          real_corner_indices.push(corner_idx);
+          real_corner_speeds.push(proposed_corner_speed);
+          if (corner_idx == 0) {
+            first_corner_speeds.push(static_cast<uint64_t>(proposed_corner_speed));
+            first_corner_indices.push(static_cast<uint64_t>(loop_segments.size()-1));
+          }
         }
         corner_idx = corner_idx + 1;
       }
