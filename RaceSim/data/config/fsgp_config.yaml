@@ -72,11 +72,11 @@
   num_repetitions: 5 # Number of times to repeat the plan for a single loop
   log_segmenting: true # Log the race plan creation
   fix_seeds: false # Fix seeds for route segmentation. If true, use the seeds below
-  loop_seed: 1
-  speed_seed: 1
-  aggressive_seed: 1
-  acceleration_seed: 1
-  idx_seed: 1
+  loop_seed: 1769867610
+  speed_seed: 2127689901
+  aggressive_seed: 2928938250
+  acceleration_seed: 3278118375
+  idx_seed: 4259918788
   skip_seed: 1
 
 \Simulation:
