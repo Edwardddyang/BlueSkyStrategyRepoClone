@@ -16,6 +16,10 @@
 #include "utils/Units.hpp"
 #include "utils/Luts.hpp"
 
+double calc_segment_distance(const std::vector<Coord>& coords,
+                            const size_t starting_idx,
+                            const size_t ending_idx);
+
 /** A class to represent a proposed race plan
  * 
  * Each plan splits the route into segments described by a series of {start index, end index} pairs.
