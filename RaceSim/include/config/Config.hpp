@@ -102,6 +102,8 @@
   PARAM(acceleration_power_budget, double, double, 0.7)                                     \
   PARAM(preferred_acceleration, double, double, 1.0)                                        \
   PARAM(preferred_deceleration, double, double, -1.0)                                       \
+  PARAM(min_acceleration, double, double, 0.1)                                              \
+  PARAM(average_speed, double, double, 45.0)                                                \
   PARAM(corner_speed_min, double, double, 0.2)                                              \
   PARAM(corner_speed_max, double, double, 0.9)                                              \
   PARAM(aggressive_straight_threshold, double, double, 200.0)                               \

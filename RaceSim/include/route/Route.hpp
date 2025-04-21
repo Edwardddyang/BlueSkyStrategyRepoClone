@@ -296,6 +296,8 @@ class Route {
    * @param end_time End time of the race plan
    * @param preferred_acceleration Magnitude of preferred acceleration value
    * @param preferred_deceleration Magnitude of preferred deceleration value
+   * @param min_acceleration Minimum acceleration value to consider
+   * @param average_speed Average speed to target
    * @param corner_speed_min The fractional value to clamp the lower bound of speed ranges
    * @param corner_speed_max The fractional value to clamp the upper bound of speed ranges
    * @param aggressive_straight_threshold Threshold value in meters to take a straight aggressively
@@ -315,6 +317,8 @@ class Route {
                                  const double max_motor_power,
                                  const double max_acceleration,
                                  const double max_deceleration,
+                                 const double min_acceleration,
+                                 const double average_speed,
                                  const Time* start_time,
                                  const Time* end_time,
                                  const double preferred_acceleration = 1.0,

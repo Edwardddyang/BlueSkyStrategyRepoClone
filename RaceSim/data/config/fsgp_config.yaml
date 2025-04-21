@@ -70,13 +70,16 @@
   corner_speed_max: 0.9 # Unitless fraction in range (corner_speed_min,1]
   aggressive_straight_threshold: 200.0 # m. Straights longer than this can be taken agressively
   num_repetitions: 5 # Number of times to repeat the plan for a single loop
+  min_acceleration: 0.1 # Minimum acceleration that can be considered in m/s^2
+  average_speed: 12.0 # Average speed to try and maintain throughout the route. The profile creator
+                      # uses this value as the mean of a gaussian distribution to sample for
   log_segmenting: true # Log the race plan creation
   fix_seeds: false # Fix seeds for route segmentation. If true, use the seeds below
-  loop_seed: 1769867610
-  speed_seed: 2127689901
-  aggressive_seed: 2928938250
-  acceleration_seed: 3278118375
-  idx_seed: 4259918788
+  loop_seed: 2473270801
+  speed_seed: 1926574435
+  aggressive_seed: 725726032
+  acceleration_seed: 1709601185
+  idx_seed: 4048578657
   skip_seed: 1
 
 \Simulation:

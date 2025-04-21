@@ -60,6 +60,8 @@ RacePlan V2Optimizer::optimize() {
                                              kw2watts(Config::get_instance()->get_max_motor_power()),
                                              Config::get_instance()->get_max_acceleration(),
                                              Config::get_instance()->get_max_deceleration(),
+                                             Config::get_instance()->get_min_acceleration(),
+                                             Config::get_instance()->get_average_speed(),
                                              &curr_time, &race_plan_end_time,
                                              Config::get_instance()->get_preferred_acceleration(),
                                              Config::get_instance()->get_preferred_deceleration(),
