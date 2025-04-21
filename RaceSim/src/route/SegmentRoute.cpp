@@ -13,6 +13,7 @@
 #include <vector>
 #include <iomanip>
 #include <stack>
+#include <unordered_set>
 
 #include "utils/Defines.hpp"
 #include "route/Route.hpp"
@@ -138,8 +139,9 @@ static double calc_segment_acceleration(const std::vector<Coord>& coords, const 
 }
 
 template <typename T>
-static T bounded_gaussian(std::normal_distribution<> dist, std::mt19937 gen,
-                          double lower_bound, double upper_bound) {
+// Note that gen needs to be a reference since the internal state needs to be advanced after calling
+static T bounded_gaussian(std::normal_distribution<> dist, std::mt19937& gen,  // NOLINT
+                          double lower_bound, double upper_bound, const FileLogger& logger) {  // NOLINT
   double value;
   do {
     value = dist(gen);
@@ -758,6 +760,25 @@ RacePlan Route::segment_route_corners(const int max_num_loops,
   int lower_bound_speed = 0;
   int upper_bound_speed = 0;
 
+  // Mean and standard deviation to parameterize the normal distribution
+  double speed_mean = average_speed;
+  double speed_dev = 5.0;
+
+  // Keep track of speeds that have been tested when sampling
+  std::unordered_set<int> sampled_speeds;
+
+  /** @brief Lambda to check if all speeds in the range of [lower_bound_speed, upper_bound_speed] have been tested */
+  auto all_speeds_sampled = [&]() -> bool {
+    int speed = lower_bound_speed;
+    while (speed <= upper_bound_speed) {
+      if (sampled_speeds.find(speed) == sampled_speeds.end()) {
+        return false;
+      }
+      speed += 1;
+    }
+    return true;
+  };
+
   ///////////////////////////////////////////////////////////////////////////////////
   // Temp data holders for each segment
   std::pair<size_t, size_t> segment = {0, 0};
@@ -791,7 +812,7 @@ RacePlan Route::segment_route_corners(const int max_num_loops,
   // TODO(Ethan): These should probably not be uniform distributions but at the very least,
   // gaussian
   std::uniform_int_distribution<size_t> idx_dist;
-  std::uniform_int_distribution<int> speed_dist;
+  std::normal_distribution<double> speed_dist;
   std::uniform_real_distribution<double> acceleration_dist(0.1, max_acceleration);
   std::uniform_real_distribution<double> aggressive_dist(0.0, 1.0);
 
@@ -1262,20 +1283,33 @@ RacePlan Route::segment_route_corners(const int max_num_loops,
             } while (min_acceleration * car_mass * last_real_corner_speed < acceleration_power_allowance &&
                     acceleration_distance < max_acceleration_distance);
 
-            if (static_cast<int>(upper_bound_speed + 1) == last_real_corner_speed) {
+            if (static_cast<int>(upper_bound_speed) <= last_real_corner_speed + 1) {
               // If the upper bound speed is the same as the corner speed, then that means
-              // the maximum acceleration distance is too low or the corner speed was too high
-              // and killed the motor. In this case, we do a normal straight
+              // the maximum acceleration distance is too low or the last corner speed was too high
+              // for the motor
               normal_straight = true;
               break;
             }
 
-            speed_dist = std::uniform_int_distribution<int>(last_real_corner_speed + 1, static_cast<int>(upper_bound_speed));
-            logger("Created acceleration with lower bound speed of " + std::to_string(last_real_corner_speed) +
-                   " and upper bound speed " + std::to_string(static_cast<int>(upper_bound_speed)));
-            acceleration_end_speed = speed_dist(speed_rng);
-            proposed_acceleration = calc_acceleration(last_real_corner_speed, acceleration_end_speed, acceleration_distance);
-            logger("Trying acceleration " + std::to_string(proposed_acceleration) + "m/s^2");
+            if (average_speed > upper_bound_speed) {
+              speed_mean = (upper_bound_speed + last_real_corner_speed + 1) / 2.0;
+              speed_dev = speed_mean / 6.0;
+            } else {
+              speed_mean = average_speed;
+              speed_dev = average_speed / 6.0;
+            }
+
+            speed_dist = std::normal_distribution<double>(speed_mean, speed_dev);
+            logger("Created acceleration ending speed gaussian distribution with lower bound " +
+                   std::to_string(last_real_corner_speed + 1) + ", upper bound " +
+                   std::to_string(static_cast<int>(upper_bound_speed)) + ", mean of " +
+                   std::to_string(speed_mean) + ", deviation of " + std::to_string(speed_dev));
+            acceleration_end_speed = bounded_gaussian<int>(speed_dist, speed_rng, last_real_corner_speed + 1,
+                                                           upper_bound_speed, logger);
+            proposed_acceleration = calc_acceleration(last_real_corner_speed, acceleration_end_speed,
+                                                      acceleration_distance);
+            logger("Trying acceleration ending speed of " + std::to_string(acceleration_end_speed) +
+                   "m/s with required acceleration of " + std::to_string(proposed_acceleration) + "m/s^2");
 
             // Ensure that the acceleration power budget is not exceeded
             instataneous_motor_power = proposed_acceleration * car_mass * last_real_corner_speed;
@@ -1292,14 +1326,24 @@ RacePlan Route::segment_route_corners(const int max_num_loops,
               acceleration_end_idx = acceleration_end_idx == this->num_points - 1 ? 0 : acceleration_end_idx + 1;
             }
 
-            // Select corner speed - if wrap-around, then the corner speed is fixed
-            // This should likely be a distribution where the mean or mode (bump) considers both the acceleration
-            // ending speed AND the next corner speed
+            // Select corner speed - if wrap-around, then the corner speed is fixed further below
+            // We create a distribution that is biased by the desired average speed for the route
             lower_bound_speed = std::max<int>(1, static_cast<int>(max_corner_speed * corner_speed_min));
             upper_bound_speed = static_cast<int>(max_corner_speed * corner_speed_max);
-            speed_dist = std::uniform_int_distribution<int>(lower_bound_speed, upper_bound_speed);
-            logger("Created corner speed distribution with lower bound " + std::to_string(lower_bound_speed) +
-                  " m/s and upper bound " + std::to_string(upper_bound_speed) + " m/s");
+
+            if (average_speed > upper_bound_speed) {
+              speed_mean = (upper_bound_speed + lower_bound_speed) / 2.0;
+              speed_dev = speed_mean / 6.0;
+            } else {
+              speed_mean = average_speed;
+              speed_dev = average_speed / 6.0;
+            }
+            speed_dist = std::normal_distribution<double>(speed_mean, speed_dev);
+            logger("Created corner speed gaussian distribution with lower bound " +
+                   std::to_string(lower_bound_speed) + "m/s, upper bound " +
+                   std::to_string(upper_bound_speed) + "m/s, mean of " +
+                   std::to_string(speed_mean) + ", and deviation of " +
+                   std::to_string(speed_dev));
 
             // Loop until we find a valid corner speed
             int count2 = 0;
@@ -1313,7 +1357,8 @@ RacePlan Route::segment_route_corners(const int max_num_loops,
               if (corner_idx == num_corners) {
                 proposed_corner_speed = first_corner_speeds.top();
               } else {
-                proposed_corner_speed = speed_dist(speed_rng);
+                proposed_corner_speed = bounded_gaussian<int>(speed_dist, speed_rng, lower_bound_speed,
+                                                              upper_bound_speed, logger);
               }
               logger("Trying corner speed " + std::to_string(proposed_corner_speed) + "m/s");
 
@@ -1358,7 +1403,8 @@ RacePlan Route::segment_route_corners(const int max_num_loops,
 
               // Check that the selected corner speed allows the car to reach the next corner's range of speeds in half
               // the straight distance
-              distance_to_next_corner = route_distances.get_value(corner_end, next_corner_start) / 2.0;
+              distance_to_next_corner = route_distances.get_value(corner_end, next_corner_start);
+              logger("Distance to next corner is " + std::to_string(distance_to_next_corner));
               const std::pair<double, double> next_corner_range = {next_corner_max_speed * corner_speed_min,
                                                                   next_corner_max_speed * corner_speed_max};
               if (!can_reach_speeds(proposed_corner_speed, acceleration_power_allowance, preferred_acceleration,
@@ -1435,18 +1481,24 @@ RacePlan Route::segment_route_corners(const int max_num_loops,
             + "m");
           }
 
-          // Again, this should probably be a distribution around a mean value that takes into account the
-          // previous corner speed and the next corner's maximum speed
-          const double dev = 5.0;
-          std::normal_distribution<double> corner_speed_dist(average_speed, dev);
+          // Center the gaussian distribution at the desired average speed
           lower_bound_speed = std::max<int>(1, static_cast<int>(max_corner_speed * corner_speed_min));
           upper_bound_speed = static_cast<int>(max_corner_speed * corner_speed_max);
+          if (average_speed > upper_bound_speed) {
+            speed_mean = (upper_bound_speed + lower_bound_speed) / 2.0;
+            speed_dev = speed_mean / 6.0;
+          } else {
+            speed_mean = average_speed;
+            speed_dev = speed_mean / 6.0;
+          }
+          speed_dist = std::normal_distribution<double>(speed_mean, speed_dev);
           logger("Created corner speed gaussian distribution with lower bound " + std::to_string(lower_bound_speed) +
                 "m/s, upper bound " + std::to_string(upper_bound_speed) + "m/s, mean of " +
-                std::to_string(average_speed) + " and deviation of " + std::to_string(dev));
+                std::to_string(speed_mean) + " and deviation of " + std::to_string(speed_dev));
 
           valid = false;
           count = 0;
+          sampled_speeds.clear();
           while (!valid) {
             count = count + 1;
             if (count == max_iters) {
@@ -1455,9 +1507,26 @@ RacePlan Route::segment_route_corners(const int max_num_loops,
             // Pick a corner speed
             if (corner_idx == num_corners) {
               proposed_corner_speed = first_corner_speeds.top();
+              // If this isn't the first time that we tried reaching the corner speed, unsupport
+              // and rollback
+              if (sampled_speeds.find(proposed_corner_speed) != sampled_speeds.end()) {
+                return false;
+              }
+              sampled_speeds.insert(proposed_corner_speed);
             } else {
-              proposed_corner_speed = bounded_gaussian<int>(corner_speed_dist, speed_rng, lower_bound_speed, upper_bound_speed);
+              proposed_corner_speed = bounded_gaussian<int>(speed_dist, speed_rng, lower_bound_speed,
+                                                            upper_bound_speed, logger);
+              // If all speeds have been attempted, return false and rollback to the last corner
+              if (all_speeds_sampled()) {
+                return false;
+              } else if (sampled_speeds.find(proposed_corner_speed) != sampled_speeds.end()) {
+                // If the sampled speed was already tried, sample another speed
+                continue;
+              } else {
+                sampled_speeds.insert(proposed_corner_speed);
+              }
             }
+
             distance_to_next_corner = route_distances.get_value(corner_end, next_corner_start);
             const std::pair<double, double> next_corner_speed_range = {next_corner_max_speed * corner_speed_min,
                                                                       next_corner_max_speed * corner_speed_max};
@@ -1472,14 +1541,6 @@ RacePlan Route::segment_route_corners(const int max_num_loops,
                     " m/s which is greater than the last corner speed of " +
                     std::to_string(last_real_corner_speed) + "m/s");
 
-              // First check if this corner speed is possible to reach with the preferred acceleration
-              // double max_ending_speed = calc_final_speed_a(last_real_corner_speed, preferred_acceleration,
-              //                                             max_acceleration_distance);
-              // if (max_ending_speed < proposed_corner_speed) {
-              //   logger("The corner speed is too high to be reached within the maximum acceleration distance of " +
-              //         std::to_string(max_acceleration_distance) + "m");
-              //   continue;
-              // }
               // Find the acceleration that can support the corner speed
               double proposed_acceleration = 0.0;
               do {
