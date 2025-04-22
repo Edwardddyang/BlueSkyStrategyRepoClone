@@ -75,11 +75,11 @@
                       # uses this value as the mean of a gaussian distribution to sample for
   log_segmenting: true # Log the race plan creation
   fix_seeds: false # Fix seeds for route segmentation. If true, use the seeds below
-  loop_seed: 227626591
-  speed_seed: 2995758188
-  aggressive_seed: 593340042
-  acceleration_seed: 671871685
-  idx_seed: 3462187289
+  loop_seed: 3516946659
+  speed_seed: 3186794885
+  aggressive_seed: 741825654
+  acceleration_seed: 2645029911
+  idx_seed: 3700653494
   skip_seed: 1
 
 \Simulation:
