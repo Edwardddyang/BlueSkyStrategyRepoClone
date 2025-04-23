@@ -1051,8 +1051,10 @@ RacePlan Route::segment_route_corners(const int max_num_loops,
       }
       if (block_idx == num_blocks - 1) {
         // Remove all the segments past the last corner and create a constant segment until index 0
-        logger("HERE");
+        logger("Last corner ending idx " + std::to_string(last_corner_ending_idx));
+        logger("Loop segments size: " + std::to_string(loop_segments.size()));
         const size_t num_segments_to_remove = loop_segments.size() - last_corner_ending_idx;
+        logger("Num segments to remove: " + std::to_string(num_segments_to_remove));
 
         loop_segments.erase(loop_segments.end() - num_segments_to_remove, loop_segments.end());
         loop_segment_speeds.erase(loop_segment_speeds.end() - num_segments_to_remove,
@@ -1070,6 +1072,7 @@ RacePlan Route::segment_route_corners(const int max_num_loops,
         segment_speed = {corner_speed, corner_speed};
         acceleration_value = 0.0;
         acceleration = false;
+        logger(std::to_string(segment.first) + ", " + std::to_string(segment.second));
         segment_distance = route_distances.get_value(segment.first, segment.second);
 
         add_segment();
@@ -1274,21 +1277,31 @@ RacePlan Route::segment_route_corners(const int max_num_loops,
               return false;
             }
 
-            // Create a distribution of speeds that can sustain travel at 0.1 m/s^2 acceleration and
-            // whose distance(current_speed, speed) <= max_acceleration_distance
-            double upper_bound_speed = last_real_corner_speed - 0.1;
-            double acceleration_distance = 0.0;
+            if (min_acceleration * car_mass * last_real_corner_speed > acceleration_power_allowance) {
+              logger("Last real corner speed is too high for the motor power to even sustain 0.1m/s^2. "
+                     "Using normal straight");
+              normal_straight = true;
+              break;
+            }
+
+            double upper_bound_speed = last_real_corner_speed;
+            double lower_bound_acceleration = 0.0;
             do {
               upper_bound_speed += 0.1;
-              acceleration_distance = calc_distance_a(last_real_corner_speed, upper_bound_speed, min_acceleration);
-            } while (min_acceleration * car_mass * last_real_corner_speed < acceleration_power_allowance &&
-                    acceleration_distance < max_acceleration_distance);
+              lower_bound_acceleration = calc_acceleration(last_real_corner_speed, upper_bound_speed,
+                                                           max_acceleration_distance);
+              instataneous_motor_power = lower_bound_acceleration * car_mass * upper_bound_speed;
+            } while (instataneous_motor_power < acceleration_power_allowance);
+            upper_bound_speed = upper_bound_speed - 0.1;
 
             if (static_cast<int>(upper_bound_speed) <= last_real_corner_speed + 1) {
               // If the upper bound speed is the same as the corner speed, then that means
               // the maximum acceleration distance is too low or the last corner speed was too high
               // for the motor
               normal_straight = true;
+              logger("Acceleration Distance: " + std::to_string(acceleration_distance));
+              logger("Motor Power: " + std::to_string(min_acceleration * car_mass * upper_bound_speed));
+              logger("Upper bound speed is too close to the last real corner speed. Using normal straight");
               break;
             }
 
@@ -1307,10 +1320,37 @@ RacePlan Route::segment_route_corners(const int max_num_loops,
                    std::to_string(speed_mean) + ", deviation of " + std::to_string(speed_dev));
             acceleration_end_speed = bounded_gaussian<int>(speed_dist, speed_rng, last_real_corner_speed + 1,
                                                            upper_bound_speed, logger);
-            proposed_acceleration = calc_acceleration(last_real_corner_speed, acceleration_end_speed,
-                                                      acceleration_distance);
-            logger("Trying acceleration ending speed of " + std::to_string(acceleration_end_speed) +
-                   "m/s with required acceleration of " + std::to_string(proposed_acceleration) + "m/s^2");
+            logger("Trying acceleration ending speed of " + std::to_string(acceleration_end_speed) + "m/s");
+
+            // Find lower upper bound acceleration that can support this ending speed
+            lower_bound_acceleration = calc_acceleration(last_real_corner_speed, upper_bound_speed,
+                                                          max_acceleration_distance);
+            double upper_bound_acceleration = lower_bound_acceleration;
+
+            do {
+              upper_bound_acceleration = upper_bound_acceleration+ 0.1;
+              instataneous_motor_power = upper_bound_acceleration * car_mass * acceleration_end_speed;
+            } while (instataneous_motor_power < acceleration_power_allowance);
+            upper_bound_acceleration = upper_bound_acceleration - 0.1;
+            acceleration_dist = std::uniform_real_distribution<double>(lower_bound_acceleration,
+                                                                       upper_bound_acceleration);
+            if (lower_bound_acceleration < upper_bound_acceleration) {
+              logger("Created acceleration distribution with lower bound" + std::to_string(lower_bound_acceleration) +
+                     "m/s^2 and upper bound " + std::to_string(upper_bound_acceleration) + "m/s^2");
+              proposed_acceleration = acceleration_dist(acceleration_rng);
+            } else if (lower_bound_acceleration == upper_bound_acceleration) {
+              proposed_acceleration = lower_bound_acceleration;
+            } else {
+              logger("Somehow, the lower bound acceleration > upper bound");
+              normal_straight = true;
+              break;
+            }
+            acceleration_distance = calc_distance_a(last_real_corner_speed, acceleration_end_speed,
+                                                    proposed_acceleration);
+            logger("Trying acceleration " + std::to_string(proposed_acceleration) + " with distance " +
+                    std::to_string(acceleration_distance));
+            RUNTIME_EXCEPTION(acceleration_distance < max_acceleration_distance, "acceleration distance "
+                              "should be lower than max acceleration distance");
 
             // Ensure that the acceleration power budget is not exceeded
             instataneous_motor_power = proposed_acceleration * car_mass * last_real_corner_speed;

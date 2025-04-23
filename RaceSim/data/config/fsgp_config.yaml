@@ -1,7 +1,7 @@
 # For Gen 11.5
 /Version: "FSGP_2025"
 /Car: # Car characterizationss
-  max_soc: 5.2 # kwh
+  max_soc: 10.0 # kwh
   max_car_speed: 104 # kph
   max_acceleration: 2.0 # m/s^2
   max_deceleration: -3.0 # m/s^2
@@ -52,7 +52,7 @@
   max_route_speed: 108 # kph - comes from FSGP regulations
 
 \Telemetry: # Current state of the car
-  current_soc: 5.2 # in kWh, should be <= max_soc
+  current_soc: 8.2 # in kWh, should be <= max_soc
   gps_coordinates: 37.0011542,-86.3683294,0.157135 # Lat(degrees),Lon(degrees),Alt(metres)
   current_date_time: 2024-08-16 10:00:00 # YYYY-MM-DD HH:MM:SS local 24 hour time
   utc_adjustment: +6.0 # Hour conversion from local time to UTC. This will be applied to all times. 
@@ -70,12 +70,12 @@
   aggressive_straight_threshold: 250.0 # m. Straights longer than this can be taken agressively
   num_repetitions: 3 # Number of times to repeat the plan for a single loop
   min_acceleration: 0.1 # Minimum acceleration that can be considered in m/s^2
-  average_speed: 15.0 # Average speed to try and maintain throughout the route. The profile creator
+  average_speed: 20.0 # Average speed to try and maintain throughout the route. The profile creator
                       # uses this value as the mean of a gaussian distribution to sample for
   fix_loops: true # Fix the number of loops to create. If true, then uses max_num_loops
   max_num_loops: 100 # Maximum number of loops that can be completed
-  num_iters: 15 # Number of race plans to try
-  log_segmenting: false # Log the race plan creation
+  num_iters: 1 # Number of race plans to try
+  log_segmenting: true # Log the race plan creation
   fix_seeds: false # Fix seeds for route segmentation. If true, use the seeds below
   loop_seed: 3516946659
   speed_seed: 3186794885

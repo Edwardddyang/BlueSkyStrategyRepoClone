@@ -100,11 +100,16 @@ RacePlan V2Optimizer::optimize() {
                                                                                   race_plan_creation_start);
   spdlog::info("Race plan creation all took {} microseconds", race_plan_duration.count()/ 1'000'000.0);
 
-  for (int i=0; i < num_race_plans; i++) {
-    threads.emplace_back(thread_run_sim, simulator, route, result_luts[i], &race_plans[i], &thread_manager);
-  }
-  for (int i=0; i < num_race_plans; i++) {
-    threads[i].join();
+  if (num_race_plans > 1) {
+    for (int i=0; i < num_race_plans; i++) {
+      threads.emplace_back(thread_run_sim, simulator, route, result_luts[i], &race_plans[i], &thread_manager);
+    }
+    for (int i=0; i < num_race_plans; i++) {
+      threads[i].join();
+    }
+  } else {
+    race_plans[0].print_plan();
+    simulator->run_sim(route, &race_plans[0], result_luts[0]);
   }
 
   // Process results
