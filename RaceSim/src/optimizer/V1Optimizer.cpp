@@ -15,17 +15,6 @@
 #include "config/Config.hpp"
 #include "utils/Defines.hpp"
 
-// Thread function for running a simulation
-void thread_run_sim(std::shared_ptr<Simulator> sim,
-                                std::shared_ptr<Route> route,
-                                std::shared_ptr<ResultsLut> result_lut,
-                                RacePlan* race_plan,
-                                ThreadManager* thread_manager) {
-  thread_manager->acquire();
-  sim->run_sim(route, race_plan, result_lut);
-  thread_manager->release();
-}
-
 RacePlan V1Optimizer::optimize() {
   /* Loop from speeds 1 -> max. speed to get the maximum viable speed */
   const int max_speed = Config::get_instance()->get_max_speed();

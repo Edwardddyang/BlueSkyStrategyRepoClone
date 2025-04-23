@@ -393,6 +393,7 @@ RacePlan::RacePlan(std::vector<std::vector<std::pair<size_t, size_t>>> segments,
       this->distances[i] = std::vector<double>(segments.size(), 0.0);
     }
   }
+  this->num_loops = segments.size();
 
   if (this->segments.size() == 0 && this->segment_speeds.size() == 0 &&
       this->acceleration_segments.size() == 0 && this->acceleration.size() == 0) {

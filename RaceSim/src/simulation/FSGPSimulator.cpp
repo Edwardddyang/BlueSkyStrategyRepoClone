@@ -30,7 +30,8 @@ void FSGPSimulator::run_sim(const std::shared_ptr<Route>& route, RacePlan* race_
   results_lut->reset_logs();
 
   // Initialize simulation state variables
-  double accumulated_distance = 0.0;
+  double accumulated_distance = 0.0;  // In meters
+  double driving_time = 0.0;  // In seconds
   Time curr_time = this->sim_start_time;
   double battery_energy = this->sim_start_soc;
   Coord starting_coord = this->sim_start_coord;
@@ -101,7 +102,6 @@ void FSGPSimulator::run_sim(const std::shared_ptr<Route>& route, RacePlan* race_
                                route_points[0], 0.0, curr_time, 0.0);
     }
 
-    // size_t route_idx = current_segment.first;
     for (size_t segment_idx = 0; segment_idx < num_segments; segment_idx++) {
       // Get segment information
       const std::pair<size_t, size_t> current_segment = loop_segments[segment_idx];
@@ -244,6 +244,7 @@ void FSGPSimulator::run_sim(const std::shared_ptr<Route>& route, RacePlan* race_
         delta_energy += car_update.delta_energy;
         accumulated_distance += car_update.delta_distance;
         curr_time.update_time_seconds(car_update.delta_time);
+        driving_time += car_update.delta_time;
         curr_speed = calc_final_speed(curr_speed, acceleration, car_update.delta_time);
 
         /* Make sure the battery doesn't exceed the maximum bound */
@@ -272,6 +273,8 @@ void FSGPSimulator::run_sim(const std::shared_ptr<Route>& route, RacePlan* race_
       }
     }
   }
+  race_plan->set_driving_time(driving_time);
+  race_plan->set_accumulated_distance(accumulated_distance);
   race_plan->set_viability(true);
 }
 

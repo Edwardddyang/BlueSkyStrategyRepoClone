@@ -10,6 +10,14 @@ Base class for optimization algorithms
 #include "model/Car.hpp"
 #include "route/Route.hpp"
 #include "sim/Simulator.hpp"
+#include "utils/ThreadManager.hpp"
+
+// Run a simulator on a race plan using threads
+void thread_run_sim(std::shared_ptr<Simulator> sim,
+                    std::shared_ptr<Route> route,
+                    std::shared_ptr<ResultsLut> result_lut,
+                    RacePlan* race_plan,
+                    ThreadManager* thread_manager);
 
 class Optimizer {
  protected:

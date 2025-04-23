@@ -49,7 +49,6 @@
   impounding_release_time: 07:00:00 # HH:MM:SS of the morning battery release time
   impounding_start_time: 20:00:00 # HH:MM:SS of the nightly battery impounding time
   overnight_charging_location: 37.000823,-86.367676,0.157135 # Coordinates of the charging location
-  max_num_loops: 80 # Maximum number of loops that can be completed
   max_route_speed: 108 # kph - comes from FSGP regulations
 
 \Telemetry: # Current state of the car
@@ -68,12 +67,15 @@
   preferred_deceleration: -1.0 # m/s^2
   corner_speed_min: 0.2 # Unitless fraction in range [0,1]
   corner_speed_max: 0.95 # Unitless fraction in range (corner_speed_min,1]
-  aggressive_straight_threshold: 200.0 # m. Straights longer than this can be taken agressively
-  num_repetitions: 5 # Number of times to repeat the plan for a single loop
+  aggressive_straight_threshold: 250.0 # m. Straights longer than this can be taken agressively
+  num_repetitions: 3 # Number of times to repeat the plan for a single loop
   min_acceleration: 0.1 # Minimum acceleration that can be considered in m/s^2
-  average_speed: 12.0 # Average speed to try and maintain throughout the route. The profile creator
+  average_speed: 15.0 # Average speed to try and maintain throughout the route. The profile creator
                       # uses this value as the mean of a gaussian distribution to sample for
-  log_segmenting: true # Log the race plan creation
+  fix_loops: true # Fix the number of loops to create. If true, then uses max_num_loops
+  max_num_loops: 100 # Maximum number of loops that can be completed
+  num_iters: 15 # Number of race plans to try
+  log_segmenting: false # Log the race plan creation
   fix_seeds: false # Fix seeds for route segmentation. If true, use the seeds below
   loop_seed: 3516946659
   speed_seed: 3186794885

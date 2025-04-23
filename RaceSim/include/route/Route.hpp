@@ -35,6 +35,12 @@ class RacePlan {
   /* Time taken to complete the race in seconds using this plan */
   time_t time_taken;
 
+  /* Total driving time in seconds */
+  double driving_time;
+
+  /* Total distance travelled in m */
+  double accumulated_distance;
+
   /* 2D matrix where each row is a single loop of the track split into segments of
   {start index, end index} pairs. Both indices are inclusive */
   std::vector<std::vector<std::pair<size_t, size_t>>> segments;
@@ -88,6 +94,8 @@ class RacePlan {
   inline std::vector<std::vector<double>> get_acceleration_values() const {return acceleration;}
   inline std::vector<std::vector<double>> get_distances() const {return distances;}
   inline std::string get_inviability_reason() const {return reason_for_inviability;}
+  inline double get_accumulated_distance() const {return accumulated_distance;}
+  inline double get_driving_time() const {return driving_time;}
   inline int get_num_loops() const {return num_loops;}
   inline bool is_viable() const {return viable;}
   inline bool is_empty() const {return empty;}
@@ -103,6 +111,8 @@ class RacePlan {
   inline void set_viability(bool viability) {viable = viability;}
   inline void set_num_loops(int loops) {num_loops = loops;}
   inline void set_inviability_reason(std::string message) {reason_for_inviability = message;}
+  inline void set_accumulated_distance(double distance) {accumulated_distance = distance;}
+  inline void set_driving_time(double time) {driving_time = time;}
 
   /** @brief Validate members of a race plan. Should be called before run_sim()
    *
@@ -282,6 +292,8 @@ class Route {
 
   /** @brief Segment a rourte by assigning corner speeds
    *
+   * @param max_num_loops Maximum number of loops to create
+   * @param fix_loops If true, then max_num_loops will be created. Otherwise, a number will be sampled
    * @param speed_seed Random seed for selecting speeds
    * @param loop_seed Random seed for selecting number of loops to complete
    * @param aggressive_seed Random seed for taking a straight aggressively
@@ -312,6 +324,7 @@ class Route {
    * Note: This function can only create a plan for a single day at a time
    */
   RacePlan segment_route_corners(const int max_num_loops,
+                                 bool fix_loops,
                                  const double car_mass,
                                  const double max_speed,
                                  const double max_motor_power,

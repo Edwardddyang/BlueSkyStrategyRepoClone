@@ -47,6 +47,8 @@
   PARAM(tire_radius, double, double, 0.508)                                                 \
   PARAM(num_tires, int, int, 3)                                                             \
   PARAM(max_num_loops, int, int, 300)                                                       \
+  PARAM(fix_num_loops, bool, bool, true)                                                    \
+  PARAM(num_iters, int, int, 1000)                                                          \
   PARAM(control_stops, std::unordered_set<size_t>,                                          \
         std::unordered_set<size_t>,                                                         \
         convert_string_to_int_set("2962,5559,9462,11421,14439,16990,20832,23202,25987"))    \
