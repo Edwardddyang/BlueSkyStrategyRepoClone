@@ -108,7 +108,6 @@ RacePlan V2Optimizer::optimize() {
       threads[i].join();
     }
   } else {
-    race_plans[0].print_plan();
     simulator->run_sim(route, &race_plans[0], result_luts[0]);
   }
 
@@ -131,9 +130,9 @@ RacePlan V2Optimizer::optimize() {
       }
     }
   }
+  best_race_plan.print_plan();
   spdlog::info("Highest Speed: {} kph", best_average_speed);
   spdlog::info("Num Loops: {}", best_race_plan.get_num_loops());
-  best_race_plan.print_plan();
 
   if (save_csv) {
     const std::string strat_root = Config::get_instance()->get_strat_root();
