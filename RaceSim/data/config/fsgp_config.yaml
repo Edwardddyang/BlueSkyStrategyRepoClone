@@ -4,7 +4,7 @@
   max_soc: 10.0 # kwh
   max_car_speed: 104 # kph
   max_acceleration: 2.0 # m/s^2
-  max_deceleration: -3.0 # m/s^2
+  max_deceleration: -2.0 # m/s^2
   tire_pressure: 5.5 # bar
   array_area: 3.98 # m^2
   car_mass: 284 # in kg
@@ -52,7 +52,7 @@
   max_route_speed: 108 # kph - comes from FSGP regulations
 
 \Telemetry: # Current state of the car
-  current_soc: 8.2 # in kWh, should be <= max_soc
+  current_soc: 9.2 # in kWh, should be <= max_soc
   gps_coordinates: 37.0011542,-86.3683294,0.157135 # Lat(degrees),Lon(degrees),Alt(metres)
   current_date_time: 2024-08-16 10:00:00 # YYYY-MM-DD HH:MM:SS local 24 hour time
   utc_adjustment: +6.0 # Hour conversion from local time to UTC. This will be applied to all times. 
@@ -62,27 +62,27 @@
   model: Gen 12 # Force model of the car to use
   optimizer: Acceleration # type of optimization
   # The below parameters are for segmenting the route into initial race plans
-  acceleration_power_budget: 0.7 # Percentage of maximum motor power that can be allocated towards acceleration
+  acceleration_power_budget: 0.8 # Percentage of maximum motor power that can be allocated towards acceleration
   preferred_acceleration: 1.0 # m/s^2
   preferred_deceleration: -1.0 # m/s^2
-  corner_speed_min: 0.2 # Unitless fraction in range [0,1]
+  corner_speed_min: 0.4 # Unitless fraction in range [0,1]
   corner_speed_max: 0.95 # Unitless fraction in range (corner_speed_min,1]
   aggressive_straight_threshold: 250.0 # m. Straights longer than this can be taken agressively
-  num_repetitions: 3 # Number of times to repeat the plan for a single loop
+  num_repetitions: 5 # Number of times to repeat the plan for a single loop
   min_acceleration: 0.1 # Minimum acceleration that can be considered in m/s^2
   average_speed: 20.0 # Average speed to try and maintain throughout the route. The profile creator
                       # uses this value as the mean of a gaussian distribution to sample for
   fix_loops: true # Fix the number of loops to create. If true, then uses max_num_loops
-  max_num_loops: 100 # Maximum number of loops that can be completed
-  num_iters: 1 # Number of race plans to try
-  log_segmenting: true # Log the race plan creation
+  max_num_loops: 60 # Maximum number of loops that can be completed
+  num_iters: 100 # Number of race plans to try
+  log_segmenting: false # Log the race plan creation
   fix_seeds: false # Fix seeds for route segmentation. If true, use the seeds below
-  loop_seed: 3516946659
-  speed_seed: 3186794885
-  aggressive_seed: 741825654
-  acceleration_seed: 2645029911
-  idx_seed: 3700653494
-  skip_seed: 1
+  loop_seed: 3888189472
+  speed_seed: 958024739
+  aggressive_seed: 2358747961
+  acceleration_seed: 1708337047
+  idx_seed: 477365342
+  skip_seed: 2880176778
 
 \Simulation:
   simulator: FSGP # Type of simulator

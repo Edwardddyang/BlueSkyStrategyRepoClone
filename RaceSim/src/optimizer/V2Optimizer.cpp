@@ -82,7 +82,7 @@ RacePlan V2Optimizer::optimize() {
                                                       Config::get_instance()->get_preferred_acceleration(),
                                                       Config::get_instance()->get_preferred_deceleration(),
                                                       speed_seed, loop_seed, aggressive_seed, idx_seed,
-                                                      acceleration_seed,
+                                                      acceleration_seed, skip_seed,
                                                       Config::get_instance()->get_corner_speed_min(),
                                                       Config::get_instance()->get_corner_speed_max(),
                                                       Config::get_instance()->get_aggressive_straight_threshold(),
@@ -90,15 +90,15 @@ RacePlan V2Optimizer::optimize() {
                                                       Config::get_instance()->get_acceleration_power_budget(),
                                                       1000, Config::get_instance()->get_log_segmenting());
     auto end = std::chrono::high_resolution_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::seconds>(end - start);
-    race_plan_creation.emplace_back(duration.count()/ 1'000'000.0);
+    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+    race_plan_creation.emplace_back(duration.count() / 1'000'000.0);
     result_luts.emplace_back(std::make_shared<ResultsLut>());
     race_plans.emplace_back(race_plan);
   }
   auto race_plan_creation_end = std::chrono::high_resolution_clock::now();
   auto race_plan_duration = std::chrono::duration_cast<std::chrono::microseconds>(race_plan_creation_end -
                                                                                   race_plan_creation_start);
-  spdlog::info("Race plan creation all took {} microseconds", race_plan_duration.count()/ 1'000'000.0);
+  spdlog::info("Race plan creation all took {} seconds", race_plan_duration.count() / 1'000'000.0);
 
   if (num_race_plans > 1) {
     for (int i=0; i < num_race_plans; i++) {
@@ -131,7 +131,7 @@ RacePlan V2Optimizer::optimize() {
     }
   }
   best_race_plan.print_plan();
-  spdlog::info("Highest Speed: {} kph", best_average_speed);
+  spdlog::info("Highest Average Speed: {} kph", best_average_speed);
   spdlog::info("Num Loops: {}", best_race_plan.get_num_loops());
 
   if (save_csv) {

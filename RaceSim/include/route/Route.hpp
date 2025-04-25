@@ -298,6 +298,8 @@ class Route {
    * @param loop_seed Random seed for selecting number of loops to complete
    * @param aggressive_seed Random seed for taking a straight aggressively
    * @param idx_seed Random seed for selecting route indices
+   * @param acceleration_seed Random seed for selecting acceleration
+   * @param skip_seed Random seed for maintaining constant speeds on existing corners
    * @param max_num_loops Maximum number of loops
    * @param car_mass Mass of the car in kg
    * @param max_speed Maximum speed of the car in m/s
@@ -341,6 +343,7 @@ class Route {
                                  const unsigned aggressive_seed = 1,
                                  const unsigned idx_seed = 1,
                                  const unsigned acceleration_seed = 1,
+                                 const unsigned skip_seed = 1,
                                  const double corner_speed_min = 0.2,
                                  const double corner_speed_max = 0.9,
                                  const double aggressive_straight_threshold = 100.0,

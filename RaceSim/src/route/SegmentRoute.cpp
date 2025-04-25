@@ -586,6 +586,7 @@ RacePlan Route::segment_route_corners(const int max_num_loops,
                                       const unsigned aggressive_seed,
                                       const unsigned idx_seed,
                                       const unsigned acceleration_seed,
+                                      const unsigned skip_seed,
                                       const double corner_speed_min,
                                       const double corner_speed_max,
                                       const double aggressive_straight_threshold,
@@ -624,6 +625,7 @@ RacePlan Route::segment_route_corners(const int max_num_loops,
   std::mt19937 aggressive_rng(aggressive_seed);
   std::mt19937 idx_rng(idx_seed);
   std::mt19937 acceleration_rng(acceleration_seed);
+  std::mt19937 skip_rng(skip_seed);
 
   // Route attributes
   const size_t num_corners = cornering_segment_bounds.size();
@@ -663,6 +665,7 @@ RacePlan Route::segment_route_corners(const int max_num_loops,
   logger("Aggressive straight sampling seed: " + std::to_string(aggressive_seed));
   logger("Index selection seed: " + std::to_string(idx_seed));
   logger("Acceleration seed: " + std::to_string(acceleration_seed));
+  logger("Skip seed: " + std::to_string(skip_seed));
   logger("Maximum number of loops: " + std::to_string(max_num_loops));
   logger("Maximum car speed: " + std::to_string(max_speed) + " m/s");
   logger("Maximum acceleration: " + std::to_string(max_acceleration) + " m/s^2");
@@ -818,6 +821,7 @@ RacePlan Route::segment_route_corners(const int max_num_loops,
   std::normal_distribution<double> speed_dist;
   std::uniform_real_distribution<double> acceleration_dist(0.1, max_acceleration);
   std::uniform_real_distribution<double> aggressive_dist(0.0, 1.0);
+  std::uniform_real_distribution<double> skip_dist(0.0, 1.0);
 
   size_t loop_idx = 0;
   while (block_idx < num_blocks) {
@@ -1205,6 +1209,7 @@ RacePlan Route::segment_route_corners(const int max_num_loops,
         const double last_real_corner_speed = real_corner_speeds.top();
         last_real_corner_end = is_first_segment ? 0 : cornering_segment_bounds[last_real_corner_idx].second;
         logger("Last real corner index was " + std::to_string(last_real_corner_idx));
+        logger("Last real corner speed was " + std::to_string(last_real_corner_speed));
 
         const double straight_distance = route_distances.get_value(last_real_corner_end, corner_start);
         logger("Straight distance between index " + std::to_string(last_real_corner_end) + " and " +
@@ -1309,7 +1314,7 @@ RacePlan Route::segment_route_corners(const int max_num_loops,
 
             if (average_speed > upper_bound_speed) {
               speed_mean = upper_bound_speed;
-              speed_dev = speed_mean / 6.0;
+              speed_dev = speed_mean / 8.0;
             } else {
               speed_mean = average_speed;
               speed_dev = average_speed / 6.0;
@@ -1337,7 +1342,7 @@ RacePlan Route::segment_route_corners(const int max_num_loops,
             acceleration_dist = std::uniform_real_distribution<double>(lower_bound_acceleration,
                                                                        upper_bound_acceleration);
             if (lower_bound_acceleration < upper_bound_acceleration) {
-              logger("Created acceleration distribution with lower bound" + std::to_string(lower_bound_acceleration) +
+              logger("Created acceleration distribution with lower bound " + std::to_string(lower_bound_acceleration) +
                      "m/s^2 and upper bound " + std::to_string(upper_bound_acceleration) + "m/s^2");
               proposed_acceleration = acceleration_dist(acceleration_rng);
             } else if (lower_bound_acceleration == upper_bound_acceleration) {
@@ -1547,8 +1552,23 @@ RacePlan Route::segment_route_corners(const int max_num_loops,
             if (count == max_iters) {
               return false;
             }
-            // Pick a corner speed - prefer maintaining the constant speed
-            if (corner_idx == num_corners) {
+            const double probability = 0.5;
+            // Pick a corner speed. If the current speed is already >= the target average speed of the course,
+            // then bias towards maintaining this constant speed rather than trying to accelerate
+            bool maintain_speed = false;
+            if (last_real_corner_speed >= average_speed && last_real_corner_speed < max_corner_speed) {
+              logger("Last corner speed is greater or equal to the target average speed. Sample chance to maintain"
+                     " same corner speed.");
+              const double sample = skip_dist(skip_rng);
+              if (sample < probability) {
+                proposed_corner_speed = last_real_corner_speed;
+                maintain_speed = true;
+                logger("Maintaining last corner speed of " + std::to_string(last_real_corner_speed) + "m/s");
+              }
+            }
+
+            if (corner_idx == num_corners && !maintain_speed) {
+              // Wrap-around corner
               proposed_corner_speed = first_corner_speeds.top();
               // If this isn't the first time that we tried reaching the corner speed, unsupport
               // and rollback
@@ -1556,9 +1576,9 @@ RacePlan Route::segment_route_corners(const int max_num_loops,
                 return false;
               }
               sampled_speeds.insert(proposed_corner_speed);
-            } else {
+            } else if (!maintain_speed) {
               proposed_corner_speed = bounded_gaussian<int>(speed_dist, speed_rng, lower_bound_speed,
-                                              upper_bound_speed, logger);
+                                                            upper_bound_speed, logger);
               // If all speeds have been attempted, return false and rollback to the last corner
               if (all_speeds_sampled()) {
                 return false;
@@ -1661,16 +1681,17 @@ RacePlan Route::segment_route_corners(const int max_num_loops,
 
               valid = true;
             } else if (proposed_corner_speed < last_real_corner_speed) {
-              // We prefer not to decelerate especially if it's below the average speed. Sample
-              // a chance to try another speed
-              // Sample a chance to maintain the current speed
-              const double probability = 0.3;
-              const double sample = aggressive_dist(aggressive_rng);
-              if (sample < probability) {
-                logger("Deceleration not being tried. Trying another speed");
-                continue;
-              }
               // Decelerate to corner speed
+              // If the current corner can support the previous corner without decelerating, sample a chance
+              // to try again - hope to maintain previous corner speed or accelerate
+              if (last_real_corner_speed < max_corner_speed) {
+                const double sample = skip_dist(skip_rng);
+                if (sample < 0.8) {
+                  logger("Last corner speed is less than the maximum corner speed of the current corner. "
+                         "Sampled chance to try this sampling again");
+                  continue;
+                }
+              }
               // Parameters to search for
               size_t deceleration_end_idx;
               double deceleration_distance;
