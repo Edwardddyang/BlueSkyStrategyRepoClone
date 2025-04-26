@@ -275,6 +275,7 @@ void FSGPSimulator::run_sim(const std::shared_ptr<Route>& route, RacePlan* race_
   }
   race_plan->set_driving_time(driving_time);
   race_plan->set_accumulated_distance(accumulated_distance);
+  race_plan->set_average_speed(accumulated_distance / driving_time);
   race_plan->set_viability(true);
 }
 

@@ -41,6 +41,9 @@ class RacePlan {
   /* Total distance travelled in m */
   double accumulated_distance;
 
+  /* Average speed of the car ONLY WHEN driving in m/s */
+  double average_speed;
+
   /* 2D matrix where each row is a single loop of the track split into segments of
   {start index, end index} pairs. Both indices are inclusive */
   std::vector<std::vector<std::pair<size_t, size_t>>> segments;
@@ -96,6 +99,7 @@ class RacePlan {
   inline std::string get_inviability_reason() const {return reason_for_inviability;}
   inline double get_accumulated_distance() const {return accumulated_distance;}
   inline double get_driving_time() const {return driving_time;}
+  inline double get_average_speed() const {return average_speed;}
   inline int get_num_loops() const {return num_loops;}
   inline bool is_viable() const {return viable;}
   inline bool is_empty() const {return empty;}
@@ -113,6 +117,7 @@ class RacePlan {
   inline void set_inviability_reason(std::string message) {reason_for_inviability = message;}
   inline void set_accumulated_distance(double distance) {accumulated_distance = distance;}
   inline void set_driving_time(double time) {driving_time = time;}
+  inline void set_average_speed(double speed) {average_speed = speed;}
 
   /** @brief Validate members of a race plan. Should be called before run_sim()
    *

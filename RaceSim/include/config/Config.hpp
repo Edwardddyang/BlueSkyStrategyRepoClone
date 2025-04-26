@@ -48,7 +48,6 @@
   PARAM(num_tires, int, int, 3)                                                             \
   PARAM(max_num_loops, int, int, 300)                                                       \
   PARAM(fix_num_loops, bool, bool, true)                                                    \
-  PARAM(num_iters, int, int, 1000)                                                          \
   PARAM(control_stops, std::unordered_set<size_t>,                                          \
         std::unordered_set<size_t>,                                                         \
         convert_string_to_int_set("2962,5559,9462,11421,14439,16990,20832,23202,25987"))    \
@@ -118,6 +117,10 @@
   PARAM(acceleration_seed, unsigned int, unsigned int, 1)                                   \
   PARAM(idx_seed, unsigned int, unsigned int, 1)                                            \
   PARAM(skip_seed, unsigned int, unsigned int, 1)                                           \
+  PARAM(num_generations, int, int, 100)                                                     \
+  PARAM(initial_population, int, int, 1000000)                                              \
+  PARAM(survival_percentage, double, double, 40)                                            \
+  PARAM(parents_percentage, double, double, 30)                                             \
 
 /* Class that holds all information from a .yaml file storing configuration parameters for
  * a race simulation

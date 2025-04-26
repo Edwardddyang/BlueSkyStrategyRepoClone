@@ -9,10 +9,11 @@ that can run in parallel at any given time
 #include <mutex>
 #include <condition_variable>
 #include <atomic>
+#include <iostream>
 
 class ThreadManager {
  private:
-  const unsigned int max_threads;
+  unsigned int max_threads;
   // This must be atomic because multiple threads can still write to it at the same time
   std::atomic<int> active_threads;
   std::mutex mutex;
@@ -20,6 +21,14 @@ class ThreadManager {
 
  public:
   explicit ThreadManager(int max_threads) : max_threads(max_threads), active_threads(0) {}
+  explicit ThreadManager() : max_threads(0) {}
+  void set_max_threads(int threads) {
+    if (active_threads > 0) {
+      std::cout << "Cannot modify active threads while threads are active" << std::endl;
+      exit(1);
+    }
+    max_threads = threads;
+  }
 
   // Increment active_threads and make progress on the thread
   void acquire() {

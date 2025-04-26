@@ -61,7 +61,8 @@
 \Optimizer:
   model: Gen 12 # Force model of the car to use
   optimizer: Acceleration # type of optimization
-  # The below parameters are for segmenting the route into initial race plans
+  threads: 0.6 # Fractional number of machine threads to use
+  ####### The below parameters are for segmenting the route into initial race plans #######
   acceleration_power_budget: 0.8 # Percentage of maximum motor power that can be allocated towards acceleration
   preferred_acceleration: 1.0 # m/s^2
   preferred_deceleration: -1.0 # m/s^2
@@ -74,7 +75,6 @@
                       # uses this value as the mean of a gaussian distribution to sample for
   fix_loops: true # Fix the number of loops to create. If true, then uses max_num_loops
   max_num_loops: 60 # Maximum number of loops that can be completed
-  num_iters: 100 # Number of race plans to try
   log_segmenting: false # Log the race plan creation
   fix_seeds: false # Fix seeds for route segmentation. If true, use the seeds below
   loop_seed: 3888189472
@@ -83,6 +83,11 @@
   acceleration_seed: 1708337047
   idx_seed: 477365342
   skip_seed: 2880176778
+  ####### Genetic Algorithm Parameters #######
+  num_generations: 5  # Number of iterations
+  initial_population: 20  # Number of race plans in the initial population
+  survival_percentage: 40  # % of the population to pass onto the next iteration unaltered
+  parents_percentage: 40  # Top % of the population to use to crossover to create new children
 
 \Simulation:
   simulator: FSGP # Type of simulator
