@@ -11,6 +11,7 @@
 #include <thread>
 #include <algorithm>
 #include <random>
+#include <unordered_set>
 
 #include "spdlog/spdlog.h"
 #include "opt/V2Optimizer.hpp"
@@ -18,6 +19,11 @@
 #include "config/Config.hpp"
 #include "utils/Defines.hpp"
 #include "utils/Units.hpp"
+
+// Sort function
+bool comp_race_plan(const RacePlan& a, const RacePlan& b) {
+  return a.get_score() > b.get_score();
+}
 
 RacePlan V2Optimizer::optimize() {
   // Create results folder
@@ -48,47 +54,61 @@ RacePlan V2Optimizer::optimize() {
   }
 
   // Process results
-  double best_average_speed = 0.0;
-  RacePlan best_race_plan;
+  RacePlan best_race_plan = population[0];
+  double best_average_speed = mps2kph(best_race_plan.get_average_speed());
   ResultsLut best_race_result;
-  // for (int i=0; i < num_race_plans; i++) {
-  //   spdlog::info("Race plan {} took {} seconds to create", i, race_plan_creation[i]);
-  //   if (!race_plans[i].is_viable()) {
-  //     spdlog::info("Race plan {} was not valid. Reason: {}", i, race_plans[i].get_inviability_reason());
-  //   } else {
-  //     const double average_speed = meters2km(race_plans[i].get_accumulated_distance()) /
-  //                                  secs2hours(race_plans[i].get_driving_time());
-  //     spdlog::info("Race plan {} is viable. Average Speed: {} kph", i, average_speed);
-  //     if (best_average_speed < average_speed) {
-  //       best_average_speed = average_speed;
-  //       best_race_plan = race_plans[i];
-  //       best_race_result = *result_luts[i].get();
-  //     }
-  //   }
-  // }
-  // best_race_plan.print_plan();
-  // spdlog::info("Highest Average Speed: {} kph", best_average_speed);
-  // spdlog::info("Num Loops: {}", best_race_plan.get_num_loops());
-
-  // if (save_csv) {
-  //   const std::string strat_root = Config::get_instance()->get_strat_root();
-  //   best_race_result.write_logs((results_folder / ("Acceleration.csv")).string());
-  // }
 
   return best_race_plan;
 }
 
 void V2Optimizer::crossover_population() {
   const int num_parents = initial_population_size * (parents_percentage / 100.0);
-  for (size_t i=0; i < num_parents; i++) {
-    
+  std::sort(population.begin(), population.end(), comp_race_plan);
+  std::vector<RacePlan> new_generation(initial_population_size);
+
+  // Note that std::uniform_int_distribution is inclusive on both sides
+  std::uniform_int_distribution<size_t> parent_indices_dist(0, num_parents - 1);
+  std::unordered_set<size_t> crossed_over_parent_indices;
+  std::random_device rd;
+  std::mt19937 gen(rd());
+
+  int num_crossovers = 0;
+  while (num_crossovers < num_parents / 2) {
+    // Select two parents to crossover
+    const size_t parent_a_idx = parent_indices_dist(gen);
+    const size_t parent_b_idx = parent_indices_dist(gen);
+    if (parent_a_idx == parent_b_idx) {
+      continue;
+    }
+    num_crossovers = num_crossovers + 1;
+    RacePlan parent_a = population[parent_a_idx];
+    RacePlan parent_b = population[parent_b_idx];
+
+    RacePlan child_plan = crossover_parents(parent_a, parent_b);
   }
+  // TODO(KEVIN): Mutate the remaining plans
+  // while (idx < num_pop_remaining) {
+  // mutate_parent(parent)
+  // }
 }
+
+RacePlan V2Optimizer::crossover_parents(RacePlan parent_a, RacePlan parent_b) {
+  RUNTIME_EXCEPTION(!parent_a.is_empty() && !parent_b.is_empty(), "Parent race plans cannot be empty");
+  // Randomly select loop from parent a to combine
+  const size_t num_loops_a = parent_a.get_num_loops();
+  const size_t num_loops_b = parent_b.get_num_loops();
+
+  return RacePlan();
+  // Find common ending corners
+}
+
 void V2Optimizer::init_params() {
   // Create genetic optimizer
   RUNTIME_EXCEPTION(initial_population_size > 0, "Initial population size must be greater than 0");
   RUNTIME_EXCEPTION(num_generations > 0, "Number of generations must be greater than 0");
   RUNTIME_EXCEPTION(survival_percentage > 0, "Survival percentage must be greater than 0");
+  RUNTIME_EXCEPTION((parents_percentage / 100.0) * initial_population_size > 1, "Parents percent must select "
+                    "at least two parents to breed each generation");
   spdlog::info("----Genetic Optimizer Parameters:-----");
   spdlog::info("Initial Population Size: {}", initial_population_size);
   spdlog::info("Number of Generations: {}", num_generations);
@@ -98,14 +118,12 @@ void V2Optimizer::init_params() {
   result_luts.clear();
   threads.clear();
   race_plan_creation.clear();
-  population_fitness.clear();
   population.clear();
 
   population.resize(initial_population_size);
   result_luts.resize(initial_population_size);
   threads.resize(initial_population_size);
   race_plan_creation.resize(initial_population_size);
-  population_fitness.resize(initial_population_size);
 }
 
 void V2Optimizer::create_initial_population() {
@@ -136,7 +154,7 @@ void V2Optimizer::create_initial_population() {
       loop_seed = Config::get_instance()->get_loop_seed();
       skip_seed = Config::get_instance()->get_skip_seed();
     }
-    
+
     const Time curr_time = Config::get_instance()->get_current_date_time();
     const Time day_one_start_time = Config::get_instance()->get_day_one_start_time();
     const Time day_one_end_time = Config::get_instance()->get_day_one_end_time();
@@ -176,9 +194,9 @@ void V2Optimizer::create_initial_population() {
 void V2Optimizer::evaluate_population() {
   for (int i=0; i < initial_population_size; i++) {
     if (fix_num_loops) {
-      population_fitness[i] = RacePlanFitness(mps2kph(population[i].get_average_speed()));
+      population[i].set_score(mps2kph(population[i].get_average_speed()));
     } else {
-      population_fitness[i] = RacePlanFitness(population[i].get_num_loops());
+      population[i].set_score(mps2kph(population[i].get_num_loops()));
     }
   }
 }

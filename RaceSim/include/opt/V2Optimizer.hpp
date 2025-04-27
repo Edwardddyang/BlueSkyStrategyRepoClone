@@ -8,19 +8,11 @@
 #include "route/Route.hpp"
 #include "sim/Simulator.hpp"
 
-struct RacePlanFitness {
-  double score;
-
-  explicit RacePlanFitness(double score) : score(score) {}
-  explicit RacePlanFitness() : score(0.0) {}
-};
-
 class V2Optimizer : public Optimizer {
  private:
-  // Race plans and their fitness levels
+  // Race plan population and their results
   std::vector<RacePlan> population;
   std::vector<std::shared_ptr<ResultsLut>> result_luts;
-  std::vector<RacePlanFitness> population_fitness;
 
   // Genetic algorithm parameters
   const int initial_population_size;
@@ -28,6 +20,7 @@ class V2Optimizer : public Optimizer {
   const double survival_percentage;
   const bool fix_num_loops;
   const double parents_percentage;
+  unsigned int gen_seed;
 
   // Creation overhead tracking
   std::vector<double> race_plan_creation;
@@ -51,6 +44,9 @@ class V2Optimizer : public Optimizer {
 
   /** @brief Crossover best parents of the population */
   void crossover_population();
+
+  /** @brief Crossover two race plans */
+  RacePlan crossover_parents(RacePlan parent_a, RacePlan parent_b);
 
  public:
   V2Optimizer(std::shared_ptr<Simulator> simulator, std::shared_ptr<Route> route);
