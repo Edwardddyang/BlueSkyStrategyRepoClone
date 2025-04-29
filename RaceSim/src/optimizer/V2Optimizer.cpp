@@ -19,6 +19,7 @@
 #include "config/Config.hpp"
 #include "utils/Defines.hpp"
 #include "utils/Units.hpp"
+#include "opt/GeneticUtilities.hpp"
 
 // Sort function
 bool comp_race_plan(const RacePlan& a, const RacePlan& b) {
@@ -50,7 +51,14 @@ RacePlan V2Optimizer::optimize() {
     // Evaluate race plans and gather fitness scores
     evaluate_population();
 
+    // Sort in order of descending fitness scores
+    std::sort(population.begin(), population.end(), comp_race_plan);
+
     // Crossover fittest parents
+    // crossover_population();
+
+    // Mutate the remaining parents
+    mutate_population();
   }
 
   // Process results
@@ -61,19 +69,31 @@ RacePlan V2Optimizer::optimize() {
   return best_race_plan;
 }
 
-void V2Optimizer::crossover_population() {
-  const int num_parents = initial_population_size * (parents_percentage / 100.0);
-  std::sort(population.begin(), population.end(), comp_race_plan);
-  std::vector<RacePlan> new_generation(initial_population_size);
+void V2Optimizer::mutate_population() {
+  std::uniform_int_distribution<size_t> indices_dist(crossover_num, population_size-1);
+  std::unordered_set<size_t> mutated_indices;
+  std::random_device rd;
+  std::mt19937 gen(rd());
 
+  int num_mutated = 0;
+  while (num_mutated < mutation_num) {
+    size_t idx = indices_dist(gen);
+    if (mutated_indices.find(idx) != mutated_indices.end()) {
+      continue;
+    }
+    mutated_indices.insert(idx);
+    RacePlan mutated_plan = mutate_plan(population[idx]);
+  }
+}
+void V2Optimizer::crossover_population() {
   // Note that std::uniform_int_distribution is inclusive on both sides
-  std::uniform_int_distribution<size_t> parent_indices_dist(0, num_parents - 1);
+  std::uniform_int_distribution<size_t> parent_indices_dist(0, crossover_num - 1);
   std::unordered_set<size_t> crossed_over_parent_indices;
   std::random_device rd;
   std::mt19937 gen(rd());
 
   int num_crossovers = 0;
-  while (num_crossovers < num_parents / 2) {
+  while (num_crossovers < crossover_num / 2) {
     // Select two parents to crossover
     const size_t parent_a_idx = parent_indices_dist(gen);
     const size_t parent_b_idx = parent_indices_dist(gen);
@@ -86,10 +106,6 @@ void V2Optimizer::crossover_population() {
 
     RacePlan child_plan = crossover_parents(parent_a, parent_b);
   }
-  // TODO(KEVIN): Mutate the remaining plans
-  // while (idx < num_pop_remaining) {
-  // mutate_parent(parent)
-  // }
 }
 
 RacePlan V2Optimizer::crossover_parents(RacePlan parent_a, RacePlan parent_b) {
@@ -104,15 +120,41 @@ RacePlan V2Optimizer::crossover_parents(RacePlan parent_a, RacePlan parent_b) {
 
 void V2Optimizer::init_params() {
   // Create genetic optimizer
-  RUNTIME_EXCEPTION(initial_population_size > 0, "Initial population size must be greater than 0");
+  RUNTIME_EXCEPTION(population_size > 0, "Initial population size must be greater than 0");
   RUNTIME_EXCEPTION(num_generations > 0, "Number of generations must be greater than 0");
-  RUNTIME_EXCEPTION(survival_percentage > 0, "Survival percentage must be greater than 0");
-  RUNTIME_EXCEPTION((parents_percentage / 100.0) * initial_population_size > 1, "Parents percent must select "
-                    "at least two parents to breed each generation");
+  RUNTIME_EXCEPTION(crossover_percentage + survival_percentage + mutation_percentage == 100.0, "Survival, "
+    "mutation and crossover percentages must add to 100%");
+
+  RUNTIME_EXCEPTION(survival_percentage > 0 && crossover_percentage > 0 && mutation_percentage > 0,
+                    "Survival, mutation and crossover percentages must be greater than 0");
+  if (crossover_percentage != 0.0) {
+    RUNTIME_EXCEPTION((crossover_percentage / 100.0) * population_size >= 2, "Parents percent must select "
+    "at least two parents to breed each generation");
+  }
+  if (mutation_percentage != 0.0) {
+    RUNTIME_EXCEPTION((mutation_percentage / 100.0) * population_size >= 1, "Mutation percentage must "
+    "select at least one parent to mutate each generation");
+  }
+
+  // Round num to the biggest even number smaller than num
+  auto round2Even = [](double num) -> int {
+    int rounded_down = static_cast<int>(std::floor(num));
+    if (rounded_down % 2 != 0) {
+      rounded_down--;
+    }
+    return rounded_down;
+  };
+
+  crossover_num = round2Even((crossover_percentage / 100.0) * population_size);
+  mutation_num = static_cast<int>(std::ceil((mutation_percentage / 100.0) * (population_size - crossover_num)));
+  survival_num = population_size - crossover_num - mutation_num;
+
   spdlog::info("----Genetic Optimizer Parameters:-----");
-  spdlog::info("Initial Population Size: {}", initial_population_size);
+  spdlog::info("Population Size: {}", population_size);
   spdlog::info("Number of Generations: {}", num_generations);
-  spdlog::info("Survival Percentage: {}", survival_percentage);
+  spdlog::info("Survival Percentage: {}, Number of Population {}", survival_percentage, survival_num);
+  spdlog::info("Mutation Percentage: {}, Number of Population: {}", mutation_percentage, mutation_num);
+  spdlog::info("Crossover Percentage: {}, Number of Population: {}", crossover_percentage, crossover_num);
 
   thread_manager.set_max_threads(num_threads);
   result_luts.clear();
@@ -120,17 +162,17 @@ void V2Optimizer::init_params() {
   race_plan_creation.clear();
   population.clear();
 
-  population.resize(initial_population_size);
-  result_luts.resize(initial_population_size);
-  threads.resize(initial_population_size);
-  race_plan_creation.resize(initial_population_size);
+  population.resize(population_size);
+  result_luts.resize(population_size);
+  threads.resize(population_size);
+  race_plan_creation.resize(population_size);
 }
 
 void V2Optimizer::create_initial_population() {
-  RUNTIME_EXCEPTION(initial_population_size > 1, "Initial population size must be greater than 1");
-  RUNTIME_EXCEPTION(population.size() == initial_population_size, "Population vector not resized");
-  RUNTIME_EXCEPTION(result_luts.size() == initial_population_size, "Results lut vector not resized");
-  RUNTIME_EXCEPTION(race_plan_creation.size() == initial_population_size, "Race plan creation vector not resized");
+  RUNTIME_EXCEPTION(population_size > 1, "Initial population size must be greater than 1");
+  RUNTIME_EXCEPTION(population.size() == population_size, "Population vector not resized");
+  RUNTIME_EXCEPTION(result_luts.size() == population_size, "Results lut vector not resized");
+  RUNTIME_EXCEPTION(race_plan_creation.size() == population_size, "Race plan creation vector not resized");
   // Create a random device to seed the random number generator
   std::random_device rd;
 
@@ -139,7 +181,7 @@ void V2Optimizer::create_initial_population() {
 
   // Define the range for the random numbers
   std::uniform_int_distribution<unsigned int> dis(0, std::numeric_limits<unsigned int>::max());
-  for (int i=0; i < initial_population_size; i++) {
+  for (int i=0; i < population_size; i++) {
     unsigned int idx_seed = dis(gen);
     unsigned int speed_seed = dis(gen);
     unsigned int acceleration_seed = dis(gen);
@@ -192,7 +234,7 @@ void V2Optimizer::create_initial_population() {
 }
 
 void V2Optimizer::evaluate_population() {
-  for (int i=0; i < initial_population_size; i++) {
+  for (int i=0; i < population_size; i++) {
     if (fix_num_loops) {
       population[i].set_score(mps2kph(population[i].get_average_speed()));
     } else {
@@ -200,14 +242,15 @@ void V2Optimizer::evaluate_population() {
     }
   }
 }
+
 void V2Optimizer::simulate_population() {
   RUNTIME_EXCEPTION(population.size() > 0, "Population is empty");
 
-  if (initial_population_size > 1) {
-    for (int i=0; i < initial_population_size; i++) {
+  if (population_size > 1) {
+    for (int i=0; i < population_size; i++) {
       threads[i] = std::thread(thread_run_sim, simulator, route, result_luts[i], &population[i], &thread_manager);
     }
-    for (int i=0; i < initial_population_size; i++) {
+    for (int i=0; i < population_size; i++) {
       threads[i].join();
     }
   } else {
@@ -219,9 +262,11 @@ void V2Optimizer::simulate_population() {
 V2Optimizer::V2Optimizer(std::shared_ptr<Simulator> simulator, std::shared_ptr<Route> route)
     : Optimizer(simulator, route), num_threads(std::max(1u, static_cast<unsigned int>(
       std::thread::hardware_concurrency() * Config::get_instance()->get_threads()))),
-      initial_population_size(Config::get_instance()->get_initial_population()),
+      population_size(Config::get_instance()->get_population_size()),
       num_generations(Config::get_instance()->get_num_generations()),
       survival_percentage(Config::get_instance()->get_survival_percentage()),
       fix_num_loops(Config::get_instance()->get_fix_num_loops()),
-      parents_percentage(Config::get_instance()->get_parents_percentage()) {}
+      crossover_percentage(Config::get_instance()->get_crossover_percentage()),
+      mutation_percentage(Config::get_instance()->get_mutation_percentage()),
+      mutation_strategy(Config::get_instance()->get_mutation_strategy()) {}
 

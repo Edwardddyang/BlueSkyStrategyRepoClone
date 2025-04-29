@@ -51,6 +51,7 @@ set(OPTIMIZER_SOURCES
     src/optimizer/OptimizerFactory.cpp
     src/optimizer/V1Optimizer.cpp
     src/optimizer/V2Optimizer.cpp
+    src/optimizer/GeneticUtilities.cpp
 )
 set(ROUTE_SOURCES
     src/route/Route.cpp

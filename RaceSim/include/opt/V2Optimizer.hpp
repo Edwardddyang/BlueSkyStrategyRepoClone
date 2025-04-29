@@ -8,18 +8,28 @@
 #include "route/Route.hpp"
 #include "sim/Simulator.hpp"
 
+enum class MutationStrategy {
+  PreferConstantSpeed = 0
+};
+
 class V2Optimizer : public Optimizer {
  private:
   // Race plan population and their results
   std::vector<RacePlan> population;
+  std::vector<RacePlan> new_population;
   std::vector<std::shared_ptr<ResultsLut>> result_luts;
 
   // Genetic algorithm parameters
-  const int initial_population_size;
+  const int population_size;
   const int num_generations;
   const double survival_percentage;
+  const double crossover_percentage;
+  const double mutation_percentage;
+  const std::string mutation_strategy;
+  double survival_num;
   const bool fix_num_loops;
-  const double parents_percentage;
+  double crossover_num;
+  double mutation_num;
   unsigned int gen_seed;
 
   // Creation overhead tracking
@@ -47,6 +57,9 @@ class V2Optimizer : public Optimizer {
 
   /** @brief Crossover two race plans */
   RacePlan crossover_parents(RacePlan parent_a, RacePlan parent_b);
+
+  /** @brief Mutate parents in the population */
+  void mutate_population();
 
  public:
   V2Optimizer(std::shared_ptr<Simulator> simulator, std::shared_ptr<Route> route);

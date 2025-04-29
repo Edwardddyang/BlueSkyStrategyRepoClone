@@ -118,9 +118,11 @@
   PARAM(idx_seed, unsigned int, unsigned int, 1)                                            \
   PARAM(skip_seed, unsigned int, unsigned int, 1)                                           \
   PARAM(num_generations, int, int, 100)                                                     \
-  PARAM(initial_population, int, int, 1000000)                                              \
+  PARAM(population_size, int, int, 1000000)                                                 \
   PARAM(survival_percentage, double, double, 40)                                            \
-  PARAM(parents_percentage, double, double, 30)                                             \
+  PARAM(crossover_percentage, double, double, 30)                                           \
+  PARAM(mutation_percentage, double, double, 50)                                            \
+  PARAM(mutation_strategy, std::string, std::string, "PreferConstantSpeed")                 \
 
 /* Class that holds all information from a .yaml file storing configuration parameters for
  * a race simulation
