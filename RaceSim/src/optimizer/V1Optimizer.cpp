@@ -38,10 +38,16 @@ RacePlan V1Optimizer::optimize() {
   std::vector<std::thread> threads;
   result_luts.clear();
   race_plans.clear();
+  std::vector<std::vector<std::pair<size_t, size_t>>> segments = {{{0, route->get_num_points() - 1}}};
+  std::vector<std::vector<double>> segment_acceleration_values = {{0.0}};
+  std::vector<std::vector<bool>> segment_acceleration = {{false}};
+
   for (int i=min_speed; i <= max_speed; i++) {
     result_luts.emplace_back(std::make_shared<ResultsLut>());
-    race_plans.emplace_back(RacePlan({{{0, route->get_num_points() - 1}}},
-                       {{{static_cast<double>(i), static_cast<double>(i)}}}));
+    std::vector<std::vector<std::pair<double, double>>> segment_speeds = {{{static_cast<double>(i),
+                                                                            static_cast<double>(i)}}};
+    race_plans.emplace_back(RacePlan(segments, segment_speeds, segment_acceleration, segment_acceleration_values,
+                                     {}, 1));
   }
 
   for (int i=0; i < total_num_threads; i++) {

@@ -65,6 +65,8 @@ RacePlan V2Optimizer::optimize() {
   RacePlan best_race_plan = population[0];
   double best_average_speed = mps2kph(best_race_plan.get_average_speed());
   ResultsLut best_race_result;
+  std::cout << "Best Race Plan Average Speed: " << mps2kph(best_race_plan.get_average_speed()) << "kph" << std::endl;
+  std::cout << "Best Race Plan Number of Loops: " << best_race_plan.get_num_loops() << std::endl;
 
   return best_race_plan;
 }
@@ -74,6 +76,7 @@ void V2Optimizer::mutate_population() {
   std::unordered_set<size_t> mutated_indices;
   std::random_device rd;
   std::mt19937 gen(rd());
+  std::cout << "Low bound: " << crossover_num << ", Upper bound: " << population_size-1 << std::endl;
 
   int num_mutated = 0;
   while (num_mutated < mutation_num) {
@@ -82,9 +85,12 @@ void V2Optimizer::mutate_population() {
       continue;
     }
     mutated_indices.insert(idx);
+    std::cout << "Using index " << idx << std::endl;
     RacePlan mutated_plan = mutate_plan(population[idx]);
+    num_mutated += 1;
   }
 }
+
 void V2Optimizer::crossover_population() {
   // Note that std::uniform_int_distribution is inclusive on both sides
   std::uniform_int_distribution<size_t> parent_indices_dist(0, crossover_num - 1);
@@ -124,9 +130,6 @@ void V2Optimizer::init_params() {
   RUNTIME_EXCEPTION(num_generations > 0, "Number of generations must be greater than 0");
   RUNTIME_EXCEPTION(crossover_percentage + survival_percentage + mutation_percentage == 100.0, "Survival, "
     "mutation and crossover percentages must add to 100%");
-
-  RUNTIME_EXCEPTION(survival_percentage > 0 && crossover_percentage > 0 && mutation_percentage > 0,
-                    "Survival, mutation and crossover percentages must be greater than 0");
   if (crossover_percentage != 0.0) {
     RUNTIME_EXCEPTION((crossover_percentage / 100.0) * population_size >= 2, "Parents percent must select "
     "at least two parents to breed each generation");
@@ -146,7 +149,7 @@ void V2Optimizer::init_params() {
   };
 
   crossover_num = round2Even((crossover_percentage / 100.0) * population_size);
-  mutation_num = static_cast<int>(std::ceil((mutation_percentage / 100.0) * (population_size - crossover_num)));
+  mutation_num = static_cast<int>(std::ceil((mutation_percentage / 100.0) * (population_size)));
   survival_num = population_size - crossover_num - mutation_num;
 
   spdlog::info("----Genetic Optimizer Parameters:-----");
@@ -169,7 +172,7 @@ void V2Optimizer::init_params() {
 }
 
 void V2Optimizer::create_initial_population() {
-  RUNTIME_EXCEPTION(population_size > 1, "Initial population size must be greater than 1");
+  RUNTIME_EXCEPTION(population_size > 0, "Initial population size must be greater than 1");
   RUNTIME_EXCEPTION(population.size() == population_size, "Population vector not resized");
   RUNTIME_EXCEPTION(result_luts.size() == population_size, "Results lut vector not resized");
   RUNTIME_EXCEPTION(race_plan_creation.size() == population_size, "Race plan creation vector not resized");
@@ -225,6 +228,7 @@ void V2Optimizer::create_initial_population() {
                                                       Config::get_instance()->get_num_repetitions(),
                                                       Config::get_instance()->get_acceleration_power_budget(),
                                                       1000, Config::get_instance()->get_log_segmenting());
+    // race_plan.print_plan();
     auto end = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
     race_plan_creation[i] = duration.count() / 1'000'000.0;

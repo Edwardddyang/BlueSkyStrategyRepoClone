@@ -77,19 +77,40 @@ class RacePlan {
   // Number of loops completed by the car i.e. segments.size()
   int num_loops;
 
+  // Number of loop blocks
+  int num_blocks;
+
+  // Number of repetitions per loop block
+  int num_repetitions;
+
   // If the plan is not viable, this string holds the reason
   std::string reason_for_inviability = "";
 
   // Represents an empty race plan
   bool empty;
 
+  // When num_repetitions > 1, then one loop is created for each block and is replicated
+  // num_repetitions times with modifications such that they are "glued" together.
+  // These vectors preserve those original unique loops
+  std::vector<std::vector<std::pair<size_t, size_t>>> orig_loop_segments;
+  std::vector<std::vector<std::pair<double, double>>> orig_loop_speeds;
+  std::vector<std::vector<bool>> orig_loop_accelerations;
+  std::vector<std::vector<double>> orig_loop_acceleration_values;
+  std::vector<std::vector<double>> orig_loop_segment_distances;
+
  public:
   RacePlan() : empty(true) {}
   RacePlan(std::vector<std::vector<std::pair<size_t, size_t>>> segments,
            std::vector<std::vector<std::pair<double, double>>> segment_speeds,
-           std::vector<std::vector<bool>> acceleration_segments = {},
-           std::vector<std::vector<double>> acceleration = {},
-           std::vector<std::vector<double>> distances = {});
+           std::vector<std::vector<bool>> acceleration_segments,
+           std::vector<std::vector<double>> acceleration,
+           std::vector<std::vector<double>> distances = {},
+           int num_repetitions = 1,
+           std::vector<std::vector<std::pair<size_t, size_t>>> orig_loop_segments = {},
+           std::vector<std::vector<std::pair<double, double>>> orig_loop_speeds = {},
+           std::vector<std::vector<bool>> orig_loop_accelerations = {},
+           std::vector<std::vector<double>> orig_loop_acceleration_values = {},
+           std::vector<std::vector<double>> orig_loop_segment_distances = {});
   explicit RacePlan(std::string inviability_reason) : empty(true) {
     reason_for_inviability = inviability_reason; viable = false;
   }
@@ -99,12 +120,19 @@ class RacePlan {
   inline std::vector<std::vector<bool>> get_acceleration_segments() const {return acceleration_segments;}
   inline std::vector<std::vector<double>> get_acceleration_values() const {return acceleration;}
   inline std::vector<std::vector<double>> get_distances() const {return distances;}
+  inline std::vector<std::vector<std::pair<size_t, size_t>>> get_orig_loop_segments() const {return orig_loop_segments;}
+  inline std::vector<std::vector<std::pair<double, double>>> get_orig_loop_speeds() const {return orig_loop_speeds;}
+  inline std::vector<std::vector<bool>> get_orig_loop_accelerations() const {return orig_loop_accelerations;}
+  inline std::vector<std::vector<double>> get_orig_loop_acceleration_values() const
+    {return orig_loop_acceleration_values;}
+  inline std::vector<std::vector<double>> get_orig_loop_segment_distances() const {return orig_loop_segment_distances;}
   inline std::string get_inviability_reason() const {return reason_for_inviability;}
   inline double get_accumulated_distance() const {return accumulated_distance;}
   inline double get_driving_time() const {return driving_time;}
   inline double get_average_speed() const {return average_speed;}
   inline double get_score() const {return score;}
   inline int get_num_loops() const {return num_loops;}
+  inline int get_num_blocks() const {return num_blocks;}
   inline bool is_viable() const {return viable;}
   inline bool is_empty() const {return empty;}
 
@@ -175,34 +203,6 @@ class Route {
   /* Maximum speed of the route (mps) - comes from regulations */
   double max_route_speed;
 
-  /** @brief Helper function to segment_route_acceleration that determines the set of speeds
-   * valid for a particular acceleration to not exceed the maximum motor power
-   *
-   * @param acceleration acceleration in m/s^2
-   * @param mass Mass of the car in kg
-   * @param max_car_speed Maximum speed of the car in m/s
-   * @param max_motor_power Maximum motor power in W
-   * @return {min_speed, max_speed} inclusive on both sides for the range of viable speeds
-   * If no speeds can be found, return {-1, -1}
-   */
-  std::pair<double, double> find_valid_speeds(const double& acceleration, const double& mass,
-    const double& max_car_speed, const double& max_motor_power);
-
-  /** @brief Helper function to segment_route_acceleration to determine if an acceleration a < max_bound exists
-  * such that given some initial speed, distance to cover and acceptable ending speed range, the acceleration will
-  * take the initial speed to some final speed within the acceptable range
-  *
-  * @param init_speed Initial speed in m/s
-  * @param distance Distance to cover in m
-  * @param speed_range Range of [min_speed, max_speed] inclusive on both sides. Units in m/s
-  * @param deceleration_bound Maximum deceleration magnitude in m/s^2
-  * @param acceleration_bound Maximum acceleration magnitude in m/s^2
-  */
-  bool does_acceleration_exist(double init_speed, double distance,
-                                std::pair<double, double> speed_range,
-                                double deceleration_bound,
-                                double acceleration_bound);
-
  public:
   /** @brief Load information about the race route
    * 
@@ -252,37 +252,6 @@ class Route {
    * into equal lengths, the last segment will be shorter than the rest
    */
   std::vector<std::pair<size_t, size_t>> segment_route_uniform(double length);
-
-  /** @brief Segment the route into a certain number of loops
-   * 
-   * @param segment_idx_seed Random seed for selecting segment indices
-   * @param speed_seed Random seed for selecting segment speeds
-   * @param acceleration_seed Random seed for selecting accelerations
-   * @param skip_seed Random seed for skipping acceleration segments
-   * @param loop_seed Random seed for selecting the number of loops to complete
-   * @param max_num_loops Maximum possible number of loops around the track
-   * @param car_mass Car mass in kg
-   * @param max_speed Maximum speed of the car in m/s
-   * @param max_motor_power Maximum instataneous motor power draw from the motor
-   * @param max_acceleration Maximum magnitude for acceleration in m/s^2
-   * @param max_deceleration Maximum magnitude for deceleration ini m/s^2
-   * @param max_iterations Maximum number of iterations when searching for speeds/accelerations/indices
-   * This is to prevent hanging from infinite loops
-   * 
-   * @return Empty race plan if segment was unsuccessful. Valid race plan otherwise
-   */
-  RacePlan segment_route_acceleration(const unsigned segment_idx_seed,
-                                      const unsigned speed_seed,
-                                      const unsigned acceleration_seed,
-                                      const unsigned skip_seed,
-                                      const unsigned loop_seed,
-                                      const int max_num_loops,
-                                      const double car_mass,
-                                      const double max_speed,
-                                      const double max_motor_power,
-                                      const double max_acceleration,
-                                      const double max_deceleration,
-                                      const int max_iters = 1000);
 
   /** @brief Helper function to segment_route_corners that determines if a range of
    * speeds is reachable within some maximum distance

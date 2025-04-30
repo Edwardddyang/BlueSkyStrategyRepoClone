@@ -84,13 +84,14 @@
   idx_seed: 477365342
   skip_seed: 2880176778
   ####### Genetic Algorithm Parameters #######
-  num_generations: 5  # Number of iterations
-  population_size: 30  # Number of race plans to maintain the in poulation
-  survival_percentage: 10  # % of the population to pass onto the next iteration unaltered
-  crossover_percentage: 40  # Top % of the population to use to crossover to create new children
-  mutation_percentage: 50  # % of the population to mutate outside of the ones that are being crossed over
+  num_generations: 1  # Number of iterations
+  population_size: 1  # Number of race plans to maintain the in poulation
+  survival_percentage: 0  # % of the population to pass onto the next iteration unaltered
+  crossover_percentage: 0  # Top % of the population to use to crossover to create new children
+  mutation_percentage: 100  # % of the population to mutate outside of the ones that are being crossed over
   # Note that survival_percentage + parents_percentage + mutation_percentage must be 100
   mutation_strategy: PreferConstantSpeed
+  threads: 0.5
 
 \Simulation:
   simulator: FSGP # Type of simulator

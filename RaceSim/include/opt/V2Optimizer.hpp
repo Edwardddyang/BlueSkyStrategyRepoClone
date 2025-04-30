@@ -3,6 +3,7 @@
 
 #include <memory>
 #include <vector>
+#include <string>
 
 #include "opt/Optimizer.hpp"
 #include "route/Route.hpp"

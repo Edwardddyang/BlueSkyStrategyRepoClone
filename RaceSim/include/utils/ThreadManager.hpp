@@ -21,7 +21,7 @@ class ThreadManager {
 
  public:
   explicit ThreadManager(int max_threads) : max_threads(max_threads), active_threads(0) {}
-  explicit ThreadManager() : max_threads(0) {}
+  explicit ThreadManager() : max_threads(0), active_threads(0) {}
   void set_max_threads(int threads) {
     if (active_threads > 0) {
       std::cout << "Cannot modify active threads while threads are active" << std::endl;

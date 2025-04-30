@@ -290,8 +290,9 @@ void RacePlan::print_plan() const {
 
   for (size_t loop_idx = 0; loop_idx < num_loops; loop_idx++) {
     std::cout << "\nLOOP " << loop_idx << std::endl;
+    std::vector<double> loop_distance = distances.size() > 0 ? distances[loop_idx] : std::vector<double>(0);
     std::cout << get_loop_string(segments[loop_idx], segment_speeds[loop_idx], acceleration[loop_idx],
-                                 distances[loop_idx]) << std::endl;
+                                 loop_distance) << std::endl;
   }
 }
 
@@ -302,8 +303,18 @@ bool RacePlan::validate_members(const std::vector<Coord>& route_points) const {
                     acceleration_segments.size() == acceleration.size(),
                     "RacePlan not properly created. Speed profile, route segments and acceleration segments"
                     "have unequal number of loops");
+  if (distances.size() > 0) {
+    RUNTIME_EXCEPTION(distances.size() == segments.size(), "Loop segment distances have different "
+                      "number of loops compared to segments");
+  }
   const size_t num_loops = segments.size();
   const double tolerance = 0.0001;  // Tolerance for comparing acceleration values
+  RUNTIME_EXCEPTION(orig_loop_segments.size() == orig_loop_speeds.size() &&
+                    orig_loop_segments.size() == orig_loop_accelerations.size() &&
+                    orig_loop_segments.size() == orig_loop_acceleration_values.size() &&
+                    orig_loop_segments.size() == orig_loop_segment_distances.size(),
+                    "Raw segment speeds, acceleration values, distances must have the same number "
+                    "of loops");
   std::pair<double, double> last_segment_speeds;
   for (size_t loop_idx=0; loop_idx < num_loops; loop_idx++) {
     const std::vector<std::pair<size_t, size_t>>& loop_segments = segments[loop_idx];
@@ -311,23 +322,31 @@ bool RacePlan::validate_members(const std::vector<Coord>& route_points) const {
     const std::vector<bool>& loop_segments_acceleration = acceleration_segments[loop_idx];
     const std::vector<double>& loop_segments_acceleration_values = acceleration[loop_idx];
 
+    std::vector<double> loop_segment_distances;
+    if (distances.size() > 0) {
+      loop_segment_distances = distances[loop_idx];
+    }
+
     RUNTIME_EXCEPTION(loop_segments.size() == loop_segments_speeds.size() &&
                       loop_segments.size() == loop_segments_acceleration.size() &&
                       loop_segments.size() == loop_segments_acceleration_values.size(),
-                      "Segment speeds, acceleration and indices must be the same length for each loop");
+                      "Segment speeds, acceleration values and distances must be the same length for each loop");
+    if (distances.size() > 0) {
+      RUNTIME_EXCEPTION(loop_segment_distances.size() == loop_segments.size(), "Segment distances and segments "
+                        "must have the same length for each loop");
+    }
 
     const size_t num_segments = loop_segments.size();
     // Don't have this check in case we are starting at a different start point. More relevant to WSC than
     // FSGP
     // RUNTIME_EXCEPTION(loop_segments[0].first == 0, "Segments must start at index 0");
 
-    if (num_loops == 1) {
-      // RUNTIME_EXCEPTION(loop_segments[num_segments-1].second == route_points.size()-1,
-      //                   "Last segment's ending point must "
-      //                   " be the last index of the route");
-    } else if (!loop_segments_acceleration[num_segments-1]) {
+    if (num_loops > 1) {
       RUNTIME_EXCEPTION(loop_segments[num_segments-1].second == 0,
-                        "Last segment's ending point must be 0 i.e. wrap-around");
+        "Last segment's ending point must be 0 i.e. wrap-around");
+    } else {
+      RUNTIME_EXCEPTION(loop_segments[num_segments-1].second == route_points.size() - 1, "Non-loop race plan "
+      "must have ending point equal to the last point of the route");
     }
     if (loop_idx > 0) {
       RUNTIME_EXCEPTION(loop_segments_speeds[0].first == last_segment_speeds.second,
@@ -335,6 +354,12 @@ bool RacePlan::validate_members(const std::vector<Coord>& route_points) const {
                         "Error found in loop {}", loop_idx);
     }
     for (size_t i=0; i < num_segments; i++) {
+      const double segment_distance = calc_segment_distance(route_points, loop_segments[i].first,
+                                                            loop_segments[i].second);
+      if (loop_segment_distances.size() > 0) {
+        RUNTIME_EXCEPTION(std::abs(segment_distance - loop_segment_distances[i]) < tolerance,
+                          "Segment distance is not equal");
+      }
       RUNTIME_EXCEPTION(loop_segments_speeds[i].first >= 0.0 && loop_segments_speeds[i].second >= 0.0,
                         "Segment speed in segment {} is not positive", i);
 
@@ -358,8 +383,6 @@ bool RacePlan::validate_members(const std::vector<Coord>& route_points) const {
         const double acceleration_value = loop_segments_acceleration_values[i];
         const double starting_speed = loop_segments_speeds[i].first;
         const double ending_speed = loop_segments_speeds[i].second;
-        const double segment_distance = calc_segment_distance(route_points, loop_segments[i].first,
-                                                              loop_segments[i].second);
         const double calculated_acceleration_distance = calc_distance_a(starting_speed, ending_speed,
                                                                         acceleration_value);
         RUNTIME_EXCEPTION(calculated_acceleration_distance < segment_distance ||
@@ -380,23 +403,26 @@ RacePlan::RacePlan(std::vector<std::vector<std::pair<size_t, size_t>>> segments,
                    std::vector<std::vector<std::pair<double, double>>> segment_speeds,
                    std::vector<std::vector<bool>> acceleration_segments,
                    std::vector<std::vector<double>> acceleration,
-                   std::vector<std::vector<double>> distances)
+                   std::vector<std::vector<double>> distances,
+                   int num_repetitions,
+                   std::vector<std::vector<std::pair<size_t, size_t>>> orig_loop_segments,
+                   std::vector<std::vector<std::pair<double, double>>> orig_loop_speeds,
+                   std::vector<std::vector<bool>> orig_loop_accelerations,
+                   std::vector<std::vector<double>> orig_loop_acceleration_values,
+                   std::vector<std::vector<double>> orig_loop_segment_distances)
                   : segments(segments), segment_speeds(segment_speeds), acceleration_segments(acceleration_segments),
-                  acceleration(acceleration), distances(distances) {
-  if (acceleration_segments.size() == 0 || acceleration.size() == 0) {
-    this->acceleration_segments.resize(segments.size());
-    this->acceleration.resize(segments.size());
-    this->distances.resize(segments.size());
-    for (size_t i=0; i < segments.size(); i++) {
-      this->acceleration_segments[i] = std::vector<bool>(segments[i].size(), false);
-      this->acceleration[i] = std::vector<double>(segments.size(), 0.0);
-      this->distances[i] = std::vector<double>(segments.size(), 0.0);
-    }
-  }
+                  acceleration(acceleration), distances(distances), num_repetitions(num_repetitions),
+                  orig_loop_segments(orig_loop_segments), orig_loop_speeds(orig_loop_speeds),
+                  orig_loop_acceleration_values(orig_loop_acceleration_values),
+                  orig_loop_accelerations(orig_loop_accelerations),
+                  orig_loop_segment_distances(orig_loop_segment_distances) {
   this->num_loops = segments.size();
+  RUNTIME_EXCEPTION(num_repetitions >= 1, "Number of repetitions per loop block must be at least 1");
+  this->num_blocks = static_cast<int>(std::ceil(this->num_loops / this->num_repetitions));
 
   if (this->segments.size() == 0 && this->segment_speeds.size() == 0 &&
-      this->acceleration_segments.size() == 0 && this->acceleration.size() == 0) {
+      this->acceleration_segments.size() == 0 && this->acceleration.size() == 0 &&
+      this->distances.size() == 0) {
     empty = true;
   } else {
     empty = false;
