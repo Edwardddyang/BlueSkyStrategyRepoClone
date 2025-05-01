@@ -55,7 +55,6 @@ set(OPTIMIZER_SOURCES
 )
 set(ROUTE_SOURCES
     src/route/Route.cpp
-    src/route/SegmentRoute.cpp
 )
 set(SIMULATION_SOURCES
     src/simulation/Simulator.cpp

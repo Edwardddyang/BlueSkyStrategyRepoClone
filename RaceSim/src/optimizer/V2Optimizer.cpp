@@ -86,7 +86,7 @@ void V2Optimizer::mutate_population() {
     }
     mutated_indices.insert(idx);
     std::cout << "Using index " << idx << std::endl;
-    RacePlan mutated_plan = mutate_plan(population[idx], route);
+    RacePlan mutated_plan = Genetic::mutate_plan(population[idx], route);
     num_mutated += 1;
   }
 }
@@ -208,7 +208,8 @@ void V2Optimizer::create_initial_population() {
     const Time race_plan_end_time = is_first_day ? day_one_end_time : day_end_time;
     auto start = std::chrono::high_resolution_clock::now();
     // TODO(Someone): Sweep parameters to make population more diverse
-    RacePlan race_plan = route->segment_route_corners(Config::get_instance()->get_max_num_loops(),
+    RacePlan race_plan = Genetic::segment_route_corners(route,
+                                                      Config::get_instance()->get_max_num_loops(),
                                                       Config::get_instance()->get_fix_num_loops(),
                                                       Config::get_instance()->get_car_mass(),
                                                       kph2mps(Config::get_instance()->get_max_route_speed()),
