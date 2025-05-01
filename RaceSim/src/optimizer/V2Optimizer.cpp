@@ -221,7 +221,9 @@ void V2Optimizer::create_initial_population() {
       threads[i].join();
     }
   } else {
+    // Population size 1 is really only used for debugging
     population[0] = generator->create_plan();
+    population[0].print_plan();
   }
   auto end = std::chrono::high_resolution_clock::now();
   auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);

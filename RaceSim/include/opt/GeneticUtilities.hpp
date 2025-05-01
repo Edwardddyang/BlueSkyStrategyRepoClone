@@ -4,10 +4,13 @@
 
 #include <memory>
 #include <utility>
+#include <stack>
 #include <vector>
 
 #include "route/Route.hpp"
 #include "utils/CustomTime.hpp"
+#include "utils/Logger.hpp"
+#include "utils/Luts.hpp"
 
 namespace Genetic {
 /** @brief Mutate a race plan according to a strategy chosen from configuration */
@@ -21,6 +24,51 @@ RacePlan mutate_plan(RacePlan plan, const std::shared_ptr<Route> route);
 // https://www.notion.so/blueskysolar/Race-Strategy-and-Testing-Process-1da8d1f46c3680a79056edf3c9fecd1b?pvs=4
 class RacePlanCreator {
  public:
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  // The following structs are used in create_plan() to hold intermediate data as the race plan //
+  // is being created                                                                           //
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+
+  ///////////////////////////////////////////////////////////////////////////////////
+  ////////////////////// NOTE ABOUT TERMINOLOGY USED ///////////////////////////////
+  ///////////////////////////////////////////////////////////////////////////////////
+  // "route index": Denotes an index in the route_points_array
+  // "corner index": Denotes an index in the cornering_segment_bounds array of the Route object
+  // "real corner": A corner where the maximum cornering speed is less than the route's speed limit
+  // "segment index": An index inside loop_segments, loop_segment_speeds ...
+  // "wrap-around corner": The first corner of the route which the car wraps to after taking the entire route
+
+  // Keeps track of the history of different data elements added to the race plan
+  // e.g. number of segments added for each corner, speed of each corner etc.
+  // This is required when rolling back to a previous corner after segment generation failed
+  struct PlanHistory {
+    // The chosen speed for each real corner
+    std::stack<double> real_corner_speeds;
+    // Real corner indices for which segments were created
+    std::stack<size_t> real_corner_indices;
+    // Number of segments added for each real corner
+    std::stack<uint64_t> num_segments_added;
+    // Speed of the first corner of a generated loop
+    std::stack<uint64_t> first_corner_speeds;
+    // Number of segments added to the last loop of the previous loop block
+    // as a result of carrying over the wrap-around segments.
+    std::stack<uint64_t> num_added_wrap_around_segments;
+    // Counter to track the number of segments added for each real corner
+    uint64_t segment_counter;
+
+    void reset_segment_counter() {
+      segment_counter = 0;
+    }
+
+    PlanHistory() {
+      real_corner_speeds.push(0.0);
+      real_corner_indices.push(0);
+      num_segments_added.push(0);
+      first_corner_speeds.push(0);
+      num_added_wrap_around_segments.push(0);
+    }
+  };
+
   // Holds the intermediate segment data when creating a race plan
   struct IntermediateSegmentData {
     std::pair<size_t, size_t> segment;
@@ -48,6 +96,7 @@ class RacePlanCreator {
     std::vector<bool> loop_acceleration_segments;
     std::vector<double> loop_acceleration_values;
     std::vector<double> loop_segment_distances;
+    uint64_t segment_counter;
 
     void clear() {
       loop_segments.clear();
@@ -55,18 +104,27 @@ class RacePlanCreator {
       loop_acceleration_segments.clear();
       loop_acceleration_values.clear();
       loop_segment_distances.clear();
+      segment_counter = 0;
     }
+
+    void reset_segment_counter() {
+      segment_counter = 0;
+    }
+
+    void add_segment(IntermediateSegmentData* seg_data, PlanHistory* history);
 
     IntermediateLoopData(
       std::vector<std::pair<size_t, size_t>> loop_segments = {},
       std::vector<std::pair<double, double>> loop_segment_speeds = {},
       std::vector<bool> loop_acceleration_segments = {},
       std::vector<double> loop_acceleration_values = {},
-      std::vector<double> loop_segment_distances = {}) : loop_segments(loop_segments),
+      std::vector<double> loop_segment_distances = {},
+      uint64_t segment_counter = 0) : loop_segments(loop_segments),
         loop_segment_speeds(loop_segment_speeds),
         loop_acceleration_segments(loop_acceleration_segments),
         loop_acceleration_values(loop_acceleration_values),
-        loop_segment_distances(loop_segment_distances) {}
+        loop_segment_distances(loop_segment_distances),
+        segment_counter(segment_counter) {}
   };
 
   // Holds the RacePlan attributes that will be passed into the return object
@@ -86,6 +144,8 @@ class RacePlanCreator {
     std::vector<std::vector<bool>> all_acceleration_segments;
     std::vector<std::vector<double>> all_acceleration_values;
     std::vector<std::vector<double>> all_segment_distances;
+
+    void add_loop(const IntermediateLoopData& loop_data, size_t start_idx, size_t end_idx);
 
     PlanAttributes(
       std::vector<std::vector<std::pair<size_t, size_t>>> raw_loop_segments = {},
@@ -120,6 +180,26 @@ class RacePlanCreator {
 
   /** @brief Create a single race plan */
   RacePlan create_plan();
+
+  /** @brief Helper to create_plan used to create a single loop block
+   * @param seg_data Intermediate segment data for the latest created segment
+   * @param loop_data Intermediate data for the last created loop
+   * @param attributes All data for the entire race plan to the current point
+   * @param route_distances Lookup table for pre-computed distances of the route
+   * @param logger Logger for the race plan creation
+   * @param num_loops_in_block Number of loops in the block
+   * @param is_last_block Whether the block to be created is the last block of the entire plan
+   * @param is_first_block Whether the block to be created is the first block of the entire plan
+  */
+  void create_loop_block(IntermediateSegmentData* seg_data,
+                         IntermediateLoopData* loop_data,
+                         PlanAttributes* att,
+                         BasicLut* route_distances,
+                         PlanHistory* history,
+                         FileLogger& logger,  // NOLINT
+                         int num_loops_in_block = 1,
+                         bool is_last_block = false,
+                         bool is_first_block = false);
 
  private:
   /** @brief Helper function to segment_route_corners that determines if a range of
@@ -205,6 +285,9 @@ class RacePlanCreator {
 
   // Fraction of total motor power that can be allocated towards acceleration
   double acceleration_power_budget;
+
+  // Amount of motor power in W that can be allocated towards acceleraiton
+  double acceleration_power_allowance;
 
   // Number of iterations to try when sampling speeds, distances, indices, accelerations etc.
   double max_iters;

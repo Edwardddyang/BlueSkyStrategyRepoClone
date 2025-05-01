@@ -75,15 +75,15 @@
   max_num_loops: 60 # Maximum number of loops that can be completed
   log_segmenting: false # Log the race plan creation
   fix_seeds: false # Fix seeds for route segmentation. If true, use the seeds below
-  loop_seed: 3888189472
-  speed_seed: 958024739
-  aggressive_seed: 2358747961
-  acceleration_seed: 1708337047
-  idx_seed: 477365342
-  skip_seed: 2880176778
+  loop_seed: 364391665
+  speed_seed: 965808177
+  aggressive_seed: 2839611779
+  acceleration_seed: 3921686004
+  idx_seed: 3282848159
+  skip_seed: 221545619
   ####### Genetic Algorithm Parameters #######
   num_generations: 1  # Number of iterations
-  population_size: 1  # Number of race plans to maintain the in poulation
+  population_size: 20 # Number of race plans to maintain the in poulation
   survival_percentage: 0  # % of the population to pass onto the next iteration unaltered
   crossover_percentage: 0  # Top % of the population to use to crossover to create new children
   mutation_percentage: 100  # % of the population to mutate outside of the ones that are being crossed over

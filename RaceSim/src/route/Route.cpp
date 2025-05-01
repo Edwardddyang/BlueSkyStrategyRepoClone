@@ -475,7 +475,7 @@ bool RacePlan::validate_members(const std::vector<Coord>& route_points) const {
 
     if (num_loops > 1) {
       RUNTIME_EXCEPTION(loop_segments[num_segments-1].second == 0,
-        "Last segment's ending point must be 0 i.e. wrap-around");
+        "Last segment's ending point must be 0 i.e. wrap-around. Loop {}", loop_idx);
     } else {
       RUNTIME_EXCEPTION(loop_segments[num_segments-1].second == route_points.size() - 1, "Non-loop race plan "
       "must have ending point equal to the last point of the route");
