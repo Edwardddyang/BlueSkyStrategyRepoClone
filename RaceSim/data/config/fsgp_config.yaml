@@ -83,7 +83,7 @@
   skip_seed: 2880176778
   ####### Genetic Algorithm Parameters #######
   num_generations: 1  # Number of iterations
-  population_size: 50  # Number of race plans to maintain the in poulation
+  population_size: 1  # Number of race plans to maintain the in poulation
   survival_percentage: 0  # % of the population to pass onto the next iteration unaltered
   crossover_percentage: 0  # Top % of the population to use to crossover to create new children
   mutation_percentage: 100  # % of the population to mutate outside of the ones that are being crossed over

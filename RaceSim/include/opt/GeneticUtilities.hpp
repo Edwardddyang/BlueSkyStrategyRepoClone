@@ -16,10 +16,99 @@ RacePlan mutate_plan(RacePlan plan, const std::shared_ptr<Route> route);
 };  // namespace Genetic
 
 // Class for creating RacePlan objects in the initial population. RacePlan creation as done according to the process
-// described in
+// described in. This class also provides functions for creating race plans on existing loops used for mutation
+// in the genetic optimizer
 // https://www.notion.so/blueskysolar/Race-Strategy-and-Testing-Process-1da8d1f46c3680a79056edf3c9fecd1b?pvs=4
 class RacePlanCreator {
  public:
+  // Holds the intermediate segment data when creating a race plan
+  struct IntermediateSegmentData {
+    std::pair<size_t, size_t> segment;
+    std::pair<double, double> segment_speed;
+    bool acceleration;
+    double acceleration_value;
+    double segment_distance;
+
+    IntermediateSegmentData(
+      std::pair<size_t, size_t> segment = {0.0, 0.0},
+      std::pair<double, double> segment_speed = {0.0, 0.0},
+      bool acceleration = false,
+      double acceleration_value = 0.0,
+      double segment_distance = 0.0) : segment(segment),
+        segment_speed(segment_speed),
+        acceleration(acceleration),
+        acceleration_value(acceleration_value),
+        segment_distance(segment_distance) {}
+  };
+
+  // Holds the intermediate loop data when creating a race plan
+  struct IntermediateLoopData {
+    std::vector<std::pair<size_t, size_t>> loop_segments;
+    std::vector<std::pair<double, double>> loop_segment_speeds;
+    std::vector<bool> loop_acceleration_segments;
+    std::vector<double> loop_acceleration_values;
+    std::vector<double> loop_segment_distances;
+
+    void clear() {
+      loop_segments.clear();
+      loop_segment_speeds.clear();
+      loop_acceleration_segments.clear();
+      loop_acceleration_values.clear();
+      loop_segment_distances.clear();
+    }
+
+    IntermediateLoopData(
+      std::vector<std::pair<size_t, size_t>> loop_segments = {},
+      std::vector<std::pair<double, double>> loop_segment_speeds = {},
+      std::vector<bool> loop_acceleration_segments = {},
+      std::vector<double> loop_acceleration_values = {},
+      std::vector<double> loop_segment_distances = {}) : loop_segments(loop_segments),
+        loop_segment_speeds(loop_segment_speeds),
+        loop_acceleration_segments(loop_acceleration_segments),
+        loop_acceleration_values(loop_acceleration_values),
+        loop_segment_distances(loop_segment_distances) {}
+  };
+
+  // Holds the RacePlan attributes that will be passed into the return object
+  struct PlanAttributes {
+    // Data holders for each loop before processing when constructing a loop block. For each loop
+    // block, we create one loop and modify the beginning or ending segments in order to glue the
+    // loops of the block together. These vectors hold the uniquely created loop for each block
+    std::vector<std::vector<std::pair<size_t, size_t>>> raw_loop_segments;
+    std::vector<std::vector<std::pair<double, double>>> raw_loop_speeds;
+    std::vector<std::vector<bool>> raw_acceleration_segments;
+    std::vector<std::vector<double>> raw_acceleration_values;
+    std::vector<std::vector<double>> raw_loop_distances;
+
+    // RacePlan attributes
+    std::vector<std::vector<std::pair<size_t, size_t>>> all_segments;
+    std::vector<std::vector<std::pair<double, double>>> all_segment_speeds;
+    std::vector<std::vector<bool>> all_acceleration_segments;
+    std::vector<std::vector<double>> all_acceleration_values;
+    std::vector<std::vector<double>> all_segment_distances;
+
+    PlanAttributes(
+      std::vector<std::vector<std::pair<size_t, size_t>>> raw_loop_segments = {},
+      std::vector<std::vector<std::pair<double, double>>> raw_loop_speeds = {},
+      std::vector<std::vector<bool>> raw_acceleration_segments = {},
+      std::vector<std::vector<double>> raw_acceleration_values = {},
+      std::vector<std::vector<double>> raw_loop_distances = {},
+      std::vector<std::vector<std::pair<size_t, size_t>>> all_segments = {},
+      std::vector<std::vector<std::pair<double, double>>> all_segment_speeds = {},
+      std::vector<std::vector<bool>> all_acceleration_segments = {},
+      std::vector<std::vector<double>> all_acceleration_values = {},
+      std::vector<std::vector<double>> all_segment_distances = {}) : raw_loop_segments(raw_loop_segments),
+        raw_loop_speeds(raw_loop_speeds),
+        raw_acceleration_segments(raw_acceleration_segments),
+        raw_acceleration_values(raw_acceleration_values),
+        raw_loop_distances(raw_loop_distances),
+        all_segments(all_segments),
+        all_segment_speeds(all_segment_speeds),
+        all_acceleration_segments(all_acceleration_segments),
+        all_acceleration_values(all_acceleration_values),
+        all_segment_distances(all_segment_distances) {}
+  };
+
   /** Initialize all parameters */
   RacePlanCreator(std::shared_ptr<Route> route,
                   unsigned speed_seed = 1,

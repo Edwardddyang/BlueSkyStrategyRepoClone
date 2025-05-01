@@ -201,13 +201,6 @@ RacePlan RacePlanCreator::create_plan() {
   // Number of corners for which we need to create segments for
   const size_t num_corners_to_create = num_repetitions > 1 ? num_corners + 1 : num_corners;
 
-  // RacePlan attributes
-  std::vector<std::vector<std::pair<size_t, size_t>>> all_segments;
-  std::vector<std::vector<std::pair<double, double>>> all_segment_speeds;
-  std::vector<std::vector<bool>> all_acceleration_segments;
-  std::vector<std::vector<double>> all_acceleration_values;
-  std::vector<std::vector<double>> all_segment_distances;
-
   // Randomly select the number of loops to complete
   std::uniform_int_distribution<unsigned int> dis(1, max_num_loops);
   const size_t num_loops = fix_loops ? max_num_loops : static_cast<size_t>(dis(loop_rng));
@@ -351,40 +344,13 @@ RacePlan RacePlanCreator::create_plan() {
   };
 
   ///////////////////////////////////////////////////////////////////////////////////
-  // Temp data holders for each segment
-  std::pair<size_t, size_t> segment = {0, 0};
-  std::pair<double, double> segment_speed = {0.0, 0.0};
-  bool acceleration = false;
-  double acceleration_value = 0.0;
-  double segment_distance = 0.0;
-
-  // Temp data holders for each loop
-  std::vector<std::pair<size_t, size_t>> loop_segments;
-  std::vector<std::pair<double, double>> loop_segment_speeds;
-  std::vector<bool> loop_acceleration_segments;
-  std::vector<double> loop_acceleration_values;
-  std::vector<double> loop_segment_distances;
-
-  // Raw data holders for each loop. For each loop block, we create one loop and modify the beginning
-  // or ending segments in order to glue the loops of the block together. These vectors hold the
-  // uniquely created loop for each block
-  std::vector<std::vector<std::pair<size_t, size_t>>> raw_loop_segments;
-  std::vector<std::vector<std::pair<double, double>>> raw_loop_speeds;
-  std::vector<std::vector<bool>> raw_acceleration_segments;
-  std::vector<std::vector<double>> raw_acceleration_values;
-  std::vector<std::vector<double>> raw_loop_distances;
-
-  // When creating loop blocks, we will be modifying the loop vectors. So when rolling back,
-  // we need to restore the originally created loop holder
-  std::stack<std::vector<std::pair<size_t, size_t>>> loop_segments_stack;
-  std::stack<std::vector<std::pair<double, double>>> loop_speeds_stack;
-  std::stack<std::vector<bool>> loop_acceleration_stack;
-  std::stack<std::vector<double>> loop_acceleration_values_stack;
-  std::stack<std::vector<double>> loop_distances_stack;
+  IntermediateSegmentData seg_data;
+  IntermediateLoopData loop_data;
+  PlanAttributes att;
 
   auto get_loop_readable = [&]() -> std::string {
-    return RacePlan::get_loop_string(loop_segments, loop_segment_speeds,
-                                     loop_acceleration_values, loop_segment_distances);
+    return RacePlan::get_loop_string(loop_data.loop_segments, loop_data.loop_segment_speeds,
+                                     loop_data.loop_acceleration_values, loop_data.loop_segment_distances);
   };
 
   // Probability distributions used to randomly select locations, speeds
@@ -401,12 +367,13 @@ RacePlan RacePlanCreator::create_plan() {
   while (block_idx < num_blocks) {
     /** @brief Lambda to add a new segment to the loop
     */
-    auto add_segment = [&]() {
-      loop_segments.emplace_back(segment);
-      loop_segment_speeds.emplace_back(segment_speed);
-      loop_acceleration_segments.emplace_back(acceleration);
-      loop_acceleration_values.emplace_back(acceleration_value);
-      loop_segment_distances.emplace_back(segment_distance);
+    auto add_segment = [&](IntermediateLoopData& loop_data,
+                           const IntermediateSegmentData& seg_data) {
+      loop_data.loop_segments.emplace_back(seg_data.segment);
+      loop_data.loop_segment_speeds.emplace_back(seg_data.segment_speed);
+      loop_data.loop_acceleration_segments.emplace_back(seg_data.acceleration);
+      loop_data.loop_acceleration_values.emplace_back(seg_data.acceleration_value);
+      loop_data.loop_segment_distances.emplace_back(seg_data.segment_distance);
       segment_counter = segment_counter + 1;
     };
 
@@ -415,28 +382,28 @@ RacePlan RacePlanCreator::create_plan() {
     */
     auto add_loop = [&](const size_t start_idx, const size_t end_idx) {
       RUNTIME_EXCEPTION(start_idx <= end_idx, "End index must be greater than Start index");
-      RUNTIME_EXCEPTION(end_idx <= loop_segments.size(), "Ending index must be less than or equal to the "
-                                                         "loop segments vector");
+      RUNTIME_EXCEPTION(end_idx <= loop_data.loop_segments.size(), "Ending index must be less than or equal to the "
+                                                                   "loop segments vector");
       // Store results for this loop
-      std::vector<std::pair<size_t, size_t>> segments_slice(loop_segments.begin() + start_idx,
-                                                            loop_segments.begin() + end_idx);
-      all_segments.push_back(segments_slice);
+      std::vector<std::pair<size_t, size_t>> segments_slice(loop_data.loop_segments.begin() + start_idx,
+                                                            loop_data.loop_segments.begin() + end_idx);
+      att.all_segments.push_back(segments_slice);
 
-      std::vector<std::pair<double, double>> segment_speeds_slice(loop_segment_speeds.begin() + start_idx,
-                                                                  loop_segment_speeds.begin() + end_idx);
-      all_segment_speeds.push_back(segment_speeds_slice);
+      std::vector<std::pair<double, double>> segment_speeds_slice(loop_data.loop_segment_speeds.begin() + start_idx,
+                                                                  loop_data.loop_segment_speeds.begin() + end_idx);
+      att.all_segment_speeds.push_back(segment_speeds_slice);
 
-      std::vector<bool> loop_acceleration_slice(loop_acceleration_segments.begin() + start_idx,
-                                                loop_acceleration_segments.begin() + end_idx);
-      all_acceleration_segments.push_back(loop_acceleration_slice);
+      std::vector<bool> loop_acceleration_slice(loop_data.loop_acceleration_segments.begin() + start_idx,
+                                                loop_data.loop_acceleration_segments.begin() + end_idx);
+      att.all_acceleration_segments.push_back(loop_acceleration_slice);
 
-      std::vector<double> loop_acceleration_v_slice(loop_acceleration_values.begin() + start_idx,
-                                                    loop_acceleration_values.begin() + end_idx);
-      all_acceleration_values.push_back(loop_acceleration_v_slice);
+      std::vector<double> loop_acceleration_v_slice(loop_data.loop_acceleration_values.begin() + start_idx,
+                                                    loop_data.loop_acceleration_values.begin() + end_idx);
+      att.all_acceleration_values.push_back(loop_acceleration_v_slice);
 
-      std::vector<double> loop_segment_distances_slice(loop_segment_distances.begin() + start_idx,
-                                                       loop_segment_distances.begin() + end_idx);
-      all_segment_distances.push_back(loop_segment_distances_slice);
+      std::vector<double> loop_segment_distances_slice(loop_data.loop_segment_distances.begin() + start_idx,
+                                                       loop_data.loop_segment_distances.begin() + end_idx);
+      att.all_segment_distances.push_back(loop_segment_distances_slice);
     };
 
     /** @brief Create loop block with the newly created loop */
@@ -472,49 +439,50 @@ RacePlan RacePlanCreator::create_plan() {
 
       // For the very first block, these segments will not exist, since we're starting at index 0
       num_added_wrap_around_segments.push(0);
-      while (block_idx != 0 && loop_segments[0].second != 0 && loop_segments[0].first < loop_segments[0].second) {
-        all_segments.back().push_back(loop_segments[0]);
-        all_segment_speeds.back().push_back(loop_segment_speeds[0]);
-        all_acceleration_segments.back().push_back(loop_acceleration_segments[0]);
-        all_acceleration_values.back().push_back(loop_acceleration_values[0]);
-        all_segment_distances.back().push_back(loop_segment_distances[0]);
+      while (block_idx != 0 && loop_data.loop_segments[0].second != 0 &&
+            loop_data.loop_segments[0].first < loop_data.loop_segments[0].second) {
+        att.all_segments.back().push_back(loop_data.loop_segments[0]);
+        att.all_segment_speeds.back().push_back(loop_data.loop_segment_speeds[0]);
+        att.all_acceleration_segments.back().push_back(loop_data.loop_acceleration_segments[0]);
+        att.all_acceleration_values.back().push_back(loop_data.loop_acceleration_values[0]);
+        att.all_segment_distances.back().push_back(loop_data.loop_segment_distances[0]);
         num_added_wrap_around_segments.top() = num_added_wrap_around_segments.top() + 1;
 
-        logger("Moving segment [" + std::to_string(loop_segments[0].first) + "," +
-              std::to_string(loop_segments[0].second) + "] to the previous loop");
+        logger("Moving segment [" + std::to_string(loop_data.loop_segments[0].first) + "," +
+              std::to_string(loop_data.loop_segments[0].second) + "] to the previous loop");
 
         // Remove the first element of loop vectors - this is why we don't have to keep track of an index variable
-        loop_segments.erase(loop_segments.begin());
-        loop_segment_speeds.erase(loop_segment_speeds.begin());
-        loop_acceleration_segments.erase(loop_acceleration_segments.begin());
-        loop_acceleration_values.erase(loop_acceleration_values.begin());
-        loop_segment_distances.erase(loop_segment_distances.begin());
+        loop_data.loop_segments.erase(loop_data.loop_segments.begin());
+        loop_data.loop_segment_speeds.erase(loop_data.loop_segment_speeds.begin());
+        loop_data.loop_acceleration_segments.erase(loop_data.loop_acceleration_segments.begin());
+        loop_data.loop_acceleration_values.erase(loop_data.loop_acceleration_values.begin());
+        loop_data.loop_segment_distances.erase(loop_data.loop_segment_distances.begin());
       }
 
       // Crossover segment detected. Break into two sub-segments
-      if (loop_segments[0].first > loop_segments[0].second) {
-        std::pair<size_t, size_t> first_segment = {loop_segments[0].first, 0};
+      if (loop_data.loop_segments[0].first > loop_data.loop_segments[0].second) {
+        std::pair<size_t, size_t> first_segment = {loop_data.loop_segments[0].first, 0};
         const double first_segment_distance = route_distances.get_value(first_segment.first, 0);
-        const double first_segment_ending_speed = calc_final_speed_a(loop_segment_speeds[0].first,
-                                                                     loop_acceleration_values[0],
+        const double first_segment_ending_speed = calc_final_speed_a(loop_data.loop_segment_speeds[0].first,
+                                                                     loop_data.loop_acceleration_values[0],
                                                                      first_segment_distance);
-        std::pair<double, double> first_segment_speeds = {loop_segment_speeds[0].first,
+        std::pair<double, double> first_segment_speeds = {loop_data.loop_segment_speeds[0].first,
                                                           first_segment_ending_speed};
 
-        all_segments.back().push_back(first_segment);
-        all_segment_speeds.back().push_back(first_segment_speeds);
-        all_acceleration_segments.back().push_back(loop_acceleration_segments[0]);
-        all_acceleration_values.back().push_back(loop_acceleration_values[0]);
-        all_segment_distances.back().push_back(first_segment_distance);
+        att.all_segments.back().push_back(first_segment);
+        att.all_segment_speeds.back().push_back(first_segment_speeds);
+        att.all_acceleration_segments.back().push_back(loop_data.loop_acceleration_segments[0]);
+        att.all_acceleration_values.back().push_back(loop_data.loop_acceleration_values[0]);
+        att.all_segment_distances.back().push_back(first_segment_distance);
 
-        std::pair<size_t, size_t> second_segment = {0, loop_segments[0].second};
+        std::pair<size_t, size_t> second_segment = {0, loop_data.loop_segments[0].second};
         const double second_segment_distance = route_distances.get_value(0, second_segment.second);
-        const double second_segment_ending_speed = loop_segment_speeds[0].second;
+        const double second_segment_ending_speed = loop_data.loop_segment_speeds[0].second;
         std::pair<double, double> second_segment_speeds = {first_segment_ending_speed,
                                                           second_segment_ending_speed};
-        loop_segments[0] = second_segment;
-        loop_segment_speeds[0] = second_segment_speeds;
-        loop_segment_distances[0] = second_segment_distance;
+        loop_data.loop_segments[0] = second_segment;
+        loop_data.loop_segment_speeds[0] = second_segment_speeds;
+        loop_data.loop_segment_distances[0] = second_segment_distance;
       }
 
       // For num_repetitions > 1, there will be a wrap-around corner. Therefore, the end of the loop
@@ -535,57 +503,57 @@ RacePlan RacePlanCreator::create_plan() {
       std::vector<bool> wrap_around_acceleration;
       std::vector<double> wrap_around_acceleration_values;
       std::vector<double> wrap_around_distances;
-      while (num_repetitions > 1 && loop_segments.back().second > loop_segments.back().first &&
-            loop_segments.back().second != 0) {
-        wrap_around_segments.insert(wrap_around_segments.begin(), loop_segments.back());
-        wrap_around_speeds.insert(wrap_around_speeds.begin(), loop_segment_speeds.back());
+      while (num_repetitions > 1 && loop_data.loop_segments.back().second > loop_data.loop_segments.back().first &&
+            loop_data.loop_segments.back().second != 0) {
+        wrap_around_segments.insert(wrap_around_segments.begin(), loop_data.loop_segments.back());
+        wrap_around_speeds.insert(wrap_around_speeds.begin(), loop_data.loop_segment_speeds.back());
         wrap_around_acceleration.insert(wrap_around_acceleration.begin(),
-                                        loop_acceleration_segments.back());
+                                        loop_data.loop_acceleration_segments.back());
         wrap_around_acceleration_values.insert(wrap_around_acceleration_values.begin(),
-                                               loop_acceleration_values.back());
+                                               loop_data.loop_acceleration_values.back());
         wrap_around_distances.insert(wrap_around_distances.begin(),
-                                     loop_segment_distances.back());
+                                     loop_data.loop_segment_distances.back());
 
-        loop_segments.pop_back();
-        loop_segment_speeds.pop_back();
-        loop_acceleration_segments.pop_back();
-        loop_acceleration_values.pop_back();
-        loop_segment_distances.pop_back();
+        loop_data.loop_segments.pop_back();
+        loop_data.loop_segment_speeds.pop_back();
+        loop_data.loop_acceleration_segments.pop_back();
+        loop_data.loop_acceleration_values.pop_back();
+        loop_data.loop_segment_distances.pop_back();
       }
 
       // Crossover segment detected on last segment. We will only insert the first sub-segment into
       // the current loop, but we also need to preserve the second segment when we create the loops > 1st one
       // of the block
-      if (loop_segments.back().second < loop_segments.back().first) {
-        std::pair<size_t, size_t> first_segment = {loop_segments.back().first, 0};
+      if (loop_data.loop_segments.back().second < loop_data.loop_segments.back().first) {
+        std::pair<size_t, size_t> first_segment = {loop_data.loop_segments.back().first, 0};
         const double first_segment_distance = route_distances.get_value(first_segment.first, 0);
-        const double first_segment_ending_speed = calc_final_speed_a(loop_segment_speeds.back().first,
-                                                                     loop_acceleration_values.back(),
+        const double first_segment_ending_speed = calc_final_speed_a(loop_data.loop_segment_speeds.back().first,
+                                                                     loop_data.loop_acceleration_values.back(),
                                                                      first_segment_distance);
-        std::pair<double, double> first_segment_speeds = {loop_segment_speeds.back().first,
+        std::pair<double, double> first_segment_speeds = {loop_data.loop_segment_speeds.back().first,
                                                           first_segment_ending_speed};
-        const std::pair<size_t, size_t> second_segment = {0, loop_segments.back().second};
+        const std::pair<size_t, size_t> second_segment = {0, loop_data.loop_segments.back().second};
         const double second_segment_distance = route_distances.get_value(0, second_segment.second);
-        const double second_segment_ending_speed = loop_segment_speeds.back().second;
+        const double second_segment_ending_speed = loop_data.loop_segment_speeds.back().second;
         const std::pair<double, double> second_segment_speeds = {first_segment_ending_speed,
                                                                   second_segment_ending_speed};
 
         wrap_around_segments.insert(wrap_around_segments.begin(), second_segment);
         wrap_around_speeds.insert(wrap_around_speeds.begin(), second_segment_speeds);
-        wrap_around_acceleration.insert(wrap_around_acceleration.begin(), loop_acceleration_segments.back());
+        wrap_around_acceleration.insert(wrap_around_acceleration.begin(), loop_data.loop_acceleration_segments.back());
         wrap_around_acceleration_values.insert(wrap_around_acceleration_values.begin(),
-                                               loop_acceleration_values.back());
+                                               loop_data.loop_acceleration_values.back());
         wrap_around_distances.insert(wrap_around_distances.begin(), second_segment_distance);
 
-        loop_segments.back() = first_segment;
-        loop_segment_speeds.back() = first_segment_speeds;
-        loop_segment_distances.back() = first_segment_distance;
+        loop_data.loop_segments.back() = first_segment;
+        loop_data.loop_segment_speeds.back() = first_segment_speeds;
+        loop_data.loop_segment_distances.back() = first_segment_distance;
       }
       // Add the first loop
       if (num_loops_in_block > 1) {
         logger("Loop 1 Modified:");
         logger(get_loop_readable());
-        add_loop(0, loop_segments.size());
+        add_loop(0, loop_data.loop_segments.size());
       }
       // --------------------------------------------------------------------
 
@@ -595,26 +563,30 @@ RacePlan RacePlanCreator::create_plan() {
         logger("Modifying loop construct for the second... loop in the block");
         // Refer to figure A, we first want to delete the segments that extend up to and including
         // the first corner as they will be replaced by the wrap-around segment
-        while (loop_segments[0].second <= cornering_segment_bounds[0].second) {
-          loop_segments.erase(loop_segments.begin());
-          loop_segment_speeds.erase(loop_segment_speeds.begin());
-          loop_acceleration_segments.erase(loop_acceleration_segments.begin());
-          loop_acceleration_values.erase(loop_acceleration_values.begin());
-          loop_segment_distances.erase(loop_segment_distances.begin());
+        while (loop_data.loop_segments[0].second <= cornering_segment_bounds[0].second) {
+          loop_data.loop_segments.erase(loop_data.loop_segments.begin());
+          loop_data.loop_segment_speeds.erase(loop_data.loop_segment_speeds.begin());
+          loop_data.loop_acceleration_segments.erase(loop_data.loop_acceleration_segments.begin());
+          loop_data.loop_acceleration_values.erase(loop_data.loop_acceleration_values.begin());
+          loop_data.loop_segment_distances.erase(loop_data.loop_segment_distances.begin());
         }
 
         // Move the recorded wrap around segments to the front
-        loop_segments.insert(loop_segments.begin(), wrap_around_segments.begin(), wrap_around_segments.end());
-        loop_segment_speeds.insert(loop_segment_speeds.begin(), wrap_around_speeds.begin(), wrap_around_speeds.end());
-        loop_acceleration_segments.insert(loop_acceleration_segments.begin(), wrap_around_acceleration.begin(),
-                                          wrap_around_acceleration.end());
-        loop_acceleration_values.insert(loop_acceleration_values.begin(), wrap_around_acceleration_values.begin(),
-                                        wrap_around_acceleration_values.end());
-        loop_segment_distances.insert(loop_segment_distances.begin(), wrap_around_distances.begin(),
-                                      wrap_around_distances.end());
+        loop_data.loop_segments.insert(loop_data.loop_segments.begin(), wrap_around_segments.begin(),
+                                       wrap_around_segments.end());
+        loop_data.loop_segment_speeds.insert(loop_data.loop_segment_speeds.begin(), wrap_around_speeds.begin(),
+                                             wrap_around_speeds.end());
+        loop_data.loop_acceleration_segments.insert(loop_data.loop_acceleration_segments.begin(),
+                                                    wrap_around_acceleration.begin(),
+                                                    wrap_around_acceleration.end());
+        loop_data.loop_acceleration_values.insert(loop_data.loop_acceleration_values.begin(),
+                                                  wrap_around_acceleration_values.begin(),
+                                                  wrap_around_acceleration_values.end());
+        loop_data.loop_segment_distances.insert(loop_data.loop_segment_distances.begin(),
+                                                wrap_around_distances.begin(), wrap_around_distances.end());
 
         for (size_t i=1; i < num_loops_in_block - 1; i++) {
-          add_loop(0, loop_segments.size());
+          add_loop(0, loop_data.loop_segments.size());
         }
         logger("LOOP X MODIFIED");
         logger(get_loop_readable());
@@ -624,39 +596,41 @@ RacePlan RacePlanCreator::create_plan() {
 
       // --------------- Add the last loop of the block ---------------
       size_t last_corner_ending_idx = 0;
-      for (; last_corner_ending_idx < loop_segments.size(); last_corner_ending_idx++) {
-        if (loop_segments[last_corner_ending_idx].second == cornering_segment_bounds.back().second) {
+      for (; last_corner_ending_idx < loop_data.loop_segments.size(); last_corner_ending_idx++) {
+        if (loop_data.loop_segments[last_corner_ending_idx].second == cornering_segment_bounds.back().second) {
           break;
         }
       }
       if (block_idx == num_blocks - 1) {
         // Remove all the segments past the last corner and create a constant segment until index 0
         logger("Last corner ending idx " + std::to_string(last_corner_ending_idx));
-        logger("Loop segments size: " + std::to_string(loop_segments.size()));
-        const size_t num_segments_to_remove = loop_segments.size() - last_corner_ending_idx;
+        logger("Loop segments size: " + std::to_string(loop_data.loop_segments.size()));
+        const size_t num_segments_to_remove = loop_data.loop_segments.size() - last_corner_ending_idx;
         logger("Num segments to remove: " + std::to_string(num_segments_to_remove));
 
-        loop_segments.erase(loop_segments.end() - num_segments_to_remove, loop_segments.end());
-        loop_segment_speeds.erase(loop_segment_speeds.end() - num_segments_to_remove,
-                                  loop_segment_speeds.end());
-        loop_acceleration_segments.erase(loop_acceleration_segments.end() - num_segments_to_remove,
-                                          loop_acceleration_segments.end());
-        loop_acceleration_values.erase(loop_acceleration_values.end() - num_segments_to_remove,
-                                        loop_acceleration_values.end());
-        loop_segment_distances.erase(loop_segment_distances.end() - num_segments_to_remove,
-                                      loop_segment_distances.end());
+        loop_data.loop_segments.erase(loop_data.loop_segments.end() - num_segments_to_remove,
+                                      loop_data.loop_segments.end());
+        loop_data.loop_segment_speeds.erase(loop_data.loop_segment_speeds.end() - num_segments_to_remove,
+                                            loop_data.loop_segment_speeds.end());
+        loop_data.loop_acceleration_segments.erase(loop_data.loop_acceleration_segments.end() - num_segments_to_remove,
+                                                   loop_data.loop_acceleration_segments.end());
+        loop_data.loop_acceleration_values.erase(loop_data.loop_acceleration_values.end() - num_segments_to_remove,
+                                                 loop_data.loop_acceleration_values.end());
+        loop_data.loop_segment_distances.erase(loop_data.loop_segment_distances.end() - num_segments_to_remove,
+                                               loop_data.loop_segment_distances.end());
 
-        const size_t corner_end_idx = loop_segments.back().second;
-        const int corner_speed = loop_segment_speeds.back().second;
-        segment = {corner_end_idx, 0};
-        segment_speed = {corner_speed, corner_speed};
-        acceleration_value = 0.0;
-        acceleration = false;
-        logger(std::to_string(segment.first) + ", " + std::to_string(segment.second));
-        segment_distance = route_distances.get_value(segment.first, segment.second);
+        const size_t corner_end_idx = loop_data.loop_segments.back().second;
+        const int corner_speed = loop_data.loop_segment_speeds.back().second;
 
-        add_segment();
-        add_loop(0, loop_segments.size());
+        seg_data.segment = {corner_end_idx, 0};
+        seg_data.segment_speed = {corner_speed, corner_speed};
+        seg_data.acceleration_value = 0.0;
+        seg_data.acceleration = false;
+        logger(std::to_string(seg_data.segment.first) + ", " + std::to_string(seg_data.segment.second));
+        seg_data.segment_distance = route_distances.get_value(seg_data.segment.first, seg_data.segment.second);
+
+        add_segment(loop_data, seg_data);
+        add_loop(0, loop_data.loop_segments.size());
       } else {
         logger("Last corner ending index: " + std::to_string(last_corner_ending_idx));
         logger("Block counter: " + std::to_string(block_idx));
@@ -668,20 +642,11 @@ RacePlan RacePlanCreator::create_plan() {
     };
 
     // Clear all temp data holders
-    loop_segments.clear();
-    loop_segment_speeds.clear();
-    loop_acceleration_segments.clear();
-    loop_acceleration_values.clear();
-    loop_segment_distances.clear();
-    loop_segments.clear();
-    loop_segment_speeds.clear();
-    loop_acceleration_segments.clear();
-    loop_acceleration_values.clear();
-    loop_segment_distances.clear();
+    loop_data.clear();
 
     // Labmda to remove the latest corner segments added to the loop
     auto remove_last_corner_segments = [&]() {
-      const size_t curr_loop_num_segments = loop_segments.size();
+      const size_t curr_loop_num_segments = loop_data.loop_segments.size();
       const size_t num_segments_of_last_corner = static_cast<size_t>(num_segments_added.top());
       logger("Number of segments in current loop: " + std::to_string(curr_loop_num_segments));
       const size_t num_remove_from_curr_loop = std::min(curr_loop_num_segments, num_segments_of_last_corner);
@@ -691,38 +656,38 @@ RacePlan RacePlanCreator::create_plan() {
       logger("Removing " + std::to_string(num_segments_of_last_corner) + " segments");
 
       for (size_t idx = 0; idx < num_remove_from_curr_loop; idx++) {
-        loop_segments.pop_back();
-        loop_segment_speeds.pop_back();
-        loop_acceleration_segments.pop_back();
-        loop_acceleration_values.pop_back();
-        loop_segment_distances.pop_back();
+        loop_data.loop_segments.pop_back();
+        loop_data.loop_segment_speeds.pop_back();
+        loop_data.loop_acceleration_segments.pop_back();
+        loop_data.loop_acceleration_values.pop_back();
+        loop_data.loop_segment_distances.pop_back();
       }
 
       const size_t num_remove_from_last_loop = num_segments_of_last_corner > curr_loop_num_segments ?
                                                num_segments_of_last_corner - curr_loop_num_segments : 0;
       logger("Removed " + std::to_string(num_remove_from_curr_loop) + " segments from current loop and " +
              std::to_string(num_remove_from_last_loop) + " from last loop");
-      if (all_segments.size() > 0 && num_remove_from_last_loop > 0) {
-        RUNTIME_EXCEPTION(num_remove_from_last_loop <= raw_loop_segments.back().size(),
+      if (att.all_segments.size() > 0 && num_remove_from_last_loop > 0) {
+        RUNTIME_EXCEPTION(num_remove_from_last_loop <= att.raw_loop_segments.back().size(),
                           "Last loop has too few segments");
       }
       for (size_t idx = 0; idx < num_remove_from_last_loop; idx++) {
-        raw_loop_segments.back().pop_back();
-        raw_loop_speeds.back().pop_back();
-        raw_acceleration_segments.back().pop_back();
-        raw_acceleration_values.back().pop_back();
-        raw_loop_distances.back().pop_back();
+        att.raw_loop_segments.back().pop_back();
+        att.raw_loop_speeds.back().pop_back();
+        att.raw_acceleration_segments.back().pop_back();
+        att.raw_acceleration_values.back().pop_back();
+        att.raw_loop_distances.back().pop_back();
       }
     };
 
     // Lambda to convert segment information into a string (debugging + logging purposes)
     auto get_segment_string = [&]() {
       std::stringstream ss;
-      ss << "Segment: [" << segment.first << "," << segment.second << "]\n";
-      ss << "Segment Distance: " << segment_distance << "m\n";
-      ss << "Segment Speeds: [" << segment_speed.first << "," << segment_speed.second << "]\n";
-      ss << "Acceleration: " << (acceleration ? "True\n" : "False\n");
-      ss << "Acceleration Value: " << acceleration_value << "\n";
+      ss << "Segment: [" << seg_data.segment.first << "," << seg_data.segment.second << "]\n";
+      ss << "Segment Distance: " << seg_data.segment_distance << "m\n";
+      ss << "Segment Speeds: [" << seg_data.segment_speed.first << "," << seg_data.segment_speed.second << "]\n";
+      ss << "Acceleration: " << (seg_data.acceleration ? "True\n" : "False\n");
+      ss << "Acceleration Value: " << seg_data.acceleration_value << "\n";
       return ss.str();
     };
 
@@ -1041,45 +1006,45 @@ RacePlan RacePlanCreator::create_plan() {
               logger("Aggressive straight with valid parameters were found");
 
               // Add acceleration segment
-              segment = {last_real_corner_end, acceleration_end_idx};
-              segment_distance = route_distances.get_value(last_real_corner_end, acceleration_end_idx);
-              acceleration_value = proposed_acceleration;
-              segment_speed = {last_real_corner_speed, acceleration_end_speed};
-              acceleration = true;
-              add_segment();
+              seg_data.segment = {last_real_corner_end, acceleration_end_idx};
+              seg_data.segment_distance = route_distances.get_value(last_real_corner_end, acceleration_end_idx);
+              seg_data.acceleration_value = proposed_acceleration;
+              seg_data.segment_speed = {last_real_corner_speed, acceleration_end_speed};
+              seg_data.acceleration = true;
+              add_segment(loop_data, seg_data);
 
               logger("\nACCELERATION SEGMENT");
               logger(get_segment_string());
 
               // Add constant speed segment
-              segment = {acceleration_end_idx, deceleration_start_idx};
-              segment_distance = route_distances.get_value(acceleration_end_idx, deceleration_start_idx);
-              acceleration_value = 0.0;
-              acceleration = false;
-              segment_speed = {acceleration_end_speed, acceleration_end_speed};
-              add_segment();
+              seg_data.segment = {acceleration_end_idx, deceleration_start_idx};
+              seg_data.segment_distance = route_distances.get_value(acceleration_end_idx, deceleration_start_idx);
+              seg_data.acceleration_value = 0.0;
+              seg_data.acceleration = false;
+              seg_data.segment_speed = {acceleration_end_speed, acceleration_end_speed};
+              add_segment(loop_data, seg_data);
 
               logger("\nCONSTANT SPEED SEGMENT");
               logger(get_segment_string());
 
               // Add deceleration speed segment
-              segment = {deceleration_start_idx, corner_start};
-              segment_distance = route_distances.get_value(deceleration_start_idx, corner_start);
-              acceleration_value = proposed_deceleration;
-              acceleration = acceleration_value != 0.0;
-              segment_speed = {acceleration_end_speed, proposed_corner_speed};
-              add_segment();
+              seg_data.segment = {deceleration_start_idx, corner_start};
+              seg_data.segment_distance = route_distances.get_value(deceleration_start_idx, corner_start);
+              seg_data.acceleration_value = proposed_deceleration;
+              seg_data.acceleration = seg_data.acceleration_value != 0.0;
+              seg_data.segment_speed = {acceleration_end_speed, proposed_corner_speed};
+              add_segment(loop_data, seg_data);
 
               logger("\nDECELERATION SPEED SEGMENT");
               logger(get_segment_string());
 
               // Add the cornering segment
-              segment = {corner_start, corner_end};
-              segment_distance = route_distances.get_value(corner_start, corner_end);
-              acceleration_value = 0.0;
-              acceleration = acceleration_value != 0.0;
-              segment_speed = {proposed_corner_speed, proposed_corner_speed};
-              add_segment();
+              seg_data.segment = {corner_start, corner_end};
+              seg_data.segment_distance = route_distances.get_value(corner_start, corner_end);
+              seg_data.acceleration_value = 0.0;
+              seg_data.acceleration = seg_data.acceleration_value != 0.0;
+              seg_data.segment_speed = {proposed_corner_speed, proposed_corner_speed};
+              add_segment(loop_data, seg_data);
 
               logger("\nCORNER SPEED SEGMENT");
               logger(get_segment_string());
@@ -1232,23 +1197,23 @@ RacePlan RacePlanCreator::create_plan() {
                      std::to_string(acceleration_end_idx));
 
               // Add the acceleration segment
-              segment = {last_real_corner_end, acceleration_end_idx};
-              segment_speed = {last_real_corner_speed, proposed_corner_speed};
-              segment_distance = route_distances.get_value(last_real_corner_end, acceleration_end_idx);
-              acceleration = true;
-              acceleration_value = proposed_acceleration;
-              add_segment();
+              seg_data.segment = {last_real_corner_end, acceleration_end_idx};
+              seg_data.segment_speed = {last_real_corner_speed, proposed_corner_speed};
+              seg_data.segment_distance = route_distances.get_value(last_real_corner_end, acceleration_end_idx);
+              seg_data.acceleration = true;
+              seg_data.acceleration_value = proposed_acceleration;
+              add_segment(loop_data, seg_data);
 
               logger("\nACCELERATION SEGMENT");
               logger(get_segment_string());
 
               // Add the corner segment
-              segment_distance = route_distances.get_value(acceleration_end_idx, corner_end);
-              segment = {acceleration_end_idx, corner_end};
-              segment_speed = {proposed_corner_speed, proposed_corner_speed};
-              acceleration_value = 0.0;
-              acceleration = false;
-              add_segment();
+              seg_data.segment_distance = route_distances.get_value(acceleration_end_idx, corner_end);
+              seg_data.segment = {acceleration_end_idx, corner_end};
+              seg_data.segment_speed = {proposed_corner_speed, proposed_corner_speed};
+              seg_data.acceleration_value = 0.0;
+              seg_data.acceleration = false;
+              add_segment(loop_data, seg_data);
 
               logger("\nCORNER SEGMENT");
               logger(get_segment_string());
@@ -1308,23 +1273,23 @@ RacePlan RacePlanCreator::create_plan() {
 
               logger("Proposed corner speed is valid");
               // Add the deceleration
-              segment = {last_real_corner_end, deceleration_end_idx};
-              segment_speed = {last_real_corner_speed, proposed_corner_speed};
-              acceleration_value = proposed_deceleration;
-              acceleration = true;
-              segment_distance = route_distances.get_value(last_real_corner_end, deceleration_end_idx);
-              add_segment();
+              seg_data.segment = {last_real_corner_end, deceleration_end_idx};
+              seg_data.segment_speed = {last_real_corner_speed, proposed_corner_speed};
+              seg_data.acceleration_value = proposed_deceleration;
+              seg_data.acceleration = true;
+              seg_data.segment_distance = route_distances.get_value(last_real_corner_end, deceleration_end_idx);
+              add_segment(loop_data, seg_data);
 
               logger("\nDECELERATION SEGMENT");
               logger(get_segment_string());
 
               // Add the corner segment
-              segment = {deceleration_end_idx, corner_end};
-              segment_speed = {proposed_corner_speed, proposed_corner_speed};
-              acceleration_value = 0.0;
-              acceleration = false;
-              segment_distance = route_distances.get_value(deceleration_end_idx, corner_end);
-              add_segment();
+              seg_data.segment = {deceleration_end_idx, corner_end};
+              seg_data.segment_speed = {proposed_corner_speed, proposed_corner_speed};
+              seg_data.acceleration_value = 0.0;
+              seg_data.acceleration = false;
+              seg_data.segment_distance = route_distances.get_value(deceleration_end_idx, corner_end);
+              add_segment(loop_data, seg_data);
 
               logger("\nCORNER SEGMENT");
               logger(get_segment_string());
@@ -1334,12 +1299,12 @@ RacePlan RacePlanCreator::create_plan() {
               // Maintain same corner speed
               logger("Proposed corner speed is the same as the current speed of the car. Adding one segment");
 
-              acceleration = false;
-              acceleration_value = 0.0;
-              segment_speed = {proposed_corner_speed, proposed_corner_speed};
-              segment = {last_real_corner_end,  corner_end};
-              segment_distance = route_distances.get_value(last_real_corner_end, corner_end);
-              add_segment();
+              seg_data.acceleration = false;
+              seg_data.acceleration_value = 0.0;
+              seg_data.segment_speed = {proposed_corner_speed, proposed_corner_speed};
+              seg_data.segment = {last_real_corner_end,  corner_end};
+              seg_data.segment_distance = route_distances.get_value(last_real_corner_end, corner_end);
+              add_segment(loop_data, seg_data);
 
               logger("\nCORNER SEGMENT");
               logger(get_segment_string());
@@ -1369,40 +1334,42 @@ RacePlan RacePlanCreator::create_plan() {
           block_idx = block_idx - 1;
 
           // Restore the loop vectors
-          loop_segments = raw_loop_segments.back();
-          loop_segment_speeds = raw_loop_speeds.back();
-          loop_acceleration_segments = raw_acceleration_segments.back();
-          loop_acceleration_values = raw_acceleration_values.back();
-          loop_segment_distances = raw_loop_distances.back();
+          loop_data.loop_segments = att.raw_loop_segments.back();
+          loop_data.loop_segment_speeds = att.raw_loop_speeds.back();
+          loop_data.loop_acceleration_segments = att.raw_acceleration_segments.back();
+          loop_data.loop_acceleration_values = att.raw_acceleration_values.back();
+          loop_data.loop_segment_distances = att.raw_loop_distances.back();
 
-          raw_loop_segments.pop_back();
-          raw_loop_speeds.pop_back();
-          raw_loop_distances.pop_back();
-          raw_acceleration_segments.pop_back();
-          raw_acceleration_values.pop_back();
+          att.raw_loop_segments.pop_back();
+          att.raw_loop_speeds.pop_back();
+          att.raw_loop_distances.pop_back();
+          att.raw_acceleration_segments.pop_back();
+          att.raw_acceleration_values.pop_back();
 
-          RUNTIME_EXCEPTION(all_segments.size() > 0, "Segment plan has no vectors");
+          RUNTIME_EXCEPTION(att.all_segments.size() > 0, "Segment plan has no vectors");
 
           // Remove the last loop block
-          all_segments.erase(all_segments.end() - num_repetitions, all_segments.end());
-          all_segment_speeds.erase(all_segment_speeds.end() - num_repetitions, all_segment_speeds.end());
-          all_segment_distances.erase(all_segment_distances.end() - num_repetitions, all_segment_distances.end());
-          all_acceleration_segments.erase(all_acceleration_segments.end() - num_repetitions,
-                                          all_acceleration_segments.end());
-          all_acceleration_values.erase(all_acceleration_values.end() - num_repetitions,
-                                        all_acceleration_values.end());
+          att.all_segments.erase(att.all_segments.end() - num_repetitions, att.all_segments.end());
+          att.all_segment_speeds.erase(att.all_segment_speeds.end() - num_repetitions, att.all_segment_speeds.end());
+          att.all_segment_distances.erase(att.all_segment_distances.end() - num_repetitions,
+                                          att.all_segment_distances.end());
+          att.all_acceleration_segments.erase(att.all_acceleration_segments.end() - num_repetitions,
+                                              att.all_acceleration_segments.end());
+          att.all_acceleration_values.erase(att.all_acceleration_values.end() - num_repetitions,
+                                            att.all_acceleration_values.end());
 
           // Remove the number of wrap-around segments added to the block prior
           const size_t num_added_segments = num_added_wrap_around_segments.top();
-          all_segments.back().erase(all_segments.back().end() - num_added_segments - 1, all_segments.back().end());
-          all_segment_speeds.back().erase(all_segment_speeds.back().end() - num_added_segments - 1,
-                                          all_segment_speeds.back().end());
-          all_segment_distances.back().erase(all_segment_distances.back().end() - num_added_segments - 1,
-                                            all_segment_distances.back().end());
-          all_acceleration_segments.back().erase(all_acceleration_segments.back().end() - num_added_segments - 1,
-                                                 all_acceleration_segments.back().end());
-          all_acceleration_values.back().erase(all_acceleration_values.back().end() - num_added_segments - 1,
-                                        all_acceleration_values.back().end());
+          att.all_segments.back().erase(att.all_segments.back().end() - num_added_segments - 1,
+                                        att.all_segments.back().end());
+          att.all_segment_speeds.back().erase(att.all_segment_speeds.back().end() - num_added_segments - 1,
+                                              att.all_segment_speeds.back().end());
+          att.all_segment_distances.back().erase(att.all_segment_distances.back().end() - num_added_segments - 1,
+                                                att.all_segment_distances.back().end());
+          att.all_acceleration_segments.back().erase(att.all_acceleration_segments.back().end() - num_added_segments
+                                                     - 1, att.all_acceleration_segments.back().end());
+          att.all_acceleration_values.back().erase(att.all_acceleration_values.back().end() - num_added_segments - 1,
+                                                   att.all_acceleration_values.back().end());
           num_added_wrap_around_segments.pop();
         }
         corner_idx = last_real_corner_idx;
@@ -1438,19 +1405,19 @@ RacePlan RacePlanCreator::create_plan() {
     }
 
     // Add the created loop num_repetitions times to form a single block
-    raw_loop_segments.push_back(loop_segments);
-    raw_loop_speeds.push_back(loop_segment_speeds);
-    raw_acceleration_segments.push_back(loop_acceleration_segments);
-    raw_acceleration_values.push_back(loop_acceleration_values);
-    raw_loop_distances.push_back(loop_segment_distances);
+    att.raw_loop_segments.push_back(loop_data.loop_segments);
+    att.raw_loop_speeds.push_back(loop_data.loop_segment_speeds);
+    att.raw_acceleration_segments.push_back(loop_data.loop_acceleration_segments);
+    att.raw_acceleration_values.push_back(loop_data.loop_acceleration_values);
+    att.raw_loop_distances.push_back(loop_data.loop_segment_distances);
 
     const size_t num_loops_created = create_loop_block();
     loop_idx = loop_idx + num_loops_created;
     block_idx = block_idx + 1;
   }
 
-  return RacePlan(all_segments, all_segment_speeds, all_acceleration_segments,
-                  all_acceleration_values, all_segment_distances, num_repetitions,
-                  raw_loop_segments, raw_loop_speeds, raw_acceleration_segments,
-                  raw_acceleration_values, raw_loop_distances);
+  return RacePlan(att.all_segments, att.all_segment_speeds, att.all_acceleration_segments,
+                  att.all_acceleration_values, att.all_segment_distances, num_repetitions,
+                  att.raw_loop_segments, att.raw_loop_speeds, att.raw_acceleration_segments,
+                  att.raw_acceleration_values, att.raw_loop_distances);
 }
