@@ -1,5 +1,11 @@
 #include <random>
 #include <stack>
+#include <unordered_map>
+#include <memory>
+#include <unordered_set>
+#include <string>
+#include <vector>
+#include <algorithm>
 #include <utility>
 
 #include "opt/GeneticUtilities.hpp"
@@ -59,8 +65,10 @@ RacePlan mutate_plan(RacePlan plan, const std::shared_ptr<Route> route) {
 
   return RacePlan();
 }
+};  // namespace Genetic
 
 
+namespace RacePlanCreation {
 template <typename T>
 // Note that gen needs to be a reference since the internal state needs to be advanced after calling
 static T bounded_gaussian(std::normal_distribution<> dist, std::mt19937& gen,  // NOLINT
@@ -1447,4 +1455,4 @@ RacePlan segment_route_corners(const std::shared_ptr<Route> route,
                   raw_loop_segments, raw_loop_speeds, raw_acceleration_segments,
                   raw_acceleration_values, raw_loop_distances);
 }
-}; // namespace Genetic
+};  // namespace RacePlanCreation

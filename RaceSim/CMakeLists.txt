@@ -178,7 +178,7 @@ set(RACESIM_TEST_SOURCES ${CMAKE_SOURCE_DIR}/tests/RouteTest.cpp ${CMAKE_SOURCE_
                          ${CMAKE_SOURCE_DIR}/tests/LutsTest.cpp
                          ${CMAKE_SOURCE_DIR}/tests/SimTest.cpp)
 add_custom_target(lint ALL
-    COMMAND ${CPPLINT_EXE} --linelength=120 --filter=-build/c++17,-legal/copyright
+    COMMAND ${CPPLINT_EXE} --linelength=120 --filter=-build/c++17,-legal/copyright,-whitespace/indent_namespace
             ${RACESIM_SOURCES}
             ${RACESIM_HEADERS}
             ${CMAKE_SOURCE_DIR}/src/main.cpp

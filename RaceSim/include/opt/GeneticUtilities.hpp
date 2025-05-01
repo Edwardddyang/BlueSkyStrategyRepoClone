@@ -3,12 +3,18 @@
 #pragma once
 
 #include <memory>
+#include <utility>
 
 #include "route/Route.hpp"
 #include "utils/CustomTime.hpp"
 
 namespace Genetic {
+/** @brief Mutate a race plan according to a strategy chosen from configuration */
+RacePlan mutate_plan(RacePlan plan, const std::shared_ptr<Route> route);
 
+};  // namespace Genetic
+
+namespace RacePlanCreation {
 /** @brief Helper function to segment_route_corners that determines if a range of
   * speeds is reachable within some maximum distance without violating constraints
   *
@@ -24,9 +30,6 @@ namespace Genetic {
 bool can_reach_speeds(double initial_speed, double acceleration_power, double max_acceleration,
                       double max_deceleration, std::pair<double, double> speed_range,
                       double distance, double car_mass);
-
-/** @brief Mutate a race plan according to a strategy chosen from configuration */
-RacePlan mutate_plan(RacePlan plan, const std::shared_ptr<Route> route);
 
 /** @brief Create a Race plan by segmenting a route as described in
   * https://www.notion.so/blueskysolar/Race-Strategy-and-Testing-Process-1da8d1f46c3680a79056edf3c9fecd1b?pvs=4
@@ -92,4 +95,4 @@ RacePlan segment_route_corners(const std::shared_ptr<Route> route,
                                 const double acceleration_power_budget = 0.7,
                                 const int max_iters = 1000,
                                 bool log = false);
-}; // namespace Genetic
+};  // namespace RacePlanCreation
