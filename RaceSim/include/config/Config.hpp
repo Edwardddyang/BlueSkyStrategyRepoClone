@@ -101,8 +101,6 @@
   PARAM(simulator, std::string, std::string, "FSGP")                                        \
   PARAM(threads, double, double, 0.5)                                                       \
   PARAM(acceleration_power_budget, double, double, 0.7)                                     \
-  PARAM(preferred_acceleration, double, double, 1.0)                                        \
-  PARAM(preferred_deceleration, double, double, -1.0)                                       \
   PARAM(min_acceleration, double, double, 0.1)                                              \
   PARAM(average_speed, double, double, 45.0)                                                \
   PARAM(corner_speed_min, double, double, 0.2)                                              \

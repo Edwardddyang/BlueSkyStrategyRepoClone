@@ -26,6 +26,15 @@ bool comp_race_plan(const RacePlan& a, const RacePlan& b) {
   return a.get_score() > b.get_score();
 }
 
+// Thread function for running a simulation
+void thread_create_plan(std::shared_ptr<RacePlanCreator> generator,
+                        RacePlan* space,
+                        ThreadManager* thread_manager) {
+  thread_manager->acquire();
+  *space = generator->create_plan();
+  thread_manager->release();
+}
+
 RacePlan V2Optimizer::optimize() {
   // Create results folder
   bool save_csv = Config::get_instance()->get_save_csv();
@@ -36,10 +45,8 @@ RacePlan V2Optimizer::optimize() {
     std::filesystem::create_directory(results_folder);
   }
 
-  spdlog::info("Using {} threads for simulation", num_threads);
+  spdlog::info("Using {} threads", num_threads);
   init_params();
-
-  auto race_plan_creation_start = std::chrono::high_resolution_clock::now();
 
   // Create initial population
   create_initial_population();
@@ -159,23 +166,20 @@ void V2Optimizer::init_params() {
   spdlog::info("Mutation Percentage: {}, Number of Population: {}", mutation_percentage, mutation_num);
   spdlog::info("Crossover Percentage: {}, Number of Population: {}", crossover_percentage, crossover_num);
 
-  thread_manager.set_max_threads(num_threads);
+  thread_manager = ThreadManager(num_threads);
   result_luts.clear();
   threads.clear();
-  race_plan_creation.clear();
   population.clear();
 
   population.resize(population_size);
   result_luts.resize(population_size);
   threads.resize(population_size);
-  race_plan_creation.resize(population_size);
 }
 
 void V2Optimizer::create_initial_population() {
   RUNTIME_EXCEPTION(population_size > 0, "Initial population size must be greater than 1");
   RUNTIME_EXCEPTION(population.size() == population_size, "Population vector not resized");
   RUNTIME_EXCEPTION(result_luts.size() == population_size, "Results lut vector not resized");
-  RUNTIME_EXCEPTION(race_plan_creation.size() == population_size, "Race plan creation vector not resized");
   // Create a random device to seed the random number generator
   std::random_device rd;
 
@@ -184,57 +188,46 @@ void V2Optimizer::create_initial_population() {
 
   // Define the range for the random numbers
   std::uniform_int_distribution<unsigned int> dis(0, std::numeric_limits<unsigned int>::max());
-  for (int i=0; i < population_size; i++) {
-    unsigned int idx_seed = dis(gen);
-    unsigned int speed_seed = dis(gen);
-    unsigned int acceleration_seed = dis(gen);
-    unsigned int aggressive_seed = dis(gen);
-    unsigned int loop_seed = dis(gen);
-    unsigned int skip_seed = dis(gen);
-    if (Config::get_instance()->get_fix_seeds()) {
-      idx_seed = Config::get_instance()->get_idx_seed();
-      speed_seed = Config::get_instance()->get_speed_seed();
-      acceleration_seed = Config::get_instance()->get_acceleration_seed();
-      aggressive_seed = Config::get_instance()->get_aggressive_seed();
-      loop_seed = Config::get_instance()->get_loop_seed();
-      skip_seed = Config::get_instance()->get_skip_seed();
-    }
 
-    const Time curr_time = Config::get_instance()->get_current_date_time();
-    const Time day_one_start_time = Config::get_instance()->get_day_one_start_time();
-    const Time day_one_end_time = Config::get_instance()->get_day_one_end_time();
-    const Time day_end_time = Config::get_instance()->get_day_end_time();  // Second and third day
-    const bool is_first_day = curr_time >= day_one_start_time && curr_time < day_one_end_time;
-    const Time race_plan_end_time = is_first_day ? day_one_end_time : day_end_time;
-    auto start = std::chrono::high_resolution_clock::now();
-    // TODO(Someone): Sweep parameters to make population more diverse
-    RacePlan race_plan = RacePlanCreation::segment_route_corners(route,
-                                                      Config::get_instance()->get_max_num_loops(),
-                                                      Config::get_instance()->get_fix_num_loops(),
-                                                      Config::get_instance()->get_car_mass(),
-                                                      kph2mps(Config::get_instance()->get_max_route_speed()),
-                                                      kw2watts(Config::get_instance()->get_max_motor_power()),
-                                                      Config::get_instance()->get_max_acceleration(),
-                                                      Config::get_instance()->get_max_deceleration(),
-                                                      Config::get_instance()->get_min_acceleration(),
-                                                      Config::get_instance()->get_average_speed(),
-                                                      &curr_time, &race_plan_end_time,
-                                                      Config::get_instance()->get_preferred_acceleration(),
-                                                      Config::get_instance()->get_preferred_deceleration(),
-                                                      speed_seed, loop_seed, aggressive_seed, idx_seed,
-                                                      acceleration_seed, skip_seed,
-                                                      Config::get_instance()->get_corner_speed_min(),
-                                                      Config::get_instance()->get_corner_speed_max(),
-                                                      Config::get_instance()->get_aggressive_straight_threshold(),
-                                                      Config::get_instance()->get_num_repetitions(),
-                                                      Config::get_instance()->get_acceleration_power_budget(),
-                                                      1000, Config::get_instance()->get_log_segmenting());
-    // race_plan.print_plan();
-    auto end = std::chrono::high_resolution_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
-    race_plan_creation[i] = duration.count() / 1'000'000.0;
+  unsigned int idx_seed = dis(gen);
+  unsigned int speed_seed = dis(gen);
+  unsigned int acceleration_seed = dis(gen);
+  unsigned int aggressive_seed = dis(gen);
+  unsigned int loop_seed = dis(gen);
+  unsigned int skip_seed = dis(gen);
+  if (Config::get_instance()->get_fix_seeds()) {
+    idx_seed = Config::get_instance()->get_idx_seed();
+    speed_seed = Config::get_instance()->get_speed_seed();
+    acceleration_seed = Config::get_instance()->get_acceleration_seed();
+    aggressive_seed = Config::get_instance()->get_aggressive_seed();
+    loop_seed = Config::get_instance()->get_loop_seed();
+    skip_seed = Config::get_instance()->get_skip_seed();
+  }
+  threads.clear();
+  threads.resize(population_size);
+  generator = std::make_shared<RacePlanCreator>(route, speed_seed, loop_seed, aggressive_seed,
+                                                idx_seed, acceleration_seed, skip_seed);
+
+  auto start = std::chrono::high_resolution_clock::now();
+  if (population_size > 1) {
+    if (Config::get_instance()->get_log_segmenting()) {
+      spdlog::warn("Population size is greater than 1 with logging set to true. "
+                    "This will dramatically slow down population creation.");
+    }
+    for (int i=0; i < population_size; i++) {
+      threads[i] = std::thread(thread_create_plan, generator, &population[i], &thread_manager);
+    }
+    for (int i=0; i < population_size; i++) {
+      threads[i].join();
+    }
+  } else {
+    population[0] = generator->create_plan();
+  }
+  auto end = std::chrono::high_resolution_clock::now();
+  auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+
+  for (int i=0; i < population_size; i++) {
     result_luts[i] = std::make_shared<ResultsLut>();
-    population[i] = race_plan;
   }
 }
 
@@ -250,7 +243,8 @@ void V2Optimizer::evaluate_population() {
 
 void V2Optimizer::simulate_population() {
   RUNTIME_EXCEPTION(population.size() > 0, "Population is empty");
-
+  threads.clear();
+  threads.resize(population_size);
   if (population_size > 1) {
     for (int i=0; i < population_size; i++) {
       threads[i] = std::thread(thread_run_sim, simulator, route, result_luts[i], &population[i], &thread_manager);

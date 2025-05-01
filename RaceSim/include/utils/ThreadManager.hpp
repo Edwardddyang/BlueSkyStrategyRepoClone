@@ -30,6 +30,25 @@ class ThreadManager {
     max_threads = threads;
   }
 
+  ThreadManager(const ThreadManager& other) {
+    if (active_threads > 0) {
+      std::cout << "Cannot copy ThreadManager while threads are running" << std::endl;
+      exit(1);
+    }
+    max_threads = other.max_threads;
+    active_threads = 0;
+  }
+
+  ThreadManager& operator=(const ThreadManager& other) {
+    if (active_threads > 0) {
+      std::cout << "Cannot copy ThreadManager while threads are running" << std::endl;
+      exit(1);
+    }
+    max_threads = other.max_threads;
+    active_threads = 0;
+    return *this;
+  }
+
   // Increment active_threads and make progress on the thread
   void acquire() {
     // Use unique_lock instead of lock_guard since condition var::wait requires

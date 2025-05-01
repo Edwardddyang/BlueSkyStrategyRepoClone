@@ -8,6 +8,7 @@
 #include "opt/Optimizer.hpp"
 #include "route/Route.hpp"
 #include "sim/Simulator.hpp"
+#include "opt/GeneticUtilities.hpp"
 
 enum class MutationStrategy {
   PreferConstantSpeed = 0
@@ -19,6 +20,9 @@ class V2Optimizer : public Optimizer {
   std::vector<RacePlan> population;
   std::vector<RacePlan> new_population;
   std::vector<std::shared_ptr<ResultsLut>> result_luts;
+
+  // Initial population generator
+  std::shared_ptr<RacePlanCreator> generator;
 
   // Genetic algorithm parameters
   const int population_size;
@@ -32,9 +36,6 @@ class V2Optimizer : public Optimizer {
   double crossover_num;
   double mutation_num;
   unsigned int gen_seed;
-
-  // Creation overhead tracking
-  std::vector<double> race_plan_creation;
 
   // Thread management
   ThreadManager thread_manager;

@@ -67,8 +67,6 @@ RacePlan mutate_plan(RacePlan plan, const std::shared_ptr<Route> route) {
 }
 };  // namespace Genetic
 
-
-namespace RacePlanCreation {
 template <typename T>
 // Note that gen needs to be a reference since the internal state needs to be advanced after calling
 static T bounded_gaussian(std::normal_distribution<> dist, std::mt19937& gen,  // NOLINT
@@ -81,9 +79,9 @@ static T bounded_gaussian(std::normal_distribution<> dist, std::mt19937& gen,  /
   return static_cast<T>(value);
 }
 
-bool can_reach_speeds(double initial_speed, double acceleration_power, double max_acceleration,
-                      double max_deceleration, std::pair<double, double> speed_range,
-                      double max_distance, double car_mass) {
+bool RacePlanCreator::can_reach_speeds(double initial_speed, double acceleration_power, double max_acceleration,
+                                       double max_deceleration, std::pair<double, double> speed_range,
+                                       double max_distance, double car_mass) {
   RUNTIME_EXCEPTION(speed_range.first <= speed_range.second, "Speed range must be ordered as {smaller, bigger}");
   RUNTIME_EXCEPTION(initial_speed >= 0.0, "Initial speed must be >= 0 m/s");
   RUNTIME_EXCEPTION(max_distance >= 0.0, "Distance must be >= 0.0");
@@ -123,42 +121,49 @@ bool can_reach_speeds(double initial_speed, double acceleration_power, double ma
   return false;
 }
 
-RacePlan segment_route_corners(const std::shared_ptr<Route> route,
-                                const int max_num_loops,
-                                bool fix_loops,
-                                const double car_mass,
-                                const double max_speed,
-                                const double max_motor_power,
-                                const double max_acceleration,
-                                const double max_deceleration,
-                                const double min_acceleration,
-                                const double average_speed,
-                                const Time* start_time,
-                                const Time* end_time,
-                                const double preferred_acceleration,
-                                const double preferred_deceleration,
-                                const unsigned speed_seed,
-                                const unsigned loop_seed,
-                                const unsigned aggressive_seed,
-                                const unsigned idx_seed,
-                                const unsigned acceleration_seed,
-                                const unsigned skip_seed,
-                                const double corner_speed_min,
-                                const double corner_speed_max,
-                                const double aggressive_straight_threshold,
-                                const int num_repetitions,
-                                const double acceleration_power_budget,
-                                const int max_iters,
-                                bool log) {
+RacePlanCreator::RacePlanCreator(std::shared_ptr<Route> route,
+                                unsigned speed_seed,
+                                unsigned loop_seed,
+                                unsigned aggressive_seed,
+                                unsigned idx_seed,
+                                unsigned acceleration_seed,
+                                unsigned skip_seed) : route(route),
+                                max_num_loops(Config::get_instance()->get_max_num_loops()),
+                                fix_loops(Config::get_instance()->get_fix_num_loops()),
+                                car_mass(Config::get_instance()->get_car_mass()),
+                                max_speed(kph2mps(Config::get_instance()->get_max_route_speed())),
+                                max_motor_power(kw2watts(Config::get_instance()->get_max_motor_power())),
+                                max_acceleration(Config::get_instance()->get_max_acceleration()),
+                                max_deceleration(Config::get_instance()->get_max_deceleration()),
+                                min_acceleration(Config::get_instance()->get_min_acceleration()),
+                                target_average_speed(Config::get_instance()->get_average_speed()),
+                                start_time(Config::get_instance()->get_current_date_time()),
+                                speed_seed(speed_seed), loop_seed(loop_seed), aggressive_seed(aggressive_seed),
+                                idx_seed(idx_seed), acceleration_seed(acceleration_seed), skip_seed(skip_seed),
+                                corner_speed_min_ratio(Config::get_instance()->get_corner_speed_min()),
+                                corner_speed_max_ratio(Config::get_instance()->get_corner_speed_max()),
+                                aggressive_straight_threshold(
+                                  Config::get_instance()->get_aggressive_straight_threshold()),
+                                num_repetitions(Config::get_instance()->get_num_repetitions()),
+                                acceleration_power_budget(Config::get_instance()->get_acceleration_power_budget()),
+                                max_iters(1000), log(Config::get_instance()->get_log_segmenting()) {
+  const Time day_one_start_time = Config::get_instance()->get_day_one_start_time();
+  const Time day_one_end_time = Config::get_instance()->get_day_one_end_time();
+  const Time day_end_time = Config::get_instance()->get_day_end_time();  // Second and third day
+  const bool is_first_day = start_time >= day_one_start_time && start_time < day_one_end_time;
+  const Time race_plan_end_time = is_first_day ? day_one_end_time : day_end_time;
+
+  end_time = race_plan_end_time;
+
   RUNTIME_EXCEPTION(route != nullptr, "Route object is null");
 
   // Extract information about the route
-  const std::vector<Coord> route_points = route->get_route_points();
-  const std::vector<std::pair<size_t, size_t>> cornering_segment_bounds = route->get_cornering_segment_bounds();
-  const std::vector<double> cornering_speed_bounds = route->get_cornering_speed_bounds();
-  const BasicLut route_distances = route->get_precomputed_distances();
-  const double max_route_speed = route->get_max_route_speed();
-  const size_t num_points = route->get_num_points();
+  route_points = route->get_route_points();
+  cornering_segment_bounds = route->get_cornering_segment_bounds();
+  cornering_speed_bounds = route->get_cornering_speed_bounds();
+  route_distances = route->get_precomputed_distances();
+  max_route_speed = route->get_max_route_speed();
+  num_points = route->get_num_points();
 
   RUNTIME_EXCEPTION(route_points.size() > 0, "Route points not yet loaded");
   RUNTIME_EXCEPTION(cornering_segment_bounds.size() > 1, "There must exist at least 2 corners");
@@ -169,22 +174,19 @@ RacePlan segment_route_corners(const std::shared_ptr<Route> route,
   RUNTIME_EXCEPTION(max_deceleration < 0.0, "Max. deceleration must be negative");
   RUNTIME_EXCEPTION(max_motor_power > 0.0, "Maximum motor power must be > 0");
   RUNTIME_EXCEPTION(!route_distances.is_empty(), "Route distances must be pre-computed for acceleration segmenting");
-  RUNTIME_EXCEPTION(corner_speed_min >= 0.0 && corner_speed_max <= 1.0,
+  RUNTIME_EXCEPTION(corner_speed_min_ratio >= 0.0 && corner_speed_min_ratio <= 1.0,
                     "Corner speed minimum parameter must be in range [0.0, 1.0]");
-  RUNTIME_EXCEPTION(corner_speed_max >= 0.0 && corner_speed_max <= 1.0,
+  RUNTIME_EXCEPTION(corner_speed_max_ratio >= 0.0 && corner_speed_max_ratio <= 1.0,
                     "Corner speed maximum parameter must be in range [0.0, 1.0]");
-  RUNTIME_EXCEPTION(corner_speed_min < corner_speed_max,
+  RUNTIME_EXCEPTION(corner_speed_min_ratio < corner_speed_max_ratio,
                     "Corner speed minimum must be strictly less than corner speed maximum");
   RUNTIME_EXCEPTION(aggressive_straight_threshold >= 0.0, "Aggressive straight threshold must be >= 0.0");
   RUNTIME_EXCEPTION(num_repetitions >= 1, "Num repetitions per loop block must >= 1");
-  RUNTIME_EXCEPTION(preferred_deceleration >= max_deceleration,
-                    "Preferred deceleration must have lower magnitude than maximum deceleration");
-  RUNTIME_EXCEPTION(preferred_acceleration <= max_acceleration,
-                    "Preferred acceleration must have lower magnitude than maximum acceleration");
-  RUNTIME_EXCEPTION(start_time != nullptr && end_time != nullptr, "Start time or End time is null");
-  RUNTIME_EXCEPTION(*start_time < *end_time, "Start time must be before the end time");
+  RUNTIME_EXCEPTION(start_time < end_time, "Start time must be before the end time");
   RUNTIME_EXCEPTION(min_acceleration > 0.0, "Minimum acceleration must be greater than 0");
+}
 
+RacePlan RacePlanCreator::create_plan() {
   // Create random number generators
   std::mt19937 speed_rng(speed_seed);
   std::mt19937 loop_rng(loop_seed);
@@ -221,7 +223,6 @@ RacePlan segment_route_corners(const std::shared_ptr<Route> route,
   }
 
   const double acceleration_power_allowance = max_motor_power * acceleration_power_budget;
-  Time curr_time = *start_time;
 
   FileLogger logger;
   logger = FileLogger("segment_route_corners.log", log);
@@ -238,18 +239,16 @@ RacePlan segment_route_corners(const std::shared_ptr<Route> route,
   logger("Maximum deceleration: " + std::to_string(max_deceleration) + " m/s^2");
   logger("Maximum motor power: " + std::to_string(max_motor_power) + " W");
   logger("Minimum acceleration to consider: " + std::to_string(min_acceleration) + "m/s^2");
-  logger("Preferred acceleration: " + std::to_string(preferred_acceleration) + " m/s^2");
-  logger("Preferred deceleration: " + std::to_string(preferred_deceleration) + " m/s^2");
-  logger("Corner speed minimum clamp: " + std::to_string(corner_speed_min));
-  logger("Corner speed maximum clamp: " + std::to_string(corner_speed_max));
+  logger("Corner speed minimum clamp: " + std::to_string(corner_speed_min_ratio));
+  logger("Corner speed maximum clamp: " + std::to_string(corner_speed_max_ratio));
   logger("Aggressive straight threshold: " + std::to_string(aggressive_straight_threshold) + " m");
   logger("Number of loop repetitions per chunk: " + std::to_string(num_repetitions));
   logger("Maximum iteration count for sampling: " + std::to_string(max_iters));
   logger("Fractional acceleration power budget: " + std::to_string(acceleration_power_budget));
   logger("Randomly selected number of loops to complete: " + std::to_string(num_loops));
   logger("Acceleration power allowance is " + std::to_string(acceleration_power_allowance) + " W\n");
-  logger("Race Plan start time is " + curr_time.get_local_readable_time());
-  logger("Race Plan end time is " + end_time->get_local_readable_time());
+  logger("Race Plan start time is " + start_time.get_local_readable_time());
+  logger("Race Plan end time is " + end_time.get_local_readable_time());
 
   ///////////////////////////////////////////////////////////////////////////////////
   ////////////////////// NOTE ABOUT TERMINOLOGY USED ///////////////////////////////
@@ -333,7 +332,7 @@ RacePlan segment_route_corners(const std::shared_ptr<Route> route,
   int upper_bound_speed = 0;
 
   // Mean and standard deviation to parameterize the normal distribution
-  double speed_mean = average_speed;
+  double speed_mean = target_average_speed;
   double speed_dev = 5.0;
 
   // Keep track of speeds that have been tested when sampling
@@ -887,12 +886,12 @@ RacePlan segment_route_corners(const std::shared_ptr<Route> route,
               break;
             }
 
-            if (average_speed > upper_bound_speed) {
+            if (target_average_speed > upper_bound_speed) {
               speed_mean = upper_bound_speed;
               speed_dev = speed_mean / 8.0;
             } else {
-              speed_mean = average_speed;
-              speed_dev = average_speed / 6.0;
+              speed_mean = target_average_speed;
+              speed_dev = target_average_speed / 6.0;
             }
 
             speed_dist = std::normal_distribution<double>(speed_mean, speed_dev);
@@ -951,15 +950,15 @@ RacePlan segment_route_corners(const std::shared_ptr<Route> route,
 
             // Select corner speed - if wrap-around, then the corner speed is fixed further below
             // We create a distribution that is biased by the desired average speed for the route
-            lower_bound_speed = std::max<int>(1, static_cast<int>(max_corner_speed * corner_speed_min));
-            upper_bound_speed = static_cast<int>(max_corner_speed * corner_speed_max);
+            lower_bound_speed = std::max<int>(1, static_cast<int>(max_corner_speed * corner_speed_min_ratio));
+            upper_bound_speed = static_cast<int>(max_corner_speed * corner_speed_max_ratio);
 
-            if (average_speed > upper_bound_speed) {
+            if (target_average_speed > upper_bound_speed) {
               speed_mean = (upper_bound_speed + lower_bound_speed) / 2.0;
               speed_dev = speed_mean / 6.0;
             } else {
-              speed_mean = average_speed;
-              speed_dev = average_speed / 6.0;
+              speed_mean = target_average_speed;
+              speed_dev = target_average_speed / 6.0;
             }
             speed_dist = std::normal_distribution<double>(speed_mean, speed_dev);
             logger("Created corner speed gaussian distribution with lower bound " +
@@ -1028,8 +1027,8 @@ RacePlan segment_route_corners(const std::shared_ptr<Route> route,
               // the straight distance
               distance_to_next_corner = route_distances.get_value(corner_end, next_corner_start);
               logger("Distance to next corner is " + std::to_string(distance_to_next_corner));
-              const std::pair<double, double> next_corner_range = {next_corner_max_speed * corner_speed_min,
-                                                                  next_corner_max_speed * corner_speed_max};
+              const std::pair<double, double> next_corner_range = {next_corner_max_speed * corner_speed_min_ratio,
+                                                                  next_corner_max_speed * corner_speed_max_ratio};
               if (!can_reach_speeds(proposed_corner_speed, acceleration_power_allowance, max_acceleration,
                                     max_deceleration, next_corner_range, distance_to_next_corner, car_mass)) {
                 logger("Corner speed is too high to reach the next corner");
@@ -1105,13 +1104,13 @@ RacePlan segment_route_corners(const std::shared_ptr<Route> route,
           }
 
           // Center the gaussian distribution at the desired average speed
-          lower_bound_speed = std::max<int>(1, static_cast<int>(max_corner_speed * corner_speed_min));
-          upper_bound_speed = static_cast<int>(max_corner_speed * corner_speed_max);
-          if (average_speed > upper_bound_speed) {
+          lower_bound_speed = std::max<int>(1, static_cast<int>(max_corner_speed * corner_speed_min_ratio));
+          upper_bound_speed = static_cast<int>(max_corner_speed * corner_speed_max_ratio);
+          if (target_average_speed > upper_bound_speed) {
             speed_mean = upper_bound_speed;
             speed_dev = speed_mean / 6.0;
           } else {
-            speed_mean = average_speed;
+            speed_mean = target_average_speed;
             speed_dev = speed_mean / 6.0;
           }
           speed_dist = std::normal_distribution<double>(speed_mean, speed_dev);
@@ -1131,7 +1130,7 @@ RacePlan segment_route_corners(const std::shared_ptr<Route> route,
             // Pick a corner speed. If the current speed is already >= the target average speed of the course,
             // then bias towards maintaining this constant speed rather than trying to accelerate
             bool maintain_speed = false;
-            if (last_real_corner_speed >= average_speed && last_real_corner_speed < max_corner_speed) {
+            if (last_real_corner_speed >= target_average_speed && last_real_corner_speed < max_corner_speed) {
               logger("Last corner speed is greater or equal to the target average speed. Sample chance to maintain"
                      " same corner speed.");
               const double sample = skip_dist(skip_rng);
@@ -1164,8 +1163,8 @@ RacePlan segment_route_corners(const std::shared_ptr<Route> route,
             }
 
             distance_to_next_corner = route_distances.get_value(corner_end, next_corner_start);
-            const std::pair<double, double> next_corner_speed_range = {next_corner_max_speed * corner_speed_min,
-                                                                      next_corner_max_speed * corner_speed_max};
+            const std::pair<double, double> next_corner_speed_range = {next_corner_max_speed * corner_speed_min_ratio,
+                                                                      next_corner_max_speed * corner_speed_max_ratio};
             if (proposed_corner_speed > last_real_corner_speed) {
               sampled_speeds.insert(proposed_corner_speed);
               // Need to accelerate to the current corner
@@ -1455,4 +1454,3 @@ RacePlan segment_route_corners(const std::shared_ptr<Route> route,
                   raw_loop_segments, raw_loop_speeds, raw_acceleration_segments,
                   raw_acceleration_values, raw_loop_distances);
 }
-};  // namespace RacePlanCreation
