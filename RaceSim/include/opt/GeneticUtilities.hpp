@@ -6,6 +6,7 @@
 #include <utility>
 #include <stack>
 #include <vector>
+#include <random>
 
 #include "route/Route.hpp"
 #include "utils/CustomTime.hpp"
@@ -69,15 +70,15 @@ class RacePlanCreator {
     }
   };
 
-  // Holds the intermediate segment data when creating a race plan
-  struct IntermediateSegmentData {
+  // Hold information for a single segment
+  struct SegmentData {
     std::pair<size_t, size_t> segment;
     std::pair<double, double> segment_speed;
     bool acceleration;
     double acceleration_value;
     double segment_distance;
 
-    IntermediateSegmentData(
+    SegmentData(
       std::pair<size_t, size_t> segment = {0.0, 0.0},
       std::pair<double, double> segment_speed = {0.0, 0.0},
       bool acceleration = false,
@@ -90,7 +91,7 @@ class RacePlanCreator {
   };
 
   // Holds the intermediate loop data when creating a race plan
-  struct IntermediateLoopData {
+  struct LoopData {
     std::vector<std::pair<size_t, size_t>> loop_segments;
     std::vector<std::pair<double, double>> loop_segment_speeds;
     std::vector<bool> loop_acceleration_segments;
@@ -111,9 +112,9 @@ class RacePlanCreator {
       segment_counter = 0;
     }
 
-    void add_segment(IntermediateSegmentData* seg_data, PlanHistory* history);
+    void add_segment(SegmentData* seg_data, PlanHistory* history);
 
-    IntermediateLoopData(
+    LoopData(
       std::vector<std::pair<size_t, size_t>> loop_segments = {},
       std::vector<std::pair<double, double>> loop_segment_speeds = {},
       std::vector<bool> loop_acceleration_segments = {},
@@ -145,7 +146,7 @@ class RacePlanCreator {
     std::vector<std::vector<double>> all_acceleration_values;
     std::vector<std::vector<double>> all_segment_distances;
 
-    void add_loop(const IntermediateLoopData& loop_data, size_t start_idx, size_t end_idx);
+    void add_loop(const LoopData& loop_data, size_t start_idx, size_t end_idx);
 
     PlanAttributes(
       std::vector<std::vector<std::pair<size_t, size_t>>> raw_loop_segments = {},
@@ -191,8 +192,7 @@ class RacePlanCreator {
    * @param is_last_block Whether the block to be created is the last block of the entire plan
    * @param is_first_block Whether the block to be created is the first block of the entire plan
   */
-  void create_loop_block(IntermediateSegmentData* seg_data,
-                         IntermediateLoopData* loop_data,
+  void create_loop_block(LoopData* loop_data,
                          PlanAttributes* att,
                          BasicLut* route_distances,
                          PlanHistory* history,
@@ -200,6 +200,35 @@ class RacePlanCreator {
                          int num_loops_in_block = 1,
                          bool is_last_block = false,
                          bool is_first_block = false);
+
+  // Create only one rng at the beginning of create_plan and pass it to
+  // create_segments each corner so that the state is constantly changed
+  struct Gen {
+    std::mt19937 speed_rng;
+    std::mt19937 loop_rng;
+    std::mt19937 aggressive_rng;
+    std::mt19937 idx_rng;
+    std::mt19937 acceleration_rng;
+    std::mt19937 skip_rng;
+
+    Gen(unsigned int speed_seed = 1, unsigned int loop_seed = 1, unsigned int aggressive_seed = 1,
+        unsigned int idx_seed = 1, unsigned int acceleration_seed = 1, unsigned int skip_seed = 1) {
+      speed_rng.seed(speed_seed);
+      loop_rng.seed(loop_seed);
+      aggressive_rng.seed(aggressive_seed);
+      idx_rng.seed(idx_seed);
+      acceleration_rng.seed(acceleration_seed);
+      skip_rng.seed(skip_seed);
+    }
+  };
+
+  /** @brief Helper to create_plan used to create segments for a single corner */
+  bool create_segments(size_t corner_idx, size_t block_idx,
+                       LoopData* loop_data,
+                       bool is_first_segment,
+                       Gen* rng,
+                       PlanHistory* history,
+                       FileLogger& logger);  // NOLINT
 
  private:
   /** @brief Helper function to segment_route_corners that determines if a range of
@@ -294,4 +323,7 @@ class RacePlanCreator {
 
   // Whether to log the segmentation process to a file. Used for debugging
   bool log;
+
+  // Number of corners in the route
+  int num_corners;
 };
