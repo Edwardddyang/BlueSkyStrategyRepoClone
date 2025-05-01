@@ -64,6 +64,7 @@ RacePlan V2Optimizer::optimize() {
   // Process results
   RacePlan best_race_plan = population[0];
   double best_average_speed = mps2kph(best_race_plan.get_average_speed());
+  best_race_plan.print_plan();
   ResultsLut best_race_result;
   std::cout << "Best Race Plan Average Speed: " << mps2kph(best_race_plan.get_average_speed()) << "kph" << std::endl;
   std::cout << "Best Race Plan Number of Loops: " << best_race_plan.get_num_loops() << std::endl;
@@ -76,7 +77,6 @@ void V2Optimizer::mutate_population() {
   std::unordered_set<size_t> mutated_indices;
   std::random_device rd;
   std::mt19937 gen(rd());
-  std::cout << "Low bound: " << crossover_num << ", Upper bound: " << population_size-1 << std::endl;
 
   int num_mutated = 0;
   while (num_mutated < mutation_num) {
@@ -86,7 +86,7 @@ void V2Optimizer::mutate_population() {
     }
     mutated_indices.insert(idx);
     std::cout << "Using index " << idx << std::endl;
-    RacePlan mutated_plan = mutate_plan(population[idx]);
+    RacePlan mutated_plan = mutate_plan(population[idx], route);
     num_mutated += 1;
   }
 }

@@ -2,7 +2,9 @@
 
 #pragma once
 
+#include <memory>
+
 #include "route/Route.hpp"
 #include "utils/CustomTime.hpp"
 
-RacePlan mutate_plan(RacePlan plan);
+RacePlan mutate_plan(RacePlan plan, const std::shared_ptr<Route> route);

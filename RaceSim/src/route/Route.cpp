@@ -108,6 +108,7 @@ void Route::init_cornering_bounds(const std::filesystem::path cornering_bounds_p
   std::string ending_bound;
   std::string max_speed;
   std::pair<size_t, size_t> last_bound;
+  size_t idx = 0;
   // Read and parse the file
   bool is_first_segment = true;
   while (!csv.eof()) {
@@ -130,11 +131,48 @@ void Route::init_cornering_bounds(const std::filesystem::path cornering_bounds_p
     double max_corner_speed = std::stod(max_speed);
     cornering_speed_bounds.push_back(max_corner_speed);
     cornering_segment_bounds.push_back(bound);
+    corner_end_to_corner_idx.insert({bound.second, idx});
+    corner_start_to_corner_idx.insert({bound.first, idx});
+    idx = idx + 1;
     last_bound = bound;
     is_first_segment = false;
   }
 }
 
+
+size_t Route::get_closest_corner_idx(size_t route_index) const {
+  RUNTIME_EXCEPTION(route_index >= 0 && route_index < num_points, "Route index is out of bounds");
+  RUNTIME_EXCEPTION(cornering_segment_bounds.size() > 0, "Cornering bounds is empty");
+  if (cornering_segment_bounds.size() == 1) {
+    return 0;
+  }
+
+  // Run a binary search
+  int low = 0;
+  int high = cornering_segment_bounds.size() - 1;
+  while (low <= high) {
+    // Implicitly "rounds" down
+    int mid = low + (high - low) / 2;
+
+    if (mid == cornering_segment_bounds.size() - 1) {
+      return cornering_segment_bounds.size() - 1;
+    } else if (mid == 0) {
+      return 0;
+    } else if (cornering_segment_bounds[mid].first <= route_index &&
+               cornering_segment_bounds[mid+1].first >= route_index) {
+      return mid;
+    }
+
+    if (cornering_segment_bounds[mid].first < route_index) {
+      low = mid + 1;
+    } else {
+      high = mid - 1;
+    }
+  }
+
+  RUNTIME_EXCEPTION(false, "The binary search failed on a continuous range. Check implementation. "
+                           "This should be impossible");
+}
 
 double Route::get_segment_length(const size_t start_idx, const size_t end_idx) const {
   RUNTIME_EXCEPTION(route_points.size() > 0, "Route points not loaded");

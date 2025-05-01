@@ -67,7 +67,7 @@
   preferred_acceleration: 1.0 # m/s^2
   preferred_deceleration: -1.0 # m/s^2
   corner_speed_min: 0.4 # Unitless fraction in range [0,1]
-  corner_speed_max: 0.95 # Unitless fraction in range (corner_speed_min,1]
+  corner_speed_max: 0.9 # Unitless fraction in range (corner_speed_min,1]
   aggressive_straight_threshold: 250.0 # m. Straights longer than this can be taken agressively
   num_repetitions: 5 # Number of times to repeat the plan for a single loop
   min_acceleration: 0.1 # Minimum acceleration that can be considered in m/s^2
@@ -91,6 +91,10 @@
   mutation_percentage: 100  # % of the population to mutate outside of the ones that are being crossed over
   # Note that survival_percentage + parents_percentage + mutation_percentage must be 100
   mutation_strategy: PreferConstantSpeed
+
+  # POSSIBLE MUTATION IDEAS:
+  # PreferConstantSpeed, PreferConstantSpeedAggressive (Avoid deceleration by lowering the constant speed for the corner before a corner with lower max speed),
+  # DecreaseCornerSpeed (Decrease acceleration by lowering cornering speeds)
   threads: 0.5
 
 \Simulation:

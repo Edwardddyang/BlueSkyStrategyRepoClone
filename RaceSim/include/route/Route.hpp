@@ -191,6 +191,12 @@ class Route {
      corner index i - 1 and corner index i */
   std::vector<std::pair<size_t, size_t>> straight_segment_bounds;
 
+  /* Map of corner ending indices to index in straight_segment_bounds - used for mutation optimizer */
+  std::unordered_map<size_t, size_t> corner_end_to_corner_idx;
+
+  /* Map of corner starting indices to index in straight_segment_bounds - used for mutation optimizer*/
+  std::unordered_map<size_t, size_t> corner_start_to_corner_idx;
+
   /* Maximum speed of cornering segments */
   std::vector<double> cornering_speed_bounds;
 
@@ -226,6 +232,7 @@ class Route {
   void init_control_stops();
 
   /** @brief Read a csv of corner index bounds with columns |starting index|ending index|max speed(mps)|
+   * Note: This function also fills the corner_end_to_corner_idx map and the corner_start_to_corner_idx_map
    * @param cornering_bounds_path: Path to the csv file
    * @param max_car_speed: Maximum car speed to limit cornering speeds. Defaults to infinity
   */
@@ -345,4 +352,24 @@ class Route {
   inline size_t get_num_points() const {return num_points;}
   inline double get_route_length() const {return route_length;}
   inline const BasicLut& get_precomputed_distances() {return route_distances;}
+  inline const std::unordered_map<size_t, size_t> get_corner_end_map() const {
+    return corner_end_to_corner_idx;
+  }
+  inline const std::unordered_map<size_t, size_t> get_corner_start_map() const {
+    return corner_start_to_corner_idx;
+  }
+  inline const std::vector<double> get_cornering_speed_bounds() const {
+    return cornering_speed_bounds;
+  }
+
+  /** @brief Return the corner index that a route index is closest to 
+   *
+   * Examples: Consider cornering_segment_bounds = [{0,5}, {16, 20}, {31,47}]
+   * If route index is 2, return 0
+   * If route index is 6, return 0
+   * If route index is 13, return 1 (closer to {16,20 interval})
+   * If route index is 16, return 1
+   * If route index is 200, return 2
+  */
+  size_t get_closest_corner_idx(size_t route_index) const;
 };
