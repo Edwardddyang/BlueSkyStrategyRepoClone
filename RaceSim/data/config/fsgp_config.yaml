@@ -73,7 +73,7 @@
                       # uses this value as the mean of a gaussian distribution to sample for
   fix_loops: true # Fix the number of loops to create. If true, then uses max_num_loops
   max_num_loops: 60 # Maximum number of loops that can be completed
-  log_segmenting: false # Log the race plan creation
+  log_segmenting: true # Log the race plan creation
   fix_seeds: false # Fix seeds for route segmentation. If true, use the seeds below
   loop_seed: 364391665
   speed_seed: 965808177
@@ -83,7 +83,7 @@
   skip_seed: 221545619
   ####### Genetic Algorithm Parameters #######
   num_generations: 1  # Number of iterations
-  population_size: 40 # Number of race plans to maintain the in poulation
+  population_size: 1 # Number of race plans to maintain the in poulation
   survival_percentage: 0  # % of the population to pass onto the next iteration unaltered
   crossover_percentage: 0  # Top % of the population to use to crossover to create new children
   mutation_percentage: 100  # % of the population to mutate outside of the ones that are being crossed over

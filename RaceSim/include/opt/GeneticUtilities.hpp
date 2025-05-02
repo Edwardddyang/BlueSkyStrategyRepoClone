@@ -230,6 +230,12 @@ class RacePlanCreator {
                        PlanHistory* history,
                        FileLogger& logger);  // NOLINT
 
+  /** @brief Helper to create_plan used for rolling back a corner after failed segment generation 
+   * @return Index of last real corner to which we are rolling back
+  */
+  size_t rollback_to_last_real_corner(size_t corner_idx, PlanHistory* history, LoopData* loop_data,
+                                      PlanAttributes* att, FileLogger& logger);  // NOLINT
+
  private:
   /** @brief Helper function to segment_route_corners that determines if a range of
     * speeds is reachable within some maximum distance without violating constraints

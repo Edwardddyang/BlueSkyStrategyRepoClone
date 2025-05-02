@@ -249,42 +249,6 @@ RacePlan RacePlanCreator::create_plan() {
 
   size_t loop_idx = 0;
   while (block_idx < num_blocks) {
-    // Labmda to remove the latest corner segments added to the loop
-    auto remove_last_corner_segments = [&]() {
-      const size_t curr_loop_num_segments = loop_data.loop_segments.size();
-      const size_t num_segments_of_last_corner = static_cast<size_t>(history.num_segments_added.top());
-      logger("Number of segments in current loop: " + std::to_string(curr_loop_num_segments));
-      const size_t num_remove_from_curr_loop = std::min(curr_loop_num_segments, num_segments_of_last_corner);
-      if (num_segments_of_last_corner == 0) {
-        return;
-      }
-      logger("Removing " + std::to_string(num_segments_of_last_corner) + " segments");
-
-      for (size_t idx = 0; idx < num_remove_from_curr_loop; idx++) {
-        loop_data.loop_segments.pop_back();
-        loop_data.loop_segment_speeds.pop_back();
-        loop_data.loop_acceleration_segments.pop_back();
-        loop_data.loop_acceleration_values.pop_back();
-        loop_data.loop_segment_distances.pop_back();
-      }
-
-      const size_t num_remove_from_last_loop = num_segments_of_last_corner > curr_loop_num_segments ?
-                                               num_segments_of_last_corner - curr_loop_num_segments : 0;
-      logger("Removed " + std::to_string(num_remove_from_curr_loop) + " segments from current loop and " +
-             std::to_string(num_remove_from_last_loop) + " from last loop");
-      if (att.all_segments.size() > 0 && num_remove_from_last_loop > 0) {
-        RUNTIME_EXCEPTION(num_remove_from_last_loop <= att.raw_loop_segments.back().size(),
-                          "Last loop has too few segments");
-      }
-      for (size_t idx = 0; idx < num_remove_from_last_loop; idx++) {
-        att.raw_loop_segments.back().pop_back();
-        att.raw_loop_speeds.back().pop_back();
-        att.raw_acceleration_segments.back().pop_back();
-        att.raw_acceleration_values.back().pop_back();
-        att.raw_loop_distances.back().pop_back();
-      }
-    };
-
     // We construct the segments between the previous corner to the current corner.
     // We consider a complete loop as one that wraps back around to the first corner
     // of the route.
@@ -293,65 +257,14 @@ RacePlan RacePlanCreator::create_plan() {
       history.segment_counter = 0;
       if (!create_segments(corner_idx, block_idx, &loop_data,
                            is_first_segment, &rng_collection, &history, logger)) {
-        logger("Segments could NOT be created. Rolling back to the last segment");
-        size_t last_real_corner_idx = history.real_corner_indices.top();
-        logger("Re-creating segments for corner " + std::to_string(last_real_corner_idx) +
-               " of loop block " + std::to_string(block_idx));
-
-        remove_last_corner_segments();
-        // Remove the last corner indices and speeds since they will be re-found
-        history.real_corner_indices.pop();
-        history.real_corner_speeds.pop();
-        history.num_segments_added.pop();  // This must be called after remove_last_corner_segments()
-
-        // If we failed on corner index 0, we need to rollback the entire last loop block
+        RUNTIME_EXCEPTION(corner_idx > 0 || loop_idx > 0, "Failed on the first segment of the first loop lol");
+        const size_t last_real_corner_idx = rollback_to_last_real_corner(corner_idx, &history,
+                                                                         &loop_data, &att, logger);
         if (corner_idx == 0) {
-          RUNTIME_EXCEPTION(block_idx > 0, "Failed on the first segment");
-          logger("Rolling back to the last corner of the previous loop block");
           loop_idx = loop_idx - num_repetitions;
           block_idx = block_idx - 1;
-
-          // Restore the loop vectors
-          loop_data.loop_segments = att.raw_loop_segments.back();
-          loop_data.loop_segment_speeds = att.raw_loop_speeds.back();
-          loop_data.loop_acceleration_segments = att.raw_acceleration_segments.back();
-          loop_data.loop_acceleration_values = att.raw_acceleration_values.back();
-          loop_data.loop_segment_distances = att.raw_loop_distances.back();
-
-          att.raw_loop_segments.pop_back();
-          att.raw_loop_speeds.pop_back();
-          att.raw_loop_distances.pop_back();
-          att.raw_acceleration_segments.pop_back();
-          att.raw_acceleration_values.pop_back();
-
-          RUNTIME_EXCEPTION(att.all_segments.size() > 0, "Segment plan has no vectors");
-
-          // Remove the last loop block
-          att.all_segments.erase(att.all_segments.end() - num_repetitions, att.all_segments.end());
-          att.all_segment_speeds.erase(att.all_segment_speeds.end() - num_repetitions, att.all_segment_speeds.end());
-          att.all_segment_distances.erase(att.all_segment_distances.end() - num_repetitions,
-                                          att.all_segment_distances.end());
-          att.all_acceleration_segments.erase(att.all_acceleration_segments.end() - num_repetitions,
-                                              att.all_acceleration_segments.end());
-          att.all_acceleration_values.erase(att.all_acceleration_values.end() - num_repetitions,
-                                            att.all_acceleration_values.end());
-
-          // Remove the number of wrap-around segments added to the block prior
-          const size_t num_added_segments = history.num_added_wrap_around_segments.top();
-          att.all_segments.back().erase(att.all_segments.back().end() - num_added_segments - 1,
-                                        att.all_segments.back().end());
-          att.all_segment_speeds.back().erase(att.all_segment_speeds.back().end() - num_added_segments - 1,
-                                              att.all_segment_speeds.back().end());
-          att.all_segment_distances.back().erase(att.all_segment_distances.back().end() - num_added_segments - 1,
-                                                att.all_segment_distances.back().end());
-          att.all_acceleration_segments.back().erase(att.all_acceleration_segments.back().end() - num_added_segments
-                                                     - 1, att.all_acceleration_segments.back().end());
-          att.all_acceleration_values.back().erase(att.all_acceleration_values.back().end() - num_added_segments - 1,
-                                                   att.all_acceleration_values.back().end());
-          history.num_added_wrap_around_segments.pop();
         }
         corner_idx = last_real_corner_idx;
-
         // If we're rolling back to the first corner of the first loop, set is_first_segment signal
         if (corner_idx == 0 && loop_idx == 0) {
           is_first_segment = true;
@@ -394,6 +307,96 @@ void RacePlanCreator::LoopData::add_segment(SegmentData* seg_data,
   loop_acceleration_values.emplace_back(seg_data->acceleration_value);
   loop_segment_distances.emplace_back(seg_data->segment_distance);
   history->segment_counter = history->segment_counter + 1;
+}
+
+size_t RacePlanCreator::rollback_to_last_real_corner(size_t corner_idx, PlanHistory* history, LoopData* loop_data,
+                                                     PlanAttributes* att, FileLogger& logger) {  // NOLINT
+  RUNTIME_EXCEPTION(history != nullptr && loop_data != nullptr && att != nullptr,
+                    "Loop data, attributes and history storage cannot be null");
+  logger("Segments could NOT be created. Rolling back to the last real corner");
+  size_t last_real_corner_idx = history->real_corner_indices.top();
+  logger("Re-creating segments for corner " + std::to_string(last_real_corner_idx));
+
+  const size_t curr_loop_num_segments = loop_data->loop_segments.size();
+  const size_t num_segments_of_last_corner = static_cast<size_t>(history->num_segments_added.top());
+  logger("Number of segments in current loop: " + std::to_string(curr_loop_num_segments));
+  const size_t num_remove_from_curr_loop = std::min(curr_loop_num_segments, num_segments_of_last_corner);
+  RUNTIME_EXCEPTION(num_segments_of_last_corner > 0, "No segments to remove!");
+  logger("Removing " + std::to_string(num_segments_of_last_corner) + " segments");
+
+  for (size_t idx = 0; idx < num_remove_from_curr_loop; idx++) {
+    loop_data->loop_segments.pop_back();
+    loop_data->loop_segment_speeds.pop_back();
+    loop_data->loop_acceleration_segments.pop_back();
+    loop_data->loop_acceleration_values.pop_back();
+    loop_data->loop_segment_distances.pop_back();
+  }
+
+  const size_t num_remove_from_last_loop = num_segments_of_last_corner > curr_loop_num_segments ?
+                                          num_segments_of_last_corner - curr_loop_num_segments : 0;
+  logger("Removed " + std::to_string(num_remove_from_curr_loop) + " segments from current loop and " +
+        std::to_string(num_remove_from_last_loop) + " from last loop");
+  if (att->all_segments.size() > 0 && num_remove_from_last_loop > 0) {
+    RUNTIME_EXCEPTION(num_remove_from_last_loop <= att->raw_loop_segments.back().size(),
+                      "Last loop has too few segments");
+  }
+  for (size_t idx = 0; idx < num_remove_from_last_loop; idx++) {
+    att->raw_loop_segments.back().pop_back();
+    att->raw_loop_speeds.back().pop_back();
+    att->raw_acceleration_segments.back().pop_back();
+    att->raw_acceleration_values.back().pop_back();
+    att->raw_loop_distances.back().pop_back();
+  }
+  // Remove the last corner indices and speeds since they will be re-found
+  history->real_corner_indices.pop();
+  history->real_corner_speeds.pop();
+  history->num_segments_added.pop();  // This must be called after remove_last_corner_segments()
+
+  // If we failed on corner index 0, we need to rollback the entire last loop block
+  if (corner_idx == 0) {
+    logger("Rolling back to the last corner of the previous loop block");
+
+    // Restore the loop vectors
+    loop_data->loop_segments = att->raw_loop_segments.back();
+    loop_data->loop_segment_speeds = att->raw_loop_speeds.back();
+    loop_data->loop_acceleration_segments = att->raw_acceleration_segments.back();
+    loop_data->loop_acceleration_values = att->raw_acceleration_values.back();
+    loop_data->loop_segment_distances = att->raw_loop_distances.back();
+
+    att->raw_loop_segments.pop_back();
+    att->raw_loop_speeds.pop_back();
+    att->raw_loop_distances.pop_back();
+    att->raw_acceleration_segments.pop_back();
+    att->raw_acceleration_values.pop_back();
+
+    RUNTIME_EXCEPTION(att->all_segments.size() > 0, "Segment plan has no vectors");
+
+    // Remove the last loop block
+    att->all_segments.erase(att->all_segments.end() - num_repetitions, att->all_segments.end());
+    att->all_segment_speeds.erase(att->all_segment_speeds.end() - num_repetitions, att->all_segment_speeds.end());
+    att->all_segment_distances.erase(att->all_segment_distances.end() - num_repetitions,
+                                    att->all_segment_distances.end());
+    att->all_acceleration_segments.erase(att->all_acceleration_segments.end() - num_repetitions,
+                                        att->all_acceleration_segments.end());
+    att->all_acceleration_values.erase(att->all_acceleration_values.end() - num_repetitions,
+                                      att->all_acceleration_values.end());
+
+    // Remove the number of wrap-around segments added to the block prior
+    const size_t num_added_segments = history->num_added_wrap_around_segments.top();
+    att->all_segments.back().erase(att->all_segments.back().end() - num_added_segments - 1,
+                                  att->all_segments.back().end());
+    att->all_segment_speeds.back().erase(att->all_segment_speeds.back().end() - num_added_segments - 1,
+                                        att->all_segment_speeds.back().end());
+    att->all_segment_distances.back().erase(att->all_segment_distances.back().end() - num_added_segments - 1,
+                                          att->all_segment_distances.back().end());
+    att->all_acceleration_segments.back().erase(att->all_acceleration_segments.back().end() - num_added_segments
+                                               - 1, att->all_acceleration_segments.back().end());
+    att->all_acceleration_values.back().erase(att->all_acceleration_values.back().end() - num_added_segments - 1,
+                                             att->all_acceleration_values.back().end());
+    history->num_added_wrap_around_segments.pop();
+  }
+  return last_real_corner_idx;
+  corner_idx = last_real_corner_idx;
 }
 
 void RacePlanCreator::PlanAttributes::add_loop(const LoopData& loop_data,
@@ -652,7 +655,6 @@ void RacePlanCreator::create_loop_block(LoopData* loop_data,
     seg_data.segment_speed = {corner_speed, corner_speed};
     seg_data.acceleration_value = 0.0;
     seg_data.acceleration = false;
-    logger(std::to_string(seg_data.segment.first) + ", " + std::to_string(seg_data.segment.second));
     seg_data.segment_distance = route_distances->get_value(seg_data.segment.first, seg_data.segment.second);
 
     loop_data->add_segment(&seg_data, history);
@@ -1291,6 +1293,7 @@ bool RacePlanCreator::create_segments(size_t corner_idx, size_t block_idx,
             continue;
           }
         }
+        sampled_speeds.insert(proposed_corner_speed);
         // Parameters to search for
         size_t deceleration_end_idx;
         double deceleration_distance;
