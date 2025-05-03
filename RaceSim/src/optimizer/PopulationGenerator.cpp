@@ -8,64 +8,11 @@
 #include <algorithm>
 #include <utility>
 
-#include "opt/GeneticUtilities.hpp"
+#include "opt/PopulationGenerator.hpp"
 #include "utils/Defines.hpp"
 #include "config/Config.hpp"
 #include "utils/Units.hpp"
 #include "utils/Logger.hpp"
-
-namespace Genetic {
-RacePlan mutate_plan(RacePlan plan, const std::shared_ptr<Route> route) {
-  RUNTIME_EXCEPTION(!plan.is_empty(), "RacePlan object to mutate cannot be empty");
-  const std::vector<std::vector<std::pair<size_t, size_t>>> raw_segments = plan.get_orig_loop_segments();
-  const std::vector<std::vector<std::pair<double, double>>> raw_speeds = plan.get_orig_loop_speeds();
-  const std::vector<std::vector<bool>> raw_acceleration = plan.get_orig_loop_accelerations();
-  const std::vector<std::vector<double>> raw_acceleration_value = plan.get_orig_loop_acceleration_values();
-  const std::vector<std::vector<double>> raw_segment_distances = plan.get_orig_loop_segment_distances();
-  std::unordered_map<size_t, size_t> corner_end_map = route->get_corner_end_map();
-  std::unordered_map<size_t, size_t> corner_start_map = route->get_corner_start_map();
-
-  if (Config::get_instance()->get_mutation_strategy() == "PreferConstantSpeed") {
-    const size_t num_blocks = static_cast<int>(std::ceil(plan.get_num_loops() /
-                                Config::get_instance()->get_num_repetitions()));
-    RUNTIME_EXCEPTION(num_blocks == raw_segments.size(), "raw_segments vector shoud "
-                      "have number of loops equal to the number of blocks {}", num_blocks);
-
-    for (size_t block_idx=0; block_idx < num_blocks; block_idx++) {
-      const size_t num_segments = raw_segments[block_idx].size();
-      for (size_t seg_idx=0; seg_idx < num_segments; seg_idx++) {
-        // Do nothing about segments that don't decelerate
-        if (raw_acceleration_value[block_idx][seg_idx] >= 0.0) {
-          continue;
-        }
-        const size_t seg_start = raw_segments[block_idx][seg_idx].first;
-        size_t seg_end = raw_segments[block_idx][seg_idx].second;
-
-        // We only bias towards constant speeds for "normal straights".
-        // This means that the segment directly after this deceleration segment should include
-        // the corner that this deceleration is for
-        RUNTIME_EXCEPTION(seg_idx != num_segments - 1, "Deceleration cannot be the last segment");
-        const size_t theoretical_corner_end = raw_segments[block_idx][seg_idx + 1].second;
-        if (corner_end_map.find(theoretical_corner_end) == corner_end_map.end()) {
-          // This is likely an aggressive straight. Don't do anything about these
-          continue;
-        }
-        const size_t corner_idx = corner_end_map[theoretical_corner_end];
-        const size_t corner_max_speed = route->get_cornering_speed_bounds()[corner_idx];
-        // Sample a probability to do this at all?
-
-        // Check if the starting speed of the deceleration is less than the maximum corner speed.
-        // If it is, then we can remove the deceleration and maintain the constant speed
-        if (corner_max_speed > raw_speeds[block_idx][seg_idx].first) {
-          // Delete the deceleration segment and merge with the constant speed segment
-        }
-      }
-    }
-  }
-
-  return RacePlan();
-}
-};  // namespace Genetic
 
 template <typename T>
 // Note that gen needs to be a reference since the internal state needs to be advanced after calling
@@ -255,7 +202,9 @@ RacePlan RacePlanCreator::create_plan() {
     size_t corner_idx = 0;
     while (corner_idx < num_corners_to_create) {
       history.segment_counter = 0;
-      if (!create_segments(corner_idx, block_idx, &loop_data,
+      logger("--------------CREATING SEGMENTS FOR CORNER " + std::to_string(corner_idx) +
+             " OF LOOP BLOCK " + std::to_string(block_idx), false);
+      if (!create_segments(corner_idx, &loop_data,
                            is_first_segment, &rng_collection, &history, logger)) {
         RUNTIME_EXCEPTION(corner_idx > 0 || loop_idx > 0, "Failed on the first segment of the first loop lol");
         const size_t last_real_corner_idx = rollback_to_last_real_corner(corner_idx, &history,
@@ -307,6 +256,68 @@ void RacePlanCreator::LoopData::add_segment(SegmentData* seg_data,
   loop_acceleration_values.emplace_back(seg_data->acceleration_value);
   loop_segment_distances.emplace_back(seg_data->segment_distance);
   history->segment_counter = history->segment_counter + 1;
+}
+
+void RacePlanCreator::LoopData::slice_loop(size_t start_idx, size_t end_idx) {
+  RUNTIME_EXCEPTION(start_idx <= end_idx, "Start index of slice must be <= the end index");
+  RUNTIME_EXCEPTION(end_idx < loop_segments.size(), "Slicing indices are out of bounds");
+
+  loop_segments = std::vector<std::pair<size_t, size_t>>(loop_segments.begin() + start_idx,
+                                                         loop_segments.begin() + end_idx + 1);
+
+  RUNTIME_EXCEPTION(end_idx < loop_segment_speeds.size(), "Slicing indices are out of bounds");
+  loop_segment_speeds = std::vector<std::pair<double, double>>(loop_segment_speeds.begin() + start_idx,
+                                                               loop_segment_speeds.begin() + end_idx + 1);
+
+  RUNTIME_EXCEPTION(end_idx < loop_acceleration_segments.size(), "Slicing indices are out of bounds");
+  loop_acceleration_segments = std::vector<bool>(loop_acceleration_segments.begin() + start_idx,
+                                                 loop_acceleration_segments.begin() + end_idx + 1);
+
+  RUNTIME_EXCEPTION(end_idx < loop_acceleration_values.size(), "Slicing indices are out of bounds");
+  loop_acceleration_values = std::vector<double>(loop_acceleration_values.begin() + start_idx,
+                                                 loop_acceleration_values.begin() + end_idx + 1);
+  
+  RUNTIME_EXCEPTION(end_idx < loop_segment_distances.size(), "Slicing indices are out of bounds");
+  loop_segment_distances = std::vector<double>(loop_segment_distances.begin() + start_idx,
+                                               loop_segment_distances.begin() + end_idx + 1);
+}
+
+void RacePlanCreator::LoopData::delete_range(size_t start_idx, size_t end_idx) {
+  RUNTIME_EXCEPTION(start_idx <= end_idx, "Start index must be <= end index");
+  RUNTIME_EXCEPTION(loop_segments.size() > end_idx, "End idx is out of range");
+  loop_segments.erase(loop_segments.begin() + start_idx, loop_segments.begin() + end_idx + 1);
+
+  RUNTIME_EXCEPTION(loop_segment_speeds.size() > end_idx, "End idx is out of range");
+  loop_segment_speeds.erase(loop_segment_speeds.begin() + start_idx, loop_segment_speeds.begin() + end_idx + 1);
+
+  RUNTIME_EXCEPTION(loop_acceleration_segments.size() > end_idx, "End idx is out of range");
+  loop_acceleration_segments.erase(loop_acceleration_segments.begin() + start_idx,
+                                   loop_acceleration_segments.begin() + end_idx + 1);
+
+  RUNTIME_EXCEPTION(loop_acceleration_values.size() > end_idx, "End idx is out of range");
+  loop_acceleration_values.erase(loop_acceleration_values.begin() + start_idx,
+                                 loop_acceleration_values.begin() + end_idx + 1);
+
+  RUNTIME_EXCEPTION(loop_segment_distances.size() > end_idx, "End idx is out of range");
+  loop_segment_distances.erase(loop_segment_distances.begin() + start_idx,
+                               loop_segment_distances.begin() + end_idx + 1);
+}
+
+void RacePlanCreator::LoopData::insert_segment(size_t idx, SegmentData seg_data) {
+  RUNTIME_EXCEPTION(idx > loop_segments.size(), "Cannot insert outside of range");
+  loop_segments.insert(loop_segments.begin() + idx, seg_data.segment);
+
+  RUNTIME_EXCEPTION(idx > loop_segment_speeds.size(), "Cannot insert outside of range");
+  loop_segment_speeds.insert(loop_segment_speeds.begin() + idx, seg_data.segment_speed);
+
+  RUNTIME_EXCEPTION(idx > loop_acceleration_segments.size(), "Cannot insert outside of range");
+  loop_acceleration_segments.insert(loop_acceleration_segments.begin() + idx, seg_data.acceleration);
+
+  RUNTIME_EXCEPTION(idx > loop_acceleration_values.size(), "Cannot insert outside of range");
+  loop_acceleration_values.insert(loop_acceleration_values.begin() + idx, seg_data.acceleration_value);
+
+  RUNTIME_EXCEPTION(idx > loop_segment_distances.size(), "Cannot insert outside of range");
+  loop_segment_distances.insert(loop_segment_distances.begin() + idx, seg_data.segment_distance);
 }
 
 size_t RacePlanCreator::rollback_to_last_real_corner(size_t corner_idx, PlanHistory* history, LoopData* loop_data,
@@ -668,7 +679,7 @@ void RacePlanCreator::create_loop_block(LoopData* loop_data,
   return;
 }
 
-bool RacePlanCreator::create_segments(size_t corner_idx, size_t block_idx,
+bool RacePlanCreator::create_segments(size_t corner_idx,
                                       LoopData* loop_data,
                                       bool is_first_segment,
                                       Gen* rng,
@@ -761,8 +772,6 @@ bool RacePlanCreator::create_segments(size_t corner_idx, size_t block_idx,
   };
 
   // Wrap-around corner is index 0
-  logger("--------------CREATING SEGMENTS FOR CORNER " + std::to_string(corner_idx) +
-        " OF LOOP BLOCK " + std::to_string(block_idx), false);
   if (corner_idx == num_corners) {
     logger(" [WRAP-AROUND CORNER]--------------");
   } else {
