@@ -20,14 +20,14 @@
 #include "config/Config.hpp"
 #include "utils/Defines.hpp"
 #include "utils/Units.hpp"
-#include "opt/GeneticUtilities.hpp"
+#include "opt/PopulationGenerator.hpp"
 
 // Sort function
 bool comp_race_plan(const RacePlan& a, const RacePlan& b) {
   return a.get_score() > b.get_score();
 }
 
-// Thread function for running a simulation
+// Thread function for creating a race plan
 void thread_create_plan(std::shared_ptr<RacePlanCreator> generator,
                         RacePlan* space,
                         ThreadManager* thread_manager) {
@@ -93,8 +93,7 @@ void V2Optimizer::mutate_population() {
       continue;
     }
     mutated_indices.insert(idx);
-    std::cout << "Using index " << idx << std::endl;
-    RacePlan mutated_plan = Genetic::mutate_plan(population[idx], route);
+    mutate_plan(&population[idx], route);
     num_mutated += 1;
   }
 }
@@ -629,5 +628,8 @@ V2Optimizer::V2Optimizer(std::shared_ptr<Simulator> simulator, std::shared_ptr<R
       fix_num_loops(Config::get_instance()->get_fix_num_loops()),
       crossover_percentage(Config::get_instance()->get_crossover_percentage()),
       mutation_percentage(Config::get_instance()->get_mutation_percentage()),
-      mutation_strategy(Config::get_instance()->get_mutation_strategy()) {}
-
+      mutation_strategy(Config::get_instance()->get_mutation_strategy()),
+      max_motor_power(kw2watts(Config::get_instance()->get_max_motor_power())),
+      acceleration_power_budget(Config::get_instance()->get_acceleration_power_budget()),
+      max_acceleration(Config::get_instance()->get_max_acceleration()),
+      max_deceleration(Config::get_instance()->get_max_deceleration()) {}

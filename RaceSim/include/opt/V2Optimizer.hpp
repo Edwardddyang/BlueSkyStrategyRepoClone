@@ -8,7 +8,7 @@
 #include "opt/Optimizer.hpp"
 #include "route/Route.hpp"
 #include "sim/Simulator.hpp"
-#include "opt/GeneticUtilities.hpp"
+#include "opt/PopulationGenerator.hpp"
 
 enum class MutationStrategy {
   PreferConstantSpeed = 0
@@ -37,6 +37,12 @@ class V2Optimizer : public Optimizer {
   double mutation_num;
   unsigned int gen_seed;
 
+  // These parameters are required for mutating RacePlans and crossing over parents
+  const double max_motor_power;
+  const double acceleration_power_budget;
+  const double max_acceleration;
+  const double max_deceleration;
+
   // Thread management
   ThreadManager thread_manager;
   const unsigned int num_threads;
@@ -54,14 +60,30 @@ class V2Optimizer : public Optimizer {
   /** @brief Initialize parameters and thread manager */
   void init_params();
 
+  ////////////////////////////////////////////////////////////
+  ///////////////////////// Crossover ////////////////////////
+  ////////////////////////////////////////////////////////////
   /** @brief Crossover best parents of the population */
   void crossover_population();
 
   /** @brief Crossover two race plans */
   RacePlan crossover_parents(RacePlan parent_a, RacePlan parent_b);
 
-  /** @brief Mutate parents in the population */
+  ////////////////////////////////////////////////////////////
+  ///////////////////////// Mutation /////////////////////////
+  ////////////////////////////////////////////////////////////
+  /** @brief Sample and mutate members of the population */
   void mutate_population();
+
+  /** @brief Mutate a race plan according to some strategy chosen from configuration */
+  void mutate_plan(RacePlan* plan);
+
+  enum MutationStrategy {
+    ConstantForDeceleration,
+  };
+
+  /** @brief Perform constant speed mutation by replacing a deceleration segment with constant speed */
+  void constant_for_deceleration(RacePlan* plan, RacePlanCreator::Gen* gen);
 
  public:
   V2Optimizer(std::shared_ptr<Simulator> simulator, std::shared_ptr<Route> route);

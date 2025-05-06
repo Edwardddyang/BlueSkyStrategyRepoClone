@@ -13,12 +13,6 @@
 #include "utils/Logger.hpp"
 #include "utils/Luts.hpp"
 
-namespace Genetic {
-/** @brief Mutate a race plan according to a strategy chosen from configuration */
-RacePlan mutate_plan(RacePlan plan, const std::shared_ptr<Route> route);
-
-};  // namespace Genetic
-
 // Class for creating RacePlan objects in the initial population. RacePlan creation as done according to the process
 // described in. This class also provides functions for creating race plans on existing loops used for mutation
 // in the genetic optimizer
@@ -67,6 +61,18 @@ class RacePlanCreator {
       num_segments_added.push(0);
       first_corner_speeds.push(0);
       num_added_wrap_around_segments.push(0);
+      segment_counter = 0;
+    }
+
+    PlanHistory(double real_corner_speed, size_t real_corner_idx,
+                uint64_t num_segments = 0, uint64_t first_speed = 0,
+                uint64_t num_added_segments = 0) {
+      real_corner_speeds.push(real_corner_speed);
+      real_corner_indices.push(real_corner_idx);
+      num_segments_added.push(num_segments);
+      first_corner_speeds.push(first_speed);
+      num_added_wrap_around_segments.push(num_added_segments);
+      segment_counter = 0;
     }
   };
 
@@ -112,7 +118,16 @@ class RacePlanCreator {
       segment_counter = 0;
     }
 
+    // Delete indices from x to y (inclusive) from all vectors
+    void delete_range(size_t start_idx, size_t end_idx);
+
+    // Insert a segment at some index
+    void insert_segment(size_t idx, SegmentData seg_data);
+
     void add_segment(SegmentData* seg_data, PlanHistory* history);
+
+    // Slice the loop segments and return a new LoopData object
+    void slice_loop(size_t start_idx, size_t end_idx);
 
     LoopData(
       std::vector<std::pair<size_t, size_t>> loop_segments = {},
@@ -223,7 +238,7 @@ class RacePlanCreator {
   };
 
   /** @brief Helper to create_plan used to create segments for a single corner */
-  bool create_segments(size_t corner_idx, size_t block_idx,
+  bool create_segments(size_t corner_idx,
                        LoopData* loop_data,
                        bool is_first_segment,
                        Gen* rng,
