@@ -69,7 +69,7 @@
   aggressive_straight_threshold: 250.0 # m. Straights longer than this can be taken agressively
   num_repetitions: 5 # Number of times to repeat the plan for a single loop
   min_acceleration: 0.1 # Minimum acceleration that can be considered in m/s^2
-  average_speed: 20.0 # Average speed to try and maintain throughout the route. The profile creator
+  average_speed: 15.0 # Average speed to try and maintain throughout the route. The profile creator
                       # uses this value as the mean of a gaussian distribution to sample for
   fix_loops: true # Fix the number of loops to create. If true, then uses max_num_loops
   max_num_loops: 60 # Maximum number of loops that can be completed

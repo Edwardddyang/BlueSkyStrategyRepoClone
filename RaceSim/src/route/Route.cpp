@@ -559,4 +559,9 @@ RacePlan::RacePlan(std::vector<std::vector<std::pair<size_t, size_t>>> segments,
   } else {
     empty = false;
   }
+
+  int num_blocks{0};
+  for (num_blocks=1; num_blocks<segments.size(); num_blocks++){
+    if (segments[num_blocks]!=segments[num_blocks-1]) break;
+  }
 }
