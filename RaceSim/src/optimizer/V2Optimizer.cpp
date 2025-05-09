@@ -93,7 +93,7 @@ void V2Optimizer::mutate_population() {
       continue;
     }
     mutated_indices.insert(idx);
-    mutate_plan(&population[idx], route);
+//    mutate_plan(&population[idx]);
     num_mutated += 1;
   }
 }
@@ -121,25 +121,25 @@ void V2Optimizer::crossover_population() {
   }
 }
 
-RacePlan V2Optimizer::crossover_parents(RacePlan parent_a, RacePlan parent_b, const std::shared_ptr<Route> route) {
+RacePlan V2Optimizer::crossover_parents(RacePlan parent_a, RacePlan parent_b) { // remove anything that references route
 
   RUNTIME_EXCEPTION(!parent_a.is_empty() && !parent_b.is_empty(), "Parent race plans cannot be empty");
 
   // Variables to be fed to raceplan constructor on return
   std::vector<std::vector<std::pair<size_t, size_t>>> all_segments;
-  std::vector<std::vector<std::pair<size_t, size_t>>> all_segment_speeds;
+  std::vector<std::vector<std::pair<double, double>>> all_segment_speeds;
   std::vector<std::vector<bool>> all_acceleration_segments;
   std::vector<std::vector<double>> all_acceleration_values;
   
   // Variables for current loop
   std::vector<std::pair<size_t, size_t>> loop_segments;
-  std::vector<std::pair<size_t, size_t>> loop_segment_speeds;
+  std::vector<std::pair<double, double>> loop_segment_speeds;
   std::vector<bool> loop_acceleration_segments;
   std::vector<double> loop_acceleration_values;
 
   // Segment specific variables
   std::pair<size_t, size_t> segment;
-  std::pair<size_t, size_t> segment_speed;
+  std::pair<double, double> segment_speed;
   bool acceleration_segment; // CLARIFICATION - tells if this is an acceleration segment or not
   double acceleration_value;
 
@@ -159,42 +159,62 @@ RacePlan V2Optimizer::crossover_parents(RacePlan parent_a, RacePlan parent_b, co
   };
   // REFACTORING TGT
 
-  // COMPILE ALL THE GLOBAL VARIABLES HERE AND FIND OUT HOW TO ACTUALLY GET THEM
-  size_t largest_index{0};
-  size_t mass{0};
-  size_t power_allowance{0};
-  double minimum_acceleration{0};
-  double maximum_deceleration{0};
-  // COMPILE ALL THE GEOGRAPHIC VARIABLES HERE AND FIND OUT HOW TO ACTUALLY GET THEM
-  
+  auto add_loop = [&]() {
+    all_segments.push_back(loop_segments);
+    all_segment_speeds.push_back(loop_segment_speeds);
+    all_acceleration_segments.push_back(loop_acceleration_segments);
+    all_acceleration_values.push_back(loop_acceleration_values);
+
+    // and clear the things
+    loop_segments.clear();
+    loop_segment_speeds.clear();
+    all_acceleration_segments.clear();
+    all_acceleration_values.clear();
+  };
+
+  size_t largest_index = route->get_num_points() - 1;
+  size_t mass = Config::get_instance()->get_car_mass();
+  size_t power_allowance = Config::get_instance()->get_max_motor_power();
+  const double minimum_acceleration = Config::get_instance()->get_min_acceleration();
+  const double maximum_acceleration = Config::get_instance()->get_min_acceleration();
+  const double maximum_deceleration = Config::get_instance()->get_max_deceleration();
+  const double tgt_average_speed = Config::get_instance()->get_average_speed();
+  const double corner_speed_min_ratio = Config::get_instance()->get_corner_speed_min();
+  const double corner_speed_max_ratio = Config::get_instance()->get_corner_speed_max();
+
   const size_t num_loops = parent_a.get_num_loops(); // assumes the same for both
   const size_t num_blocks = parent_a.get_num_blocks();
   
   auto corner_indxs = route->get_cornering_segment_bounds();
   auto speed_corner_limits = route->get_cornering_speed_bounds();
-  size_t num_corners = corner_idxs.size();
+  size_t num_corners = corner_indxs.size();
   const int total_num_corners = corner_indxs.size();
+
+  std::uniform_real_distribution<double> skip_dist(0.0, 1.0);
+  std::mt19937 skip_gen(Config::get_instance()->get_skip_seed());
 
   std::uniform_int_distribution<size_t> distn(0, num_loops - 1);
   std::mt19937 cross_gen(9090); // seed
 
-  std::uniform_real_distribution<size_t> parent_distn(0, 1);
+  std::uniform_real_distribution<double> parent_distn(0, 1);
   std::mt19937 parent_gen(1984); // seed
 
   // Preload segment data
   auto segments_a = parent_a.get_segments();
   auto segments_b = parent_b.get_segments();
-  auto segment_speeds_a = parent_a.get_segment_speeds();
-  auto segment_speeds_b = parent_b.get_segment_speeds();
+  auto segment_speeds_a = parent_a.get_speed_profile();
+  auto segment_speeds_b = parent_b.get_speed_profile();
   auto is_acc_segment_a = parent_a.get_acceleration_segments();
   auto is_acc_segment_b = parent_b.get_acceleration_segments();
+
+  auto precomputed_distances = route->get_precomputed_distances();
 
   struct consideration {
     double acceleration;
     size_t idx;
   };
 
-  auto acc_segment_checker = [route](size_t cur_corner_speed, size_t next_corner_speed, size_t cur_acceleration_start_idx, size_t cur_acceleration_end_idx, size_t acc_end_limit_idx){
+  auto acc_segment_checker = [mass, power_allowance, minimum_acceleration, precomputed_distances](size_t cur_corner_speed, size_t next_corner_speed, size_t cur_acceleration_start_idx, size_t cur_acceleration_end_idx, size_t acc_end_limit_idx){
     /*
     Returns an acceleration for the segment if it finds one or -10000 if it does not.
     Acceleration is investigated in compliance with:
@@ -203,14 +223,14 @@ RacePlan V2Optimizer::crossover_parents(RacePlan parent_a, RacePlan parent_b, co
     - acceleration distance to next corner
     */
 
-    size_t considered_end_idx = cur_acceleration_end_idx - 1;
+    size_t considered_end_idx = cur_acceleration_end_idx - 1; // TODO need to account if the loop wraps around...
     double considered_acceleration;
     size_t considered_distance;
     double considered_power_consumption;
 
     do {
-      considered_end_idx = considered_end_idx + 1;
-      considered_distance = route->get_precomputed_distances().get_value(cur_acceleration_start_idx, considered_end_idx);
+      considered_end_idx = considered_end_idx + 1; // TODO need to account if the loop wraps around... - poteintially process as a while loop!
+      considered_distance = precomputed_distances.get_value(cur_acceleration_start_idx, considered_end_idx);
       considered_acceleration = calc_acceleration(cur_corner_speed, next_corner_speed, considered_distance);
       considered_power_consumption = considered_acceleration * next_corner_speed * mass;
 
@@ -218,16 +238,15 @@ RacePlan V2Optimizer::crossover_parents(RacePlan parent_a, RacePlan parent_b, co
       (considered_power_consumption > power_allowance || considered_acceleration < minimum_acceleration) && considered_end_idx <= acc_end_limit_idx
     );
 
-    size_t ret = -10000;
-    if (considered_end_idx <= acc_end_limit_idx){
-      ret = considered_acceleration;
+    if (considered_end_idx > acc_end_limit_idx){
+      considered_acceleration = -10000;
     }
     
     struct consideration ret = {considered_acceleration, considered_end_idx};
     return ret;
   };
 
-  auto aggressive_dec_segment_checker = [route](size_t cur_corner_speed, size_t next_corner_speed, size_t cur_deceleration_start_idx, size_t cur_deceleration_end_idx, size_t dec_start_limit_idx){
+  auto aggressive_dec_segment_checker = [mass, power_allowance, minimum_acceleration, maximum_deceleration, precomputed_distances](size_t cur_corner_speed, size_t next_corner_speed, size_t cur_deceleration_start_idx, size_t cur_deceleration_end_idx, size_t dec_start_limit_idx){
     /*
     Returns a deceleration for the segment if it finds one or -10000 if it does not.
     Deceleration is investigated in compliance with:
@@ -237,49 +256,48 @@ RacePlan V2Optimizer::crossover_parents(RacePlan parent_a, RacePlan parent_b, co
     The convention used in this function is that deceleration is NEGATIVE SIGNED in the variable.
     */
 
-   size_t considered_start_idx = cur_deceleration_start_idx + 1;
-   double considered_deceleration;
-   size_t considered_distance;
-   double considered_power_consumption;
-
-   do {
-     considered_start_idx = considered_start_idx - 1;
-     considered_distance = route->get_precomputed_distances().get_value(considered_start_idx, cur_deceleration_end_idx);
-     considered_deceleration = calc_acceleration(cur_corner_speed, next_corner_speed, considered_distance);
-     considered_power_consumption = considered_deceleration * next_corner_speed * mass;
-
-   } while (
-    (considered_deceleration < 0 && (considered_power_consumption > power_allowance || considered_deceleration > minimum_acceleration) && considered_start_idx >= dec_start_limit_idx) || // if deceleration turns out to be positive, aka speed going up
-    (considered_deceleration > 0 && considered_deceleration > maximum_deceleration && considered_start_idx >= dec_start_limit_idx) // if deceleration turns out to be negative, aka speed going down
-  );
-
-   size_t ret = -10000;
-   if (considered_start_idx >= dec_start_limit_idx){
-     ret = considered_deceleration;
-   }
-   
-   struct consideration ret = {considered_deceleration, considered_start_idx};
-   return ret;
-  };
-
-  auto normal_dec_segment_checker = [route](size_t cur_corner_speed, size_t next_corner_speed, size_t cur_deceleration_start_idx, size_t cur_deceleration_end_idx, size_t dec_end_limit_idx){
-    /*
-    Returns a deceleration for the segment if it finds one or -10000 if it does not.
-    Deceleration is investigated in compliance with:
-    - min_deceleration and max_deceleration
-    - deceleration distance
-    Two deceleration segment checkers are made - one for aggressive straignt, in which the start of the deceleration segment is investigated - and one for normal straight, in which the end of the deceleration segment is investigated.
-    The convention used in this function is that deceleration is NEGATIVE SIGNED in the variable.
-    */
-
-    size_t considered_end_idx = cur_deceleration_start_idx - 1;
+    size_t considered_start_idx = cur_deceleration_start_idx + 1; // TODO need to account if the loop wraps around...
     double considered_deceleration;
     size_t considered_distance;
     double considered_power_consumption;
 
     do {
-      considered_end_idx = considered_end_idx + 1;
-      considered_distance = route->get_precomputed_distances().get_value(cur_deceleration_start_idx, considered_end_idx);
+      considered_start_idx = considered_start_idx - 1; // TODO need to account if the loop wraps around...
+      considered_distance = precomputed_distances.get_value(considered_start_idx, cur_deceleration_end_idx);
+      considered_deceleration = calc_acceleration(cur_corner_speed, next_corner_speed, considered_distance);
+      considered_power_consumption = considered_deceleration * next_corner_speed * mass;
+
+    } while (
+      (considered_deceleration < 0 && (considered_power_consumption > power_allowance || considered_deceleration > minimum_acceleration) && considered_start_idx >= dec_start_limit_idx) || // if deceleration turns out to be positive, aka speed going up
+      (considered_deceleration > 0 && considered_deceleration > maximum_deceleration && considered_start_idx >= dec_start_limit_idx) // if deceleration turns out to be negative, aka speed going down
+    );
+
+    if (considered_start_idx < dec_start_limit_idx){
+      considered_deceleration = -10000;
+    }
+   
+    struct consideration ret = {considered_deceleration, considered_start_idx};
+    return ret;
+  };
+
+  auto normal_dec_segment_checker = [mass, power_allowance, minimum_acceleration, maximum_deceleration, precomputed_distances](size_t cur_corner_speed, size_t next_corner_speed, size_t cur_deceleration_start_idx, size_t cur_deceleration_end_idx, size_t dec_end_limit_idx){
+    /*
+    Returns a deceleration for the segment if it finds one or -10000 if it does not.
+    Deceleration is investigated in compliance with:
+    - min_deceleration and max_deceleration
+    - deceleration distance
+    Two deceleration segment checkers are made - one for aggressive straignt, in which the start of the deceleration segment is investigated - and one for normal straight, in which the end of the deceleration segment is investigated.
+    The convention used in this function is that deceleration is NEGATIVE SIGNED in the variable.
+    */
+
+    size_t considered_end_idx = cur_deceleration_start_idx - 1; // TODO need to account if the loop wraps around...
+    double considered_deceleration;
+    size_t considered_distance;
+    double considered_power_consumption;
+
+    do {
+      considered_end_idx = considered_end_idx + 1; // TODO need to account if the loop wraps around...
+      considered_distance = precomputed_distances.get_value(cur_deceleration_start_idx, considered_end_idx);
       considered_deceleration = calc_acceleration(cur_corner_speed, next_corner_speed, considered_distance);
       considered_power_consumption = considered_deceleration * next_corner_speed * mass;
 
@@ -288,24 +306,23 @@ RacePlan V2Optimizer::crossover_parents(RacePlan parent_a, RacePlan parent_b, co
       (considered_deceleration > 0 && considered_deceleration > maximum_deceleration && considered_end_idx <= dec_end_limit_idx) // if deceleration turns out to be negative, aka speed going down  
     );
 
-    size_t ret = -10000;
-    if (considered_end_idx <= acc_end_limit_idx){
-      ret = considered_acceleration;
+    if (considered_end_idx > dec_end_limit_idx){
+      considered_deceleration = -10000;
     }
     
-    struct consideration ret = {considered_acceleration, considered_end_idx};
+    struct consideration ret = {considered_deceleration, considered_end_idx};
     return ret;
   };
 
   // Holding variables for current between-corner-section
   struct loop_extract{ // can refactor to auto?
     std::vector<std::pair<size_t, size_t>> speeds;
-    std::vector<std::pair<size_t, size_t>> indexes;
+    std::vector<std::pair<double, double>> indexes;
     std::vector<bool> is_acc_segment;
   };
   // TODO Crosscheck if there are other segment details we need to get
 
-  auto zwischen_zwei_index = [](RacePlan raceplan, size_t loop_nummer, size_t start, size_t end, size_t largest_index){ // largetst_index might need to go in [].
+  auto zwischen_zwei_index = [](RacePlan raceplan, size_t loop_nummer, size_t start, size_t end, size_t largest_index){
     // Given a raceplan and a loop number, obtain all the start/end speeds and start/end indexes associated between indexes start and end.
 
     // For the programmer: this depends on consecutive segments being of the form [x1, x2], [x2, x3] - the segment index between consecutive segments is shared.
@@ -313,7 +330,7 @@ RacePlan V2Optimizer::crossover_parents(RacePlan parent_a, RacePlan parent_b, co
     assert(start != end);
 
     std::vector<std::pair<size_t, size_t>> extract_indexes;
-    std::vector<std::pair<size_t, size_t>> extract_speeds;
+    std::vector<std::pair<double, double>> extract_speeds;
     std::vector<bool> extract_is_acc_segments; 
     auto loop_indexes = raceplan.get_segments()[loop_nummer];
     auto loop_speeds = raceplan.get_speed_profile()[loop_nummer];
@@ -323,19 +340,19 @@ RacePlan V2Optimizer::crossover_parents(RacePlan parent_a, RacePlan parent_b, co
 
     if (start < end){
       for (cntr = 0; cntr < loop_size; cntr++){
-        if (loop_indexes[cntr].first >= start && loop_index[cntr].second <= end){
+        if (loop_indexes[cntr].first >= start && loop_indexes[cntr].second <= end){
           extract_indexes.push_back(loop_indexes[cntr]);
           extract_speeds.push_back(loop_speeds[cntr]);
-          extract_is_acc_segments.push_back(loop_is_acc_segments);
+          extract_is_acc_segments.push_back(loop_is_acc_segments[cntr]);
         }
       } 
 
     } else {
       for (cntr = 0; cntr < loop_size; cntr++){
-        if ((loop_indexes[cntr].first >= start && loop_index[cntr].second <= largest_index) || (loop_indexes[cntr].first >= start && loop_index[cntr].second <= end) || (loop_indexes[cntr].first >= 0 && loop_index[cntr].second <= end)){
+        if ((loop_indexes[cntr].first >= start && loop_indexes[cntr].second <= largest_index) || (loop_indexes[cntr].first >= start && loop_indexes[cntr].second <= end) || (loop_indexes[cntr].first >= 0 && loop_indexes[cntr].second <= end)){
           extract_indexes.push_back(loop_indexes[cntr]);
           extract_speeds.push_back(loop_speeds[cntr]);
-          extract_is_acc_segments.push_back(loop_is_acc_segments);
+          extract_is_acc_segments.push_back(loop_is_acc_segments[cntr]);
         }
       }
 
@@ -347,7 +364,7 @@ RacePlan V2Optimizer::crossover_parents(RacePlan parent_a, RacePlan parent_b, co
 
   loop_extract considered_extract;
   size_t parent_choice;
-  std::vector<std::pair<size_t, size_t>> considered_speeds, considered_idxs;
+  std::vector<std::pair<double, double>> considered_speeds, considered_idxs;
   std::vector<bool> considered_is_acc_segments; // crosscheck if this is actually correct
   struct consideration considered;
   double considered_acceleration;
@@ -357,17 +374,19 @@ RacePlan V2Optimizer::crossover_parents(RacePlan parent_a, RacePlan parent_b, co
   size_t last_corner_idx, cur_corner_idx;
   size_t loops_per_block = num_loops / num_blocks;
   size_t last_speed;
+
+  bool final_corner{false};
   
   bool meets_contingency_1 = true, meets_contingency_2 = true;
-  int loop_num_sample_a, loop_num_sample_b;
+  size_t loop_num_sample_a, loop_num_sample_b;
 
   for (cur_block_idx=0; cur_block_idx<num_blocks; cur_block_idx++){
-    for (cur_loop_idx=0, cur_loop_idx<loops_per_block; cur_loop_idx++){
+    for (cur_loop_idx=0; cur_loop_idx<loops_per_block; cur_loop_idx++){
       cur_abs_loop_idx = cur_block_idx*loops_per_block + cur_loop_idx;
 
       // obtain velocity exiting corner
       if (cur_abs_loop_idx != 0){
-        last_speed = all_segment_speeds[cur_abs_loop_idx-1];
+        last_speed = loop_segment_speeds[cur_abs_loop_idx-1].second;
       } else last_speed = 0;
 
       if (cur_abs_loop_idx != 0){ // sample any loop
@@ -378,8 +397,9 @@ RacePlan V2Optimizer::crossover_parents(RacePlan parent_a, RacePlan parent_b, co
         loop_num_sample_b = 0;
       }      
 
-      for (cur_corner_idx = 1; cur_corner_idx < num_corners; cur_corner_idx++){
-        last_corner_idx = num_corners - 1;
+      for (cur_corner_idx = 1; cur_corner_idx <= num_corners; cur_corner_idx++){
+        last_corner_idx = cur_corner_idx - 1;
+        if (cur_corner_idx == num_corners) final_corner = true;
 
         parent_choice = parent_distn(parent_gen); // sample which parent
 
@@ -387,7 +407,7 @@ RacePlan V2Optimizer::crossover_parents(RacePlan parent_a, RacePlan parent_b, co
         Contingency management:
         [1]- if acceleration is not achieveable, vary accelerating distance, attempting to maximise acceleration (with safety factor?)
         [2]- if above unsuccessful, switch parent.
-        [3]- if above unsuccessful, follow random calculation order observed in SegmentRoute(?)
+        [3]- if above unsuccessful, follow random calculation order observed in SegmentRoute(?) --> Force a normal straight
 
         Contingency [1] and [2] are being put in a while loop for concision.
         */
@@ -395,18 +415,18 @@ RacePlan V2Optimizer::crossover_parents(RacePlan parent_a, RacePlan parent_b, co
         do {
           if (!meets_contingency_1){
             if (parent_choice < 0.5){ // parent A
-              considered_extract = zwischen_zwei_index(parent_a, loop_num_sample_a, corner_indxs[last_corner_idx], corner_indxs[cur_corner_idx], largest_index);
+              considered_extract = zwischen_zwei_index(parent_a, loop_num_sample_a, corner_indxs[last_corner_idx].second, corner_indxs[cur_corner_idx].second, largest_index);
               
             } else { // parent B
-              considered_extract = zwischen_zwei_index(parent_b, loop_num_sample_b, corner_indxs[last_corner_idx], corner_indxs[cur_corner_idx], largest_index);
+              considered_extract = zwischen_zwei_index(parent_b, loop_num_sample_b, corner_indxs[last_corner_idx].second, corner_indxs[cur_corner_idx].second, largest_index);
             }
 
           } else {
             if (parent_choice < 0.5){ // parent B
-              considered_extract = zwischen_zwei_index(parent_b, loop_num_sample_b, corner_indxs[last_corner_idx], corner_indxs[cur_corner_idx], largest_index);
+              considered_extract = zwischen_zwei_index(parent_b, loop_num_sample_b, corner_indxs[last_corner_idx].second, corner_indxs[cur_corner_idx].second, largest_index);
             
             } else { // parent A
-              considered_extract = zwischen_zwei_index(parent_a, loop_num_sample_a, corner_indxs[last_corner_idx], corner_indxs[cur_corner_idx], largest_index);
+              considered_extract = zwischen_zwei_index(parent_a, loop_num_sample_a, corner_indxs[last_corner_idx].second, corner_indxs[cur_corner_idx].second, largest_index);
             }
           }
 
@@ -426,13 +446,41 @@ RacePlan V2Optimizer::crossover_parents(RacePlan parent_a, RacePlan parent_b, co
             if (meets_contingency_1){
               considered = aggressive_dec_segment_checker(considered_speeds[1].second, considered_speeds[2].second, considered_idxs[2].first, considered_idxs[2].second, considered_end_index);
             }
+
             if (considered.acceleration == -10000){
               if (meets_contingency_2) meets_contingency_1 = false;
               else meets_contingency_2 = false;
 
             } else {
               // meets all the requirements, put all four segments into the vector we build the loops with
-              // TODO
+
+              // acceleration segment
+              segment = {considered_idxs[0].first, considered_end_index};
+              segment_speed = {last_speed, considered_speeds[0].second};
+              acceleration_segment = true;
+              acceleration_value = considered_acceleration;
+              add_segment();
+
+              // aggressive constant speed segment
+              segment = {considered_end_index, considered.idx};
+              segment_speed = {considered_speeds[0].second, considered_speeds[0].second};
+              acceleration_segment = false;
+              acceleration_value = 0.0;
+              add_segment();
+
+              // deceleration segment
+              segment = {considered.idx, considered_idxs[2].second};
+              segment_speed = {considered_speeds[0].second, considered_speeds[2].second};
+              acceleration_segment = true;
+              acceleration_value = considered.acceleration;
+              add_segment();
+
+              // cornering segment
+              segment = {considered_idxs[2].second, considered_idxs[3].second};
+              segment_speed = {considered_speeds[2].second, considered_speeds[2].second};
+              acceleration_segment = false;
+              acceleration_value = 0.0;
+              add_segment();
             }
             
           } else if (considered_extract.indexes.size() == 2) { // we pulled a normal straight which may need to be converted to a corner straight
@@ -453,16 +501,38 @@ RacePlan V2Optimizer::crossover_parents(RacePlan parent_a, RacePlan parent_b, co
               
             } else {
               // meets all the requirements, put both segments into the vector we build the loops with
-              // TODO            
+              
+              if (considered.acceleration == 0){ // single constant speed segment
+                segment = {considered_idxs[0].first, considered_idxs[1].second};
+                segment_speed = {considered_speeds[0].first, considered_speeds[0].first};
+                acceleration_segment = false;
+                acceleration_value = 0.0;
+                add_segment();
+
+              } else {
+                // acceleration/deceleration segment
+                segment = {considered_idxs[0].first, considered.idx};
+                segment_speed = {last_speed, considered_speeds[0].second};
+                acceleration_segment = true;
+                acceleration_value = considered.acceleration;
+                add_segment();
+
+                // constant speed segment
+                segment = {considered.idx, considered_idxs[1].second};
+                segment_speed = {considered_speeds[0].second, considered_speeds[0].second};
+                acceleration_segment = false;
+                acceleration_value = 0.0;
+                add_segment();
+              }
             }
   
           } else { // we pulled a single length corner straight which might need to be converted to an acceleration straight
             
             if (last_speed < considered_speeds[0].second){ // are we accelerating? if we are, then evaluate the acceleration segment
-              considered = acc_segment_checker(last_speed, considered_speeds[0].second, considered_idxs[0].first, corner_idxns[cur_corner_idx].first, corner_indxs[cur_corner_idx].first);
+              considered = acc_segment_checker(last_speed, considered_speeds[0].second, considered_idxs[0].first, corner_indxs[cur_corner_idx].first, corner_indxs[cur_corner_idx].first);
   
             } else if (last_speed > considered_speeds[0].second){ // or are we decelerating? then evaluate the deceleration segment
-              considered = normal_dec_segment_checker(last_speed, considered_speeds[0].second, considered_idxs[0].first, corner_idxns[cur_corner_idx].first, corner_indxs[cur_corner_idx].first);
+              considered = normal_dec_segment_checker(last_speed, considered_speeds[0].second, considered_idxs[0].first, corner_indxs[cur_corner_idx].first, corner_indxs[cur_corner_idx].first);
   
             } else { // or our speed is not changing?
               considered.acceleration = 0;
@@ -473,22 +543,216 @@ RacePlan V2Optimizer::crossover_parents(RacePlan parent_a, RacePlan parent_b, co
               else meets_contingency_2 = false;
             } else {
               // meets all the requirements, put both segments into the vector we build the loops with
-              // TODO            
+
+              if (considered.acceleration == 0){ // single constant speed segment
+                segment = {considered_idxs[0].first, considered_idxs[0].second};
+                segment_speed = {considered_speeds[0].first, considered_speeds[0].first};
+                acceleration_segment = false;
+                acceleration_value = 0.0;
+                add_segment();
+
+              } else { // we need to construct the segments!
+                // acceleration/deceleration segment
+                segment = {considered_idxs[0].first, corner_indxs[cur_corner_idx].first};
+                segment_speed = {last_speed, considered_speeds[0].second};
+                acceleration_segment = true;
+                acceleration_value = considered.acceleration;
+                add_segment();
+
+                // constant speed segment
+                segment = {corner_indxs[cur_corner_idx].first, corner_indxs[cur_corner_idx].second};
+                segment_speed = {considered_speeds[0].second, considered_speeds[0].second};
+                acceleration_segment = false;
+                acceleration_value = 0.0;
+                add_segment();
+              }
+            }
+          } 
+        } while (!meets_contingency_1);
+
+
+        if (!meets_contingency_2){
+          // perform calculation order
+          // calculation order is to force a normal segment and generate randomly
+          size_t prev_corner_end_loc;
+          size_t cur_corner_start_loc, cur_corner_end_loc;
+          double prev_corner_max_speed, cur_corner_max_speed;
+          double cur_corner_proposed_speed;
+          
+          const double probability = 0.5;
+          bool maintain_speed{false};
+
+          int lower_bound_speed, upper_bound_speed;
+          double speed_mean, speed_dev, cur_considered_speed;
+          std::normal_distribution<double> speed_dist;
+          std::mt19937 speed_gen(Config::get_instance()->get_speed_seed());
+
+          std::uniform_real_distribution<double> acceleration_dist;
+          std::mt19937 acc_gen(Config::get_instance()->get_speed_seed());
+
+          double distance_to_next_corner;
+
+          bool valid{false};
+
+          prev_corner_end_loc = corner_indxs[last_corner_idx].second;
+          prev_corner_max_speed = speed_corner_limits[last_corner_idx];
+
+          // [1] Find a speed.
+          // obtain upper and lower bound, and setup the gaussian
+          if (!final_corner){
+            cur_corner_start_loc = corner_indxs[0].first;
+            cur_corner_end_loc = corner_indxs[0].second;
+            cur_corner_max_speed = speed_corner_limits[0];
+
+          } else {
+            cur_corner_start_loc = corner_indxs[cur_corner_idx].first;
+            cur_corner_end_loc = corner_indxs[cur_corner_idx].second;
+            cur_corner_max_speed = speed_corner_limits[cur_corner_idx];
+          }
+
+          lower_bound_speed = std::max<int>(1, static_cast<int>(speed_corner_limits[cur_corner_idx] * corner_speed_min_ratio));
+          upper_bound_speed = static_cast<int>(speed_corner_limits[cur_corner_idx] * corner_speed_max_ratio); 
+
+          if (tgt_average_speed > upper_bound_speed){
+            speed_mean = upper_bound_speed;
+            speed_dev = speed_mean/6;
+          } else {
+            speed_mean = tgt_average_speed;
+            speed_dev = speed_mean/6;
+          }
+
+          speed_dist = std::normal_distribution<double>(speed_mean, speed_dev);
+          
+          // keep sampling till we get a good solution
+          while (!valid){
+            if (last_speed >= tgt_average_speed && last_speed < cur_corner_max_speed){
+              const double sample = skip_dist(skip_gen);
+              if (sample < probability){
+                cur_corner_proposed_speed = last_speed;
+                maintain_speed = true;
+              }
+            }
+  
+            // obtain lower, upper bound speed estimates
+            if (!maintain_speed){
+              if (!final_corner){
+                // sample the gaussian
+                do {
+                  cur_corner_proposed_speed = speed_dist(speed_gen);
+                } while (cur_corner_proposed_speed < lower_bound_speed || cur_corner_proposed_speed > upper_bound_speed);
+  
+              } else {
+                // we must use the speed at the beginning of the loop
+                cur_corner_proposed_speed = loop_segment_speeds[0].first;
+              }
+            }
+            
+            distance_to_next_corner = route->get_precomputed_distances().get_value(prev_corner_end_loc, cur_corner_start_loc);
+            const std::pair<double, double> next_corner_speed_range =  {cur_corner_max_speed * corner_speed_min_ratio, cur_corner_max_speed*corner_speed_max_ratio};
+            
+            if (cur_corner_proposed_speed > last_speed){ // need to accelerate
+              double acceleration_distance;
+              double proposed_acceleration;
+              size_t acceleration_end_idx;
+              double considered_power;
+              double lower_bound_acceleration = std::max(minimum_acceleration, calc_acceleration(last_speed, cur_corner_proposed_speed, distance_to_next_corner)), upper_bound_acceleration = lower_bound_acceleration;
+
+              if (lower_bound_acceleration * mass * cur_corner_proposed_speed > power_allowance) continue;
+
+              do {
+                upper_bound_acceleration += 0.1;
+                considered_power = upper_bound_acceleration * mass * cur_corner_proposed_speed;
+              } while (considered_power < power_allowance);
+
+              acceleration_dist = std::uniform_real_distribution<double>(lower_bound_acceleration, upper_bound_acceleration);
+              proposed_acceleration = acceleration_dist(acc_gen);
+
+              acceleration_distance = calc_distance_a(last_speed, cur_corner_proposed_speed, proposed_acceleration);
+
+              acceleration_end_idx = prev_corner_end_loc;
+              while (acceleration_distance > route->get_precomputed_distances().get_value(prev_corner_end_loc, acceleration_end_idx)){
+                acceleration_end_idx = acceleration_end_idx == largest_index - 1 ? 0 : acceleration_end_idx + 1;
+              }
+
+              if (!can_reach_speeds(cur_corner_proposed_speed, power_allowance, max_acceleration, max_deceleration, next_corner_speed_range, distance_to_next_corner, mass)){
+                continue;
+              }
+
+              // if we get here then we have our parameters, add to our loop variables
+              segment = {prev_corner_end_loc, acceleration_end_idx};
+              segment_speed = {last_speed, cur_corner_proposed_speed};
+              acceleration_segment = true;
+              acceleration_value = proposed_acceleration;
+              add_segment();
+
+              segment = {acceleration_end_idx, cur_corner_end_loc};
+              segment_speed = {cur_corner_proposed_speed, cur_corner_proposed_speed};
+              acceleration_segment = false;
+              acceleration_value = 0.0;
+              add_segment();
+
+            } else if (cur_corner_proposed_speed < last_speed){ // need to decelerate
+
+              // deceleration is not ideal, so sample chance to start over.
+              if (last_speed < cur_corner_max_speed){
+                const double sample = skip_dist(skip_gen);
+                if (sample < 0.8) continue;
+              }
+
+              double deceleration_distance;
+              double proposed_deceleration;
+              size_t deceleration_end_idx;
+              double considered_power;
+              double lower_bound_deceleration = calc_acceleration(last_speed, cur_corner_proposed_speed, distance_to_next_corner);
+
+              if (lower_bound_deceleration < max_deceleration) continue;
+
+              if (!can_reach_speeds(cur_corner_proposed_speed, power_allowance, max_acceleration, max_deceleration, next_corner_speed_range, distance_to_next_corner, mass)){
+                continue;
+              }
+
+              acceleration_dist = std::uniform_real_distribution<double>(lower_bound_deceleration, max_deceleration);
+              proposed_deceleration = acceleration_dist(acc_gen);
+              deceleration_distance = calc_distance_a(last_speed, cur_corner_proposed_speed, proposed_deceleration);
+
+              deceleration_end_idx = prev_corner_end_loc;
+              while (deceleration_distance > route->get_precomputed_distances().get_value(deceleration_end_idx, cur_corner_start_loc)){
+                deceleration_end_idx = deceleration_end_idx == largest_index - 1 ? 0 : deceleration_end_idx + 1;
+              }
+
+              // if we get here then we have our parameters, add to our loop variables
+              segment = {prev_corner_end_loc, deceleration_end_idx};
+              segment_speed = {last_speed, cur_corner_proposed_speed};
+              acceleration_segment = true;
+              acceleration_value = proposed_deceleration;
+              add_segment();
+
+              segment = {deceleration_end_idx, cur_corner_end_loc};
+              segment_speed = {cur_corner_proposed_speed, cur_corner_proposed_speed};
+              acceleration_segment = false;
+              acceleration_value = 0.0;
+              add_segment();
+
+            } else { // keep speed the same
+
+              // add to our loop variables immediately
+              segment = {prev_corner_end_loc, cur_corner_end_loc};
+              segment_speed = {last_speed, last_speed};
+              acceleration_segment = false;
+              acceleration_value = 0.0;
+              add_segment();
             }
           }
-        } while (!meets_contingency_1);
-  
-        if (!meets_contingency_2){
-  
-          // perform calculation order
-  
         }
       }
     }
-  }
 
-  return RacePlan(all_segments, all_segment_speeds, all_acceleration_segments, all_acceleration_values);
+    // add new loop
+  }
+  RacePlan ret(all_segments, all_segment_speeds, all_acceleration_segments, all_acceleration_values);
+  return ret;
 }
+
 
 void V2Optimizer::init_params() {
   // Create genetic optimizer

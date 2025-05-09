@@ -126,3 +126,43 @@ double calc_distance_a(const double init_speed, const double final_speed, const 
   RUNTIME_EXCEPTION(acceleration != 0.0, "Acceleration cannot be 0");
   return (final_speed * final_speed - init_speed * init_speed) / (2.0 * acceleration);
 }
+
+bool can_reach_speeds(double initial_speed, double acceleration_power, double max_acceleration, double max_deceleration, std::pair<double, double> speed_range, double max_distance, double car_mass) {
+  RUNTIME_EXCEPTION(speed_range.first <= speed_range.second, "Speed range must be ordered as {smaller, bigger}");
+  RUNTIME_EXCEPTION(initial_speed >= 0.0, "Initial speed must be >= 0 m/s");
+  RUNTIME_EXCEPTION(max_distance >= 0.0, "Distance must be >= 0.0");
+  RUNTIME_EXCEPTION(max_acceleration > 0.0 && max_deceleration < 0.0, "Maximum acceleration must be positive, "
+  "and maximum deceleration must be negative");
+
+  if (initial_speed >= speed_range.first && initial_speed <= speed_range.second) {
+    return true;
+  }
+  double distance = 0.0;
+  double final_speed;
+  double acceleration;
+  double instataneous_motor_power = 0.0;
+  if (initial_speed <= speed_range.first) {
+    acceleration = 0.1;
+    do {
+      distance = calc_distance_a(initial_speed, speed_range.first, acceleration);
+      instataneous_motor_power = speed_range.first * acceleration * car_mass;
+      acceleration += 0.1;
+      if (distance < max_distance && instataneous_motor_power < acceleration_power) return true;
+    } while (instataneous_motor_power < acceleration_power && acceleration < max_acceleration);
+
+    return false;
+  }
+  if (initial_speed > speed_range.second) {
+    acceleration = -0.1;
+    do {
+      distance = calc_distance_a(initial_speed, speed_range.second, acceleration);
+      acceleration -= 0.1;
+      if (distance < max_distance) return true;
+    } while (acceleration > max_deceleration);
+
+    return false;
+  }
+
+  return false;
+}
+

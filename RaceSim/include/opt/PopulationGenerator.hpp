@@ -252,22 +252,6 @@ class RacePlanCreator {
                                       PlanAttributes* att, FileLogger& logger);  // NOLINT
 
  private:
-  /** @brief Helper function to segment_route_corners that determines if a range of
-    * speeds is reachable within some maximum distance without violating constraints
-    *
-    * @param initial_speed: Initial speed in m/s
-    * @param acceleration_power: Acceleration power
-    * @param max_acceleration: Maximum accleration
-    * @param max_deceleration: Maximum deceleration
-    * @param preferred_deceleration: Preferred deceleration
-    * @param speed_range: Range of speeds to target
-    * @param max_distance: Distance to cover
-    * @param car_mass: Car mass in kg
-    */
-  bool can_reach_speeds(double initial_speed, double acceleration_power, double max_acceleration,
-                        double max_deceleration, std::pair<double, double> speed_range,
-                        double distance, double car_mass);
-
   // Route for which to create a Race Plan
   const std::shared_ptr<Route> route;
   // Attributes about the route

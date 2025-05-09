@@ -97,7 +97,7 @@ void V2Optimizer::constant_for_deceleration(RacePlan* plan, RacePlanCreator::Gen
             loop_data.insert_segment(seg_idx + 1, next_seg_data);
           } else {
             // In the case of deceleration, must respect maximum deceleration
-            const double required_deceleration = calc_acceleration(loop_speeds)
+//            const double required_deceleration = calc_acceleration(loop_speeds)
           }
         } else {
 
