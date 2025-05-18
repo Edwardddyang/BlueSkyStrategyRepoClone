@@ -157,34 +157,37 @@ void ForecastLut::load_LUT() {
   file >> times_line;
   std::stringstream times_stream(times_line);
 
-  // Remove 'latitude' and 'longitude' from first 2 cols of csv input.
-  std::string time;
-  std::getline(times_stream, time, ',');
-  std::getline(times_stream, time, ',');
+  // // Remove 'latitude' and 'longitude' from first 2 cols of csv input.
+  // std::string time;
+  // std::getline(times_stream, time, ',');
+  // std::getline(times_stream, time, ',');
 
+  std::string time;
+  
   /* Create an array of the time keys */
   while (!times_stream.eof()) {
     std::getline(times_stream, time, ',');
     RUNTIME_EXCEPTION(isDouble(time), "Time {} is not a number in ForecastLUT {}", time, lut_path.string());
-    uint64_t temp_time = std::stoull(time);
-    int seconds = temp_time % 100;
-    temp_time /= 100;
-    int minutes = temp_time % 100;
-    temp_time /= 100;
-    int hours = temp_time % 100;
-    temp_time /= 100;
-    int days = temp_time % 100;
-    temp_time /= 100;
-    int month = (temp_time % 100);
-    temp_time /= 100;
-    int year = temp_time;
+    // uint64_t temp_time = std::stoull(time);
+    // int seconds = temp_time % 100;
+    // temp_time /= 100;
+    // int minutes = temp_time % 100;
+    // temp_time /= 100;
+    // int hours = temp_time % 100;
+    // temp_time /= 100;
+    // int days = temp_time % 100;
+    // temp_time /= 100;
+    // int month = (temp_time % 100);
+    // temp_time /= 100;
+    // int year = temp_time;
 
-    /* Construct YYYY-MM-DD HH:MM:SS string */
-    std::string forecast_time = "20" + std::to_string(year) + "-" + std::to_string(month) + "-"
-      + std::to_string(days) + " " + std::to_string(hours) + ":" + std::to_string(minutes) + ":"
-      + std::to_string(seconds);
+    // /* Construct YYYY-MM-DD HH:MM:SS string */
+    // std::string forecast_time = "20" + std::to_string(year) + "-" + std::to_string(month) + "-"
+    //   + std::to_string(days) + " " + std::to_string(hours) + ":" + std::to_string(minutes) + ":"
+    //   + std::to_string(seconds);
 
-    std::istringstream iss(forecast_time);
+    /* Time is of the format YYYY-MM-DD HH:MM:SS */
+    std::istringstream iss(time);
     date::sys_time<std::chrono::seconds> epoch_time;
     iss >> date::parse("%F %T", epoch_time);
     time_t local_time_t = std::chrono::system_clock::to_time_t(epoch_time);
@@ -200,16 +203,16 @@ void ForecastLut::load_LUT() {
     if (file_linestream.str().empty()) break;
 
     std::string cell;
-    ForecastCoord coord{};
-    std::getline(file_linestream, cell, ',');
-    RUNTIME_EXCEPTION(isDouble(cell), "Value {} is not a number in Forecast LUT {}", cell, lut_path.string());
-    coord.lat = std::stod(cell);
+    // ForecastCoord coord{};
+    // std::getline(file_linestream, cell, ',');
+    // RUNTIME_EXCEPTION(isDouble(cell), "Value {} is not a number in Forecast LUT {}", cell, lut_path.string());
+    // coord.lat = std::stod(cell);
 
-    std::getline(file_linestream, cell, ',');
-    RUNTIME_EXCEPTION(isDouble(cell), "Value {} is not a number in Efficiency LUT {}", cell, lut_path.string());
-    coord.lon = std::stod(cell);
+    // std::getline(file_linestream, cell, ',');
+    // RUNTIME_EXCEPTION(isDouble(cell), "Value {} is not a number in Efficiency LUT {}", cell, lut_path.string());
+    // coord.lon = std::stod(cell);
 
-    forecast_coords.emplace_back(coord);
+    // forecast_coords.emplace_back(coord);
 
     std::getline(file_linestream, cell, ',');
     RUNTIME_EXCEPTION(isDouble(cell), "Value {} is not a number in Efficiency LUT {}", cell, lut_path.string());
