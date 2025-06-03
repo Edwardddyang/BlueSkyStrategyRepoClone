@@ -35,6 +35,39 @@ void thread_create_plan(std::shared_ptr<RacePlanCreator> generator,
   *space = generator->create_plan();
   thread_manager->release();
 }
+std::vector<std::vector<Coord>> population_coords;
+std::vector<std::vector<Time>> population_times;
+
+void telem_plan(std::shared_ptr<RacePlanCreator> generator,
+                std::vector<Coord>* coords,
+                std::vector<Time>* times,
+                ThreadManager* thread_manager,
+                std::shared_ptr<Route> route) {
+                  
+    thread_manager->acquire();
+    auto plan = generator->create_plan();
+
+    // Extract segment indices from RacePlan
+    const auto& segments = plan.get_segments();
+    const auto& route_points = route->get_route_points();
+
+    coords->clear();
+    for (const auto& loop : segments) {
+        for (const auto& seg : loop) {
+            for (size_t idx = seg.first; idx <= seg.second; ++idx) {
+                coords->push_back(route_points[idx]);
+            }
+        }
+    }
+
+    // If you have a way to extract times, do it here. Otherwise, clear or fill as needed.
+    times->clear();
+    // Example: times->resize(coords->size());
+
+    thread_manager->release();
+}
+
+
 
 RacePlan V2Optimizer::optimize() {
   // Create results folder
@@ -840,14 +873,14 @@ void V2Optimizer::create_initial_population() {
                     "This will dramatically slow down population creation.");
     }
     for (int i=0; i < population_size; i++) {
-      threads[i] = std::thread(thread_create_plan, generator, &population[i], &thread_manager);
+      threads[i] = std::thread(telem_plan, generator, &population[i], &thread_manager);
     }
     for (int i=0; i < population_size; i++) {
       threads[i].join();
     }
   } else {
     // Population size 1 is really only used for debugging
-    population[0] = generator->create_plan();
+    telem_plan(generator, &population_coords[0], &population_times[0], &thread_manager, route);
     population[0].print_plan();
   }
   auto end = std::chrono::high_resolution_clock::now();
@@ -874,7 +907,7 @@ void V2Optimizer::simulate_population() {
   threads.resize(population_size);
   if (population_size > 1) {
     for (int i=0; i < population_size; i++) {
-      threads[i] = std::thread(thread_run_sim, simulator, route, result_luts[i], &population[i], &thread_manager);
+      threads[i] = std::thread(thread_run_sim, simulator, route, result_luts[i], &population_coords[i], &population_times[i], &thread_manager);
     }
     for (int i=0; i < population_size; i++) {
       threads[i].join();
