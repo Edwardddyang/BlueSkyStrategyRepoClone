@@ -67,6 +67,8 @@
         std::filesystem::path("data/luts/fsgp/dynamic/dni.csv"))                            \
   PARAM(dhi_path, std::filesystem::path, std::filesystem::path,                             \
         std::filesystem::path("data/luts/fsgp/dynamic/dhi.csv"))                            \
+  PARAM(ghi_path, std::filesystem::path, std::filesystem::path,                             \
+        std::filesystem::path("data/luts/fsgp/dynamic/shortwave_radiation.csv"))                            \
   PARAM(wind_direction_path, std::filesystem::path, std::filesystem::path,                  \
         std::filesystem::path("data/luts/fsgp/dynamic/wind_direction_10m.csv"))             \
   PARAM(wind_speed_path, std::filesystem::path, std::filesystem::path,                      \

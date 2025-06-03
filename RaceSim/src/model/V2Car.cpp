@@ -3,9 +3,18 @@
 #include <iostream>
 #include <fstream>
 
+#include "utils/CustomTime.hpp"
+
 #include "model/V2Car.hpp"
 #include "utils/CustomException.hpp"
 
+EnergyChange V2Car::compute_fsgp_array_gain(double delta_time, Irradiance irr, double az, double el) {
+  const double power_factor = power_factors.get_value(round(el), round(az));  // Unitless
+  // irr.ghi * array_efficiency * array_area
+  const double power = (power_factor * irr.dni) + (irr.dhi * array_efficiency * array_area);  // Watts
+  const double energy = watts2kwh(delta_time, power);  // kwh
+  return EnergyChange(power, energy);
+}
 
 CarUpdate V2Car::compute_travel_update(Coord coord_one,
                                        Coord coord_two,
@@ -18,6 +27,7 @@ CarUpdate V2Car::compute_travel_update(Coord coord_one,
                                        double acceleration_distance,
                                        double constant_distance) {
   /* Get orientation of the car */
+                               
   const double bearing = get_bearing(coord_one, coord_two);
   SolarAngle az_el = get_az_el_from_bearing(bearing, coord_one, time);
   if (az_el.El < 0) {
@@ -42,7 +52,7 @@ CarUpdate V2Car::compute_travel_update(Coord coord_one,
   EnergyChange rolling_loss;
   EnergyChange gravity_loss;
   const double electric_loss = compute_electric_loss(delta_time);
-  const EnergyChange array_gain = compute_array_gain(delta_time, irr.dni, irr.dhi, az_el.Az, az_el.El);
+  const EnergyChange array_gain = compute_array_gain(delta_time, irr, az_el.Az, az_el.El);
 
   if (acceleration < 0.0) {
     // When decelerating, we must ensure that the maximum braking force is not exceeded

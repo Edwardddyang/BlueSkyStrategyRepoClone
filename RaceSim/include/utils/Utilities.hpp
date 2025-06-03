@@ -10,6 +10,9 @@
 #include "utils/Units.hpp"
 #include "utils/CustomTime.hpp"
 
+/* Determine if time is of format ISO 8601 (YYYY-MM-DD HH:MM:SS)*/
+bool isFormattedISO8601(const std::string& time);
+
 /* Determine if a string can be represented by a double */
 bool isDouble(const std::string str);
 

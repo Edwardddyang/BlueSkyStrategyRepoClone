@@ -152,6 +152,7 @@ class ResultsLut : public BaseLut<double> {
   std::vector<std::string> time;
   std::vector<double> azimuth;
   std::vector<double> elevation;
+  std::vector<double> ghi;
   std::vector<double> bearing;
   std::vector<double> latitude;
   std::vector<double> longitude;

@@ -7,6 +7,9 @@ import requests
 import json
 import csv
 import datetime
+from datetime import timedelta
+
+
 import argparse
 
 from typing import Optional
@@ -143,6 +146,7 @@ def call_to_end(call_type: str,
                 start_time: Optional[datetime.datetime] = None,
                 end_time : Optional[datetime.datetime] = None,
                 days: int = 7,
+                utc_adjustment: int=6,
                 irr_types: str = 'wind_speed_10m,wind_direction_10m,shortwave_radiation'):
   '''
   Find irradiance values for lat/long sites in a list starting and write the data to a csv file
@@ -199,8 +203,8 @@ def call_to_end(call_type: str,
   time_ls = []
   print("Finished making calls")
   for time in data[0]['hourly']['time']:
-    call_datetime = format_date(time)
-    datetime_int = call_datetime.strftime("%y-%m-%d %H:%M:%S")
+    call_datetime = format_date(time) + timedelta(hours=6)
+    datetime_int = call_datetime.strftime("%Y-%m-%dT%H:%M:%S") 
     time_ls.append(datetime_int)
     
   # Create a csv for each output parameter queried for

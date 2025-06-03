@@ -71,9 +71,12 @@ RacePlan V2Optimizer::optimize() {
 
   // Process results
   RacePlan best_race_plan = population[0];
+  ResultsLut best_race_result = *result_luts[0];
   size_t best_average_speed = mps2kph(best_race_plan.get_average_speed());
-  best_race_plan.print_plan();
-  ResultsLut best_race_result;
+  // best_race_plan.print_plan();
+  if (save_csv) {
+    best_race_result.write_logs((results_folder / "Acceleration.csv").string());
+  }
   std::cout << "Best Race Plan Average Speed: " << mps2kph(best_race_plan.get_average_speed()) << "kph" << std::endl;
   std::cout << "Best Race Plan Number of Loops: " << best_race_plan.get_num_loops() << std::endl;
 
@@ -848,7 +851,7 @@ void V2Optimizer::create_initial_population() {
   } else {
     // Population size 1 is really only used for debugging
     population[0] = generator->create_plan();
-    population[0].print_plan();
+    // population[0].print_plan();
   }
   auto end = std::chrono::high_resolution_clock::now();
   auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);

@@ -26,6 +26,7 @@ class Simulator {
   std::unique_ptr<ForecastLut> wind_dir_lut;
   std::unique_ptr<ForecastLut> dni_lut;
   std::unique_ptr<ForecastLut> dhi_lut;
+  std::unique_ptr<ForecastLut> ghi_lut;
 
   /* Route to simulate on and the model to use */
   std::shared_ptr<Car> car;

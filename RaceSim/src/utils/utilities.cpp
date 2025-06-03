@@ -12,6 +12,29 @@
 #include "utils/CustomException.hpp"
 #include "date/date.h"
 
+bool isFormattedISO8601(const std::string& time) {
+
+  // Check if size, hyphens, colons and spaces matches YYYY-MM-DD HH:MM:SS
+  if (time.size() != 19 || time[4] != '-' || time[7] != '-' || time[10] != 'T' ||
+      time[13] != ':' || time[16] != ':') {
+    return false;
+  }
+
+  // Check if all other chars are digits
+  for (size_t i = 0; i < time.size(); i++) {
+    if (i == 4 || i == 7 || i == 10 || i == 13 || i == 16) {
+      // These are separators, skip digit check
+      continue;
+    }
+    if (!isdigit(time[i])) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+
 bool isDouble(const std::string str) {
   if (str[0] == '-' && str.size() >= 2) {
     return isdigit(str[1]);

@@ -25,6 +25,7 @@ void FSGPSimulator::run_sim(const std::shared_ptr<Route>& route, RacePlan* race_
   RUNTIME_EXCEPTION(wind_dir_lut != nullptr, "Wind direction lut must be loaded");
   RUNTIME_EXCEPTION(dni_lut != nullptr, "DNI lut must be loaded");
   RUNTIME_EXCEPTION(dhi_lut != nullptr, "DHI Lut must be loaded");
+  RUNTIME_EXCEPTION(ghi_lut != nullptr, "GHI Lut must be loaded");
 
   // Reset results lut logs
   results_lut->reset_logs();
@@ -46,6 +47,9 @@ void FSGPSimulator::run_sim(const std::shared_ptr<Route>& route, RacePlan* race_
                                                                    curr_time.get_utc_time_point());
   std::pair<size_t, size_t> dhi_cache = dhi_lut->initialize_caches(starting_coord,
                                                                    curr_time.get_utc_time_point());
+  std::pair<size_t, size_t> ghi_cache = ghi_lut->initialize_caches(starting_coord,
+                                                                   curr_time.get_utc_time_point());
+                                                                   
 
   /* Get route data */
   const size_t num_points = route->get_num_points();
@@ -143,7 +147,7 @@ void FSGPSimulator::run_sim(const std::shared_ptr<Route>& route, RacePlan* race_
 
         /* Update forecast lut index caches and get forecast data at the src coordinate */
         ForecastCoord coord_one_forecast(current_coord.lat, current_coord.lon);
-
+        
         wind_speed_lut->update_index_cache(&wind_speed_cache, coord_one_forecast, curr_time.get_utc_time_point());
         double wind_speed = wind_speed_lut->get_value(wind_speed_cache);
 
@@ -156,8 +160,15 @@ void FSGPSimulator::run_sim(const std::shared_ptr<Route>& route, RacePlan* race_
         dhi_lut->update_index_cache(&dhi_cache, coord_one_forecast, curr_time.get_utc_time_point());
         double dhi = dhi_lut->get_value(dhi_cache);
 
+        std::cout << "GHI Cache" << std::endl;
+        ghi_lut->update_index_cache(&ghi_cache, coord_one_forecast, curr_time.get_utc_time_point());
+        double ghi = ghi_lut->get_value(ghi_cache);
+
+        std::cout << "Ghi: " << ghi << std::endl;
+
+
         Wind wind = Wind(wind_dir, wind_speed);
-        Irradiance irr = Irradiance(dni, dhi);
+        Irradiance irr = Irradiance(dni, dhi, ghi);
 
         /** @brief Lambda function for static charging between the start and end time
          * @param start_time: The starting time of the charging period. This will be modified
@@ -175,7 +186,7 @@ void FSGPSimulator::run_sim(const std::shared_ptr<Route>& route, RacePlan* race_
             double step_size = (start_time + static_cast<double>(CHARGING_STEP_SIZE)) >= end_time ?
                                 end_time - start_time : static_cast<double>(CHARGING_STEP_SIZE);
             if (sun.El > 0) {
-              delta_energy += car->compute_static_energy(current_coord, &start_time, step_size, irr);
+              delta_energy += car->compute_static_energy(current_coord, &start_time, step_size, irr, "fsgp");
 
               start_time.update_time_seconds(step_size);
 
@@ -184,6 +195,11 @@ void FSGPSimulator::run_sim(const std::shared_ptr<Route>& route, RacePlan* race_
 
               dhi_lut->update_index_cache(&dhi_cache, coord_one_forecast, start_time.get_utc_time_point());
               irr.dhi = dhi_lut->get_value(dhi_cache);
+
+              ghi_lut->update_index_cache(&ghi_cache, coord_one_forecast, start_time.get_utc_time_point());
+              irr.ghi = ghi_lut->get_value(ghi_cache);
+
+              
             } else {
               start_time.update_time_seconds(step_size);
             }
