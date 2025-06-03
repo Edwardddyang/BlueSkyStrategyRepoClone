@@ -43,7 +43,6 @@ void telem_plan(std::shared_ptr<RacePlanCreator> generator,
                 std::vector<Time>* times,
                 ThreadManager* thread_manager,
                 std::shared_ptr<Route> route) {
-                  
     thread_manager->acquire();
     auto plan = generator->create_plan();
 
@@ -873,14 +872,14 @@ void V2Optimizer::create_initial_population() {
                     "This will dramatically slow down population creation.");
     }
     for (int i=0; i < population_size; i++) {
-      threads[i] = std::thread(telem_plan, generator, &population[i], &thread_manager);
+      threads[i] = std::thread(thread_create_plan, generator, &population[i], &thread_manager);
     }
     for (int i=0; i < population_size; i++) {
       threads[i].join();
     }
   } else {
     // Population size 1 is really only used for debugging
-    telem_plan(generator, &population_coords[0], &population_times[0], &thread_manager, route);
+    population[0] = generator->create_plan();
     population[0].print_plan();
   }
   auto end = std::chrono::high_resolution_clock::now();
@@ -907,7 +906,7 @@ void V2Optimizer::simulate_population() {
   threads.resize(population_size);
   if (population_size > 1) {
     for (int i=0; i < population_size; i++) {
-      threads[i] = std::thread(thread_run_sim, simulator, route, result_luts[i], &population_coords[i], &population_times[i], &thread_manager);
+      threads[i] = std::thread(thread_run_sim, simulator, route, result_luts[i], &population[i], &thread_manager);
     }
     for (int i=0; i < population_size; i++) {
       threads[i].join();

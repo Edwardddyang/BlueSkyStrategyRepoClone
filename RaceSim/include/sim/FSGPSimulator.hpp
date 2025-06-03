@@ -45,5 +45,5 @@ class FSGPSimulator : public WSCSimulator {
   //              std::shared_ptr<ResultsLut> result_lut) override;
 
   std::vector<double> FSGPSimulator::run_sim(const std::shared_ptr<Route>& route, std::vector<Coord>, std::vector<Time>,
-            std::shared_ptr<ResultsLut> result_lut);
+            std::shared_ptr<ResultsLut> results_lut);
 };
