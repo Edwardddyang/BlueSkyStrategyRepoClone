@@ -41,6 +41,9 @@ class FSGPSimulator : public WSCSimulator {
   * @param race_plan: The race plan to use
   * @param result_lut: ResultsLut object for writing simulation result
   */
-  void run_sim(const std::shared_ptr<Route>& route, RacePlan* race_plan,
-               std::shared_ptr<ResultsLut> result_lut) override;
+  // void run_sim(const std::shared_ptr<Route>& route, RacePlan* race_plan,
+  //              std::shared_ptr<ResultsLut> result_lut) override;
+
+  std::vector<double> run_sim(const std::shared_ptr<Route>& route, std::vector<Coord>, std::vector<Time>,
+            std::shared_ptr<ResultsLut> result_lut);
 };
