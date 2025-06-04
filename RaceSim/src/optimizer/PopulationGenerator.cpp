@@ -1084,8 +1084,7 @@ bool RacePlanCreator::create_segments(size_t corner_idx,
     normal_straight = true;
   }
 
-  // Create a normal straight: Pick a corner speed, accelerate/decelerate to the corner speed
-  // in one shot and maintain it
+  // Create a normal straight: Pick a corner speed, accelerate/decelerate the entire straight distance
   if (normal_straight) {
     if (is_first_segment) {
       logger("Taking straight between starting line and " +
@@ -1163,47 +1162,25 @@ bool RacePlanCreator::create_segments(size_t corner_idx,
         sampled_speeds.insert(proposed_corner_speed);
         // Need to accelerate to the current corner
         // Parameters to search for
-        double acceleration_distance;
+        double acceleration_distance = straight_distance;
         double acceleration_ending_speed = proposed_corner_speed;
-        double proposed_acceleration;
-        size_t acceleration_end_idx;
+        double proposed_acceleration = calc_acceleration(last_real_corner_speed, proposed_corner_speed, straight_distance);
+        size_t acceleration_end_idx = corner_start;
 
         logger("Selected corner speed is " + std::to_string(proposed_corner_speed) +
               " m/s which is greater than the last corner speed of " +
               std::to_string(last_real_corner_speed) + "m/s");
+        logger("The required acceleration is " + std::to_string(proposed_acceleration) + "m/s^2");
 
-        if (min_acceleration * car_mass * proposed_corner_speed > acceleration_power_allowance) {
+        if (proposed_acceleration * car_mass * proposed_corner_speed > acceleration_power_allowance) {
           logger("Selected corner speed requires an acceleration that is too high for the motor");
           continue;
         }
 
-        // Find the range of accelerations that can support the corner speed i.e. does not exceed
-        // maximum acceleration distance and does not violate motor power constraints
-        double lower_bound_acceleration = std::max(0.1, calc_acceleration(last_real_corner_speed,
-                                                                          proposed_corner_speed,
-                                                                          max_acceleration_distance));
-        double upper_bound_acceleration = lower_bound_acceleration - 0.1;
-        if (lower_bound_acceleration * car_mass * proposed_corner_speed >= acceleration_power_allowance) {
-          logger("Corner speed is too high for the power of the motor");
+        if (proposed_acceleration > max_acceleration) {
+          logger("Selected corner speed requires an acceleration that exceeds the maximum acceleration");
           continue;
         }
-
-        // Find the maximum acceleration that allows the car to reach the corner speed without
-        // violating motor constraints
-        do {
-          // First iteration is guaranteed to be successful
-          upper_bound_acceleration = upper_bound_acceleration + 0.1;
-          instataneous_motor_power = proposed_corner_speed * upper_bound_acceleration * car_mass;
-        } while (instataneous_motor_power < acceleration_power_allowance);
-
-        upper_bound_acceleration = upper_bound_acceleration - 0.1;
-        acceleration_dist = std::uniform_real_distribution<double>(lower_bound_acceleration,
-                                                                    upper_bound_acceleration);
-
-        proposed_acceleration = acceleration_dist(rng->acceleration_rng);
-        acceleration_distance = calc_distance_a(last_real_corner_speed,
-                                                proposed_corner_speed,
-                                                proposed_acceleration);
 
         // See if the car can reach the speed range of the next corner
         if (!can_reach_speeds(proposed_corner_speed, acceleration_power_allowance, max_acceleration,
@@ -1211,13 +1188,6 @@ bool RacePlanCreator::create_segments(size_t corner_idx,
                               car_mass)) {
           logger("This corner speed does not allow the car to reach the next corner's range of speeds");
           continue;
-        }
-
-        // Find the route index such that [last_real_corner_end, route index] is greater than the acceleration
-        // distance
-        acceleration_end_idx = last_real_corner_end;
-        while (route_distances.get_value(last_real_corner_end, acceleration_end_idx) < acceleration_distance) {
-          acceleration_end_idx = acceleration_end_idx == num_points - 1 ? 0 : acceleration_end_idx + 1;
         }
 
         logger("Proposed corner speed is valid. Required acceleration is " +
@@ -1261,19 +1231,18 @@ bool RacePlanCreator::create_segments(size_t corner_idx,
           }
         }
         sampled_speeds.insert(proposed_corner_speed);
+
         // Parameters to search for
-        size_t deceleration_end_idx;
-        double deceleration_distance;
-        double proposed_deceleration;
+        size_t deceleration_end_idx = corner_start;
+        double deceleration_distance = straight_distance;
+        double proposed_deceleration = calc_acceleration(last_real_corner_speed, proposed_corner_speed, straight_distance);
 
         logger("Selected corner speed is " + std::to_string(proposed_corner_speed) + "m/s which is less than "
               "the last corner speed of " + std::to_string(last_real_corner_speed) + "m/s");
-        // Chosen corner speed is less than the previous corner speed, need to decelerate
-        // First check if this corner speed is possible to reach with the preferred deceleration
-        double min_deceleration = calc_acceleration(last_real_corner_speed, proposed_corner_speed,
-                                                    max_acceleration_distance);
-        if (min_deceleration < max_deceleration) {
-          logger("Deceleration required to achieve the corner speed is too high. Trying again");
+        logger("Required deceleration is " + std::to_string(proposed_deceleration) + "m/s^2");
+
+        if (proposed_deceleration < max_deceleration) {
+          logger("Selected corner speed requires deceleration that is greater than the maximum deceleration");
           continue;
         }
 
@@ -1287,19 +1256,6 @@ bool RacePlanCreator::create_segments(size_t corner_idx,
                   "acceleration or preferred deceleration");
           continue;
         }
-
-        deceleration_end_idx = last_real_corner_end;
-        acceleration_dist = std::uniform_real_distribution<double>(max_deceleration, min_deceleration);
-        logger("Created deceleration distribution with lower bound " + std::to_string(max_deceleration) +
-                " and upper bound " + std::to_string(min_deceleration));
-        proposed_deceleration = acceleration_dist(rng->acceleration_rng);
-        deceleration_distance = calc_distance_a(last_real_corner_speed,
-                                                proposed_corner_speed,
-                                                proposed_deceleration);
-        while (route_distances.get_value(last_real_corner_end, deceleration_end_idx) < deceleration_distance) {
-          deceleration_end_idx++;
-        }
-        logger("Deceleration distance is " + std::to_string(deceleration_distance) + "m");
 
         logger("Proposed corner speed is valid");
         // Add the deceleration

@@ -66,16 +66,25 @@ RacePlan V2Optimizer::optimize() {
     // crossover_population();
 
     // Mutate the remaining parents
-    mutate_population();
+    // mutate_population();
   }
 
   // Process results
   RacePlan best_race_plan = population[0];
+  ResultsLut best_race_plan_result = *result_luts[0];
   size_t best_average_speed = mps2kph(best_race_plan.get_average_speed());
-  best_race_plan.print_plan();
-  ResultsLut best_race_result;
-  std::cout << "Best Race Plan Average Speed: " << mps2kph(best_race_plan.get_average_speed()) << "kph" << std::endl;
-  std::cout << "Best Race Plan Number of Loops: " << best_race_plan.get_num_loops() << std::endl;
+  if (save_csv) {
+    best_race_plan_result.write_logs((results_folder / "Acceleration.csv").string());
+  }
+
+  if (best_race_plan.is_viable()) {
+    best_race_plan.print_plan();
+    ResultsLut best_race_result;
+    std::cout << "Best Race Plan Average Speed: " << mps2kph(best_race_plan.get_average_speed()) << "kph" << std::endl;
+    std::cout << "Best Race Plan Number of Loops: " << best_race_plan.get_num_loops() << std::endl;
+  } else {
+    std::cout << "No plan is viable" << std::endl;
+  }
 
   return best_race_plan;
 }
@@ -961,6 +970,9 @@ void V2Optimizer::evaluate_population() {
       population[i].set_score(mps2kph(population[i].get_average_speed()));
     } else {
       population[i].set_score(mps2kph(population[i].get_num_loops()));
+    }
+    if (!population[i].is_viable()) {
+      population[i].set_score(-1.0);
     }
   }
 }
