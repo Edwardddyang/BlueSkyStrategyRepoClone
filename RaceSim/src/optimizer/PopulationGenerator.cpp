@@ -540,8 +540,6 @@ bool RacePlanCreator::create_segments(size_t corner_idx,
 
   // Probability distributions used to randomly select locations, speeds
   // and accelerations. Note that they are inclusive on both sides
-  // TODO(Ethan): These should probably not be uniform distributions but at the very least,
-  // gaussian
   std::uniform_int_distribution<size_t> idx_dist;
   std::normal_distribution<double> speed_dist;
   std::uniform_real_distribution<double> acceleration_dist(0.1, max_acceleration);

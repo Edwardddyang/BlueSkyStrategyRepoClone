@@ -355,51 +355,73 @@ std::string RacePlan::get_loop_string(std::vector<SegmentData> loop_segments) {
   const size_t num_loops = loop_segments.size();
   std::ostringstream output;
 
-  auto print_spaces = [&](size_t num_spaces) {
-    for (size_t i = 0; i < num_spaces; i++) {
-      output << " ";
+  auto print_char_n_times = [&](char ch, int n) {
+    for (int i = 0; i < n; ++i) {
+      output << ch;
     }
   };
 
+  // Lambda function to truncate number to fit a string of n chars.
+  // If number has no. chars < n, it does nothing
+  auto truncate_number = [](double number, int n) -> std::string {
+    std::ostringstream oss;
+
+    // Determine the precision based on initial length estimates
+    if (number >= 10) {
+      oss << std::fixed << std::setprecision(1) << number;
+    } else {
+      oss << std::fixed << std::setprecision(2) << number;
+    }
+
+    std::string result = oss.str();
+
+    // Only truncate if the result is longer than n characters
+    if (result.length() > n) {
+      result = result.substr(0, n);
+
+      if (result.back() == '.') {
+        result.pop_back();
+      }
+    }
+
+    return result;
+  };
+
   auto print_header = [&]() {
-    output << "+-----------+---------------+-----------------------+----------------\n";
-    output << "; Segments  ; Speeds (m/s)  ; Acceleration (m/s^2)  ; Distances (m) ;\n";
-    output << "+-----------+---------------+-----------------------+----------------\n";
+    output << "+-----------+---------------+-----------------------+---------------+---------\n";
+    output << "; Segments  ; Speeds (m/s)  ; Acceleration (m/s^2)  ; Distances (m) ; Corner ;\n";
+    output << "+-----------+---------------+-----------------------+---------------+---------\n";
   };
 
   print_header();
 
   const size_t num_segments = loop_segments.size();
   for (size_t seg_idx = 0; seg_idx < num_segments; seg_idx++) {
+    // Segment indices
     output << "| [" << std::setw(3) << loop_segments[seg_idx].start_idx << ","
             << std::setw(3) << loop_segments[seg_idx].end_idx << "] |";
-    print_spaces(5);
-    output << "[" << std::setw(3) << loop_segments[seg_idx].start_speed << ","
-                  << std::setw(3) << loop_segments[seg_idx].end_speed << "] |";
-    print_spaces(18);
-    // Truncate the acceleration
-    std::ostringstream oss;
-    oss << loop_segments[seg_idx].acceleration_value;
-    std::string num_str = oss.str();
-    if (num_str.size() > 5) {
-      num_str = num_str.substr(0, 5);
-    }
-    output << std::setw(5) << num_str;
+
+    // Segment speeds
+    print_char_n_times(' ', 1);
+    output << "[" << std::setw(5) << truncate_number(loop_segments[seg_idx].start_speed, 5) << ","
+                  << std::setw(5) << truncate_number(loop_segments[seg_idx].end_speed, 5) << "] |";
+
+    // Segment acceleration
+    print_char_n_times(' ', 18);
+    output << std::setw(5) << truncate_number(loop_segments[seg_idx].acceleration_value, 5);
     output << "|";
 
     // Truncate the distance
-    print_spaces(10);
-    std::ostringstream dss;
-    dss << loop_segments[seg_idx].distance;
-    std::string dist_str = dss.str();
-    if (dist_str.size() > 5) {
-      dist_str = dist_str.substr(0, 5);
-    }
-    output << std::setw(5) << dist_str;
+    print_char_n_times(' ', 10);
+    output << std::setw(5) << truncate_number(loop_segments[seg_idx].distance, 5);
     output << "|";
-    output << "\n";
+
+    // Has Corner
+    print_char_n_times(' ', 2);
+    output << (loop_segments[seg_idx].includes_corner ? "True  |\n" : "False |\n");
   }
-  output << "---------------------------------------------------------------------\n";
+  print_char_n_times('-', 78);
+  output << "\n";
 
   return output.str();
 }
