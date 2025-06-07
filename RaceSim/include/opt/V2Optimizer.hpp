@@ -37,6 +37,12 @@ class V2Optimizer : public Optimizer {
   double mutation_num;
   unsigned int gen_seed;
 
+  // Log optimization
+  bool log_optimization;
+
+  // Mutation logger
+  FileLogger mutation_logger;
+
   // These parameters are required for mutating RacePlans and crossing over parents
   const double max_motor_power;
   const double acceleration_power_budget;

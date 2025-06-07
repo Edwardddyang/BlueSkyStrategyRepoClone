@@ -36,9 +36,11 @@ TEST_F(SimTest, Test1) {
 
   /* Create simulator */
   std::shared_ptr<Simulator> sim = std::make_shared<WSCSimulator>(car);
-
-  RacePlan race_plan({{{0, route->get_num_points() - 1}}}, {{{61.0, 61.0}}},
-                     {{false}}, {{0.0}}, {});
+  RacePlan::SegmentData single_segment(
+    0, route->get_num_points() - 1, 61.0, 61.0, 0.0,
+    calculate_segment_distance(route->get_route_points(), 0, route->get_num_points() - 1)
+  );
+  RacePlan race_plan({{single_segment}});
   std::shared_ptr<ResultsLut> test_result = std::make_shared<ResultsLut>();
 
   sim->run_sim(route, &race_plan, test_result);

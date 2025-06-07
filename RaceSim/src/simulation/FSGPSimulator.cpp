@@ -52,10 +52,7 @@ void FSGPSimulator::run_sim(const std::shared_ptr<Route>& route, RacePlan* race_
   const std::vector<Coord>& route_points = route->get_route_points();
 
   /* Get race plan data */
-  const std::vector<std::vector<std::pair<size_t, size_t>>> segments = race_plan->get_segments();
-  const std::vector<std::vector<std::pair<double, double>>> segment_speeds = race_plan->get_speed_profile();
-  const std::vector<std::vector<bool>> acceleration_segments = race_plan->get_acceleration_segments();
-  const std::vector<std::vector<double>> acceleration_values = race_plan->get_acceleration_values();
+  const std::vector<std::vector<RacePlan::SegmentData>> segments = race_plan->get_segments();
 
   /* Get starting position in the route */
   size_t starting_route_index = 0;
@@ -88,10 +85,7 @@ void FSGPSimulator::run_sim(const std::shared_ptr<Route>& route, RacePlan* race_
   const size_t num_loops = segments.size();
   for (size_t loop_idx = 0; loop_idx < num_loops; loop_idx++) {
     // Get plan for current loop
-    const std::vector<std::pair<size_t, size_t>>& loop_segments = segments[loop_idx];
-    const std::vector<std::pair<double, double>>& loop_segment_speeds = segment_speeds[loop_idx];
-    const std::vector<bool>& loop_segment_acceleration = acceleration_segments[loop_idx];
-    const std::vector<double>& loop_segment_acceleration_values = acceleration_values[loop_idx];
+    const std::vector<RacePlan::SegmentData> loop_segments = segments[loop_idx];
 
     // Get plan for current segment
     const size_t num_segments = loop_segments.size();
@@ -104,14 +98,14 @@ void FSGPSimulator::run_sim(const std::shared_ptr<Route>& route, RacePlan* race_
 
     for (size_t segment_idx = 0; segment_idx < num_segments; segment_idx++) {
       // Get segment information
-      const std::pair<size_t, size_t> current_segment = loop_segments[segment_idx];
-      const std::pair<double, double> segment_speeds = loop_segment_speeds[segment_idx];
-      const bool is_accelerating = loop_segment_acceleration[segment_idx];
-      const double acceleration = loop_segment_acceleration_values[segment_idx];
-      double curr_speed = segment_speeds.first;
-      const double ending_speed = segment_speeds.second;
-      const size_t starting_idx = current_segment.first;
-      const size_t ending_idx = current_segment.second;
+      RacePlan::SegmentData current_segment = loop_segments[segment_idx];
+      double curr_speed = current_segment.start_speed;
+      const double ending_speed = current_segment.end_speed;
+      const size_t starting_idx = current_segment.start_idx;
+      const size_t ending_idx = current_segment.end_idx;
+      const bool is_accelerating = current_segment.acceleration_value != 0.0;
+      const double acceleration = current_segment.acceleration_value;
+
       // If accelerating, then we travel from segment start to end in one shot
       size_t num_segment_points;
       if (is_accelerating) {
@@ -217,10 +211,10 @@ void FSGPSimulator::run_sim(const std::shared_ptr<Route>& route, RacePlan* race_
           if (is_accelerating) {
             // When accelerating, we complete the segment in one shot from start_idx to end_idx
             acceleration_distance = calc_distance_a(curr_speed, ending_speed, acceleration);
-            constant_distance = route_distances.get_value(current_segment.first, current_segment.second)
+            constant_distance = route_distances.get_value(current_segment.start_idx, current_segment.end_idx)
                                 - acceleration_distance;
-            car_update = car->compute_travel_update(route_points[current_segment.first],
-                                                    route_points[current_segment.second],
+            car_update = car->compute_travel_update(route_points[current_segment.start_idx],
+                                                    route_points[current_segment.end_idx],
                                                     curr_speed, ending_speed, acceleration,
                                                     &curr_time, wind, irr, acceleration_distance,
                                                     constant_distance);
@@ -261,7 +255,7 @@ void FSGPSimulator::run_sim(const std::shared_ptr<Route>& route, RacePlan* race_
                                   next_coord, curr_speed, curr_time, acceleration);
         } else {
           results_lut->update_logs(car_update, battery_energy, delta_energy, accumulated_distance,
-                                  route_points[current_segment.second], curr_speed, curr_time, acceleration);
+                                  route_points[current_segment.end_idx], curr_speed, curr_time, acceleration);
         }
 
         /* Invalid simulation if battery goes below 0 or if the end of the race has been reached */

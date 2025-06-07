@@ -76,41 +76,13 @@ class RacePlanCreator {
     }
   };
 
-  // Hold information for a single segment
-  struct SegmentData {
-    std::pair<size_t, size_t> segment;
-    std::pair<double, double> segment_speed;
-    bool acceleration;
-    double acceleration_value;
-    double segment_distance;
-
-    SegmentData(
-      std::pair<size_t, size_t> segment = {0.0, 0.0},
-      std::pair<double, double> segment_speed = {0.0, 0.0},
-      bool acceleration = false,
-      double acceleration_value = 0.0,
-      double segment_distance = 0.0) : segment(segment),
-        segment_speed(segment_speed),
-        acceleration(acceleration),
-        acceleration_value(acceleration_value),
-        segment_distance(segment_distance) {}
-  };
-
   // Holds the intermediate loop data when creating a race plan
   struct LoopData {
-    std::vector<std::pair<size_t, size_t>> loop_segments;
-    std::vector<std::pair<double, double>> loop_segment_speeds;
-    std::vector<bool> loop_acceleration_segments;
-    std::vector<double> loop_acceleration_values;
-    std::vector<double> loop_segment_distances;
+    std::vector<RacePlan::SegmentData> segments;
     uint64_t segment_counter;
 
     void clear() {
-      loop_segments.clear();
-      loop_segment_speeds.clear();
-      loop_acceleration_segments.clear();
-      loop_acceleration_values.clear();
-      loop_segment_distances.clear();
+      segments.clear();
       segment_counter = 0;
     }
 
@@ -122,24 +94,17 @@ class RacePlanCreator {
     void delete_range(size_t start_idx, size_t end_idx);
 
     // Insert a segment at some index
-    void insert_segment(size_t idx, SegmentData seg_data);
+    void insert_segment(size_t idx, RacePlan::SegmentData seg_data);
 
-    void add_segment(SegmentData* seg_data, PlanHistory* history);
+    void add_segment(RacePlan::SegmentData* seg_data,
+                     PlanHistory* history = nullptr);
 
-    // Slice the loop segments and return a new LoopData object
+    // Modify the loop segments in place by slicing from start_idx to loop_idx inclusive
     void slice_loop(size_t start_idx, size_t end_idx);
 
     LoopData(
-      std::vector<std::pair<size_t, size_t>> loop_segments = {},
-      std::vector<std::pair<double, double>> loop_segment_speeds = {},
-      std::vector<bool> loop_acceleration_segments = {},
-      std::vector<double> loop_acceleration_values = {},
-      std::vector<double> loop_segment_distances = {},
-      uint64_t segment_counter = 0) : loop_segments(loop_segments),
-        loop_segment_speeds(loop_segment_speeds),
-        loop_acceleration_segments(loop_acceleration_segments),
-        loop_acceleration_values(loop_acceleration_values),
-        loop_segment_distances(loop_segment_distances),
+      std::vector<RacePlan::SegmentData> segments = {},
+      uint64_t segment_counter = 0) : segments(segments),
         segment_counter(segment_counter) {}
   };
 
@@ -148,41 +113,18 @@ class RacePlanCreator {
     // Data holders for each loop before processing when constructing a loop block. For each loop
     // block, we create one loop and modify the beginning or ending segments in order to glue the
     // loops of the block together. These vectors hold the uniquely created loop for each block
-    std::vector<std::vector<std::pair<size_t, size_t>>> raw_loop_segments;
-    std::vector<std::vector<std::pair<double, double>>> raw_loop_speeds;
-    std::vector<std::vector<bool>> raw_acceleration_segments;
-    std::vector<std::vector<double>> raw_acceleration_values;
-    std::vector<std::vector<double>> raw_loop_distances;
+    std::vector<std::vector<RacePlan::SegmentData>> raw_segments;
 
     // RacePlan attributes
-    std::vector<std::vector<std::pair<size_t, size_t>>> all_segments;
-    std::vector<std::vector<std::pair<double, double>>> all_segment_speeds;
-    std::vector<std::vector<bool>> all_acceleration_segments;
-    std::vector<std::vector<double>> all_acceleration_values;
-    std::vector<std::vector<double>> all_segment_distances;
+    std::vector<std::vector<RacePlan::SegmentData>> all_segments;
 
     void add_loop(const LoopData& loop_data, size_t start_idx, size_t end_idx);
 
     PlanAttributes(
-      std::vector<std::vector<std::pair<size_t, size_t>>> raw_loop_segments = {},
-      std::vector<std::vector<std::pair<double, double>>> raw_loop_speeds = {},
-      std::vector<std::vector<bool>> raw_acceleration_segments = {},
-      std::vector<std::vector<double>> raw_acceleration_values = {},
-      std::vector<std::vector<double>> raw_loop_distances = {},
-      std::vector<std::vector<std::pair<size_t, size_t>>> all_segments = {},
-      std::vector<std::vector<std::pair<double, double>>> all_segment_speeds = {},
-      std::vector<std::vector<bool>> all_acceleration_segments = {},
-      std::vector<std::vector<double>> all_acceleration_values = {},
-      std::vector<std::vector<double>> all_segment_distances = {}) : raw_loop_segments(raw_loop_segments),
-        raw_loop_speeds(raw_loop_speeds),
-        raw_acceleration_segments(raw_acceleration_segments),
-        raw_acceleration_values(raw_acceleration_values),
-        raw_loop_distances(raw_loop_distances),
-        all_segments(all_segments),
-        all_segment_speeds(all_segment_speeds),
-        all_acceleration_segments(all_acceleration_segments),
-        all_acceleration_values(all_acceleration_values),
-        all_segment_distances(all_segment_distances) {}
+      std::vector<std::vector<RacePlan::SegmentData>> raw_loop_segments = {},
+      std::vector<std::vector<RacePlan::SegmentData>> all_segments = {}) :
+        raw_segments(raw_loop_segments),
+        all_segments(all_segments) {}
   };
 
   /** Initialize all parameters */
