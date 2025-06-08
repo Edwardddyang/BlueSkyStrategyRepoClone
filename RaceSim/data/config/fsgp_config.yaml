@@ -2,7 +2,7 @@
 /Version: "FSGP_2025"
 /Car: # Car characterizationss
   max_soc: 10.0 # kwh
-  max_car_speed: 104 # kph
+  max_car_speed: 100 # kph
   max_acceleration: 2.0 # m/s^2
   max_deceleration: -2.0 # m/s^2
   tire_pressure: 5.5 # bar
@@ -76,13 +76,13 @@
 
   log_optimization: true # Log optimization process e.g. race plan creation, mutation, crossover. Should really only be used
                          # for population_size = 1
-  fix_seeds: false # Fix seeds for route segmentation. If true, use the seeds below
-  loop_seed: 364391665
-  speed_seed: 965808177
-  aggressive_seed: 2839611779
-  acceleration_seed: 3921686004
-  idx_seed: 3282848159
-  skip_seed: 221545619
+  fix_seeds: true # Fix seeds for route segmentation. If true, use the seeds below
+  loop_seed: 698622046
+  speed_seed: 3768552939
+  aggressive_seed: 1447428516
+  acceleration_seed: 121195915
+  idx_seed: 2577208919
+  skip_seed: 4202181234
   ####### Genetic Algorithm Parameters #######
   num_generations: 1  # Number of iterations
   population_size: 1 # Number of race plans to maintain the in population

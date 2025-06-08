@@ -148,7 +148,7 @@ RacePlan RacePlanCreator::create_plan() {
   size_t block_idx = 0;
 
   // Create intermediate data storage
-  LoopData loop_data;
+  Loop loop_data;
   PlanAttributes att;
   PlanHistory history;
 
@@ -189,8 +189,8 @@ RacePlan RacePlanCreator::create_plan() {
     const size_t num_loops_in_block = std::min(static_cast<size_t>(num_repetitions), num_loops - loop_idx);
     logger("Creating loop block " + std::to_string(block_idx) + " with " +
            std::to_string(num_loops_in_block) + " loops");
-    create_loop_block(&loop_data, &att, &route_distances, &history, logger,
-                      num_loops_in_block, block_idx == num_blocks - 1, block_idx == 0);
+    create_loop_block(&loop_data, &route_distances, num_loops_in_block, block_idx == num_blocks - 1,
+                      block_idx == 0,  &att, &history, &logger);
     loop_data.clear();
     loop_idx = loop_idx + num_loops_in_block;
     block_idx = block_idx + 1;
@@ -199,7 +199,7 @@ RacePlan RacePlanCreator::create_plan() {
   return RacePlan(att.all_segments, att.raw_segments, num_repetitions);
 }
 
-void RacePlanCreator::LoopData::add_segment(RacePlan::SegmentData* seg_data,
+void RacePlanCreator::Loop::add_segment(RacePlan::SegmentData* seg_data,
                                             PlanHistory* history) {
   segments.emplace_back(*seg_data);
   if (history) {
@@ -207,31 +207,33 @@ void RacePlanCreator::LoopData::add_segment(RacePlan::SegmentData* seg_data,
   }
 }
 
-void RacePlanCreator::LoopData::slice_loop(size_t start_idx, size_t end_idx) {
+void RacePlanCreator::Loop::slice_loop(size_t start_idx, size_t end_idx) {
   RUNTIME_EXCEPTION(start_idx <= end_idx, "Start index of slice must be <= the end index");
   RUNTIME_EXCEPTION(end_idx < segments.size(), "Slicing indices are out of bounds");
-  segments = std::vector<RacePlan::SegmentData>(segments.begin() + start_idx,
+  segments = RacePlan::LoopData(segments.begin() + start_idx,
                                                  segments.begin() + end_idx + 1);
 }
 
-void RacePlanCreator::LoopData::delete_range(size_t start_idx, size_t end_idx) {
+void RacePlanCreator::Loop::delete_range(size_t start_idx, size_t end_idx) {
   RUNTIME_EXCEPTION(start_idx <= end_idx, "Start index must be <= end index");
   RUNTIME_EXCEPTION(segments.size() > end_idx, "End idx is out of range");
   segments.erase(segments.begin() + start_idx, segments.begin() + end_idx + 1);
 }
 
-void RacePlanCreator::LoopData::insert_segment(size_t idx, RacePlan::SegmentData seg_data) {
-  RUNTIME_EXCEPTION(idx > segments.size(), "Cannot insert outside of range");
+void RacePlanCreator::Loop::insert_segment(size_t idx, RacePlan::SegmentData seg_data) {
+  RUNTIME_EXCEPTION(idx < segments.size(), "Cannot insert outside of range");
   segments.insert(segments.begin() + idx, seg_data);
 }
 
-size_t RacePlanCreator::rollback_to_last_real_corner(size_t corner_idx, PlanHistory* history, LoopData* loop_data,
+size_t RacePlanCreator::rollback_to_last_real_corner(size_t corner_idx, PlanHistory* history, Loop* loop_data,
                                                      PlanAttributes* att, FileLogger& logger) {  // NOLINT
   RUNTIME_EXCEPTION(history != nullptr && loop_data != nullptr && att != nullptr,
                     "Loop data, attributes and history storage cannot be null");
-  logger("Segments could NOT be created. Rolling back to the last real corner");
-  size_t last_real_corner_idx = history->real_corner_indices.top();
+  const size_t last_real_corner_idx = history->real_corner_indices.top();
+  logger("Segments could NOT be created. Rolling back to the last real corner idx " + std::to_string(last_real_corner_idx));
+  const size_t last_real_corner_ending_idx = (this->route->get_cornering_segment_bounds())[last_real_corner_idx].second;
   logger("Re-creating segments for corner " + std::to_string(last_real_corner_idx));
+  // while (loop_data->)
 
   const size_t curr_loop_num_segments = loop_data->segments.size();
   const size_t num_segments_of_last_corner = static_cast<size_t>(history->num_segments_added.top());
@@ -283,34 +285,34 @@ size_t RacePlanCreator::rollback_to_last_real_corner(size_t corner_idx, PlanHist
   return last_real_corner_idx;
 }
 
-void RacePlanCreator::PlanAttributes::add_loop(const LoopData& loop_data,
+void RacePlanCreator::PlanAttributes::add_loop(const Loop& loop_data,
                                                size_t start_idx, size_t end_idx) {
   RUNTIME_EXCEPTION(start_idx <= end_idx, "End index must be greater than Start index");
   RUNTIME_EXCEPTION(end_idx <= loop_data.segments.size(), "Ending index must be less than or equal to the "
                                                           "loop segments vector");
   // Store results for this loop
-  std::vector<RacePlan::SegmentData> segments_slice(loop_data.segments.begin() + start_idx,
+  RacePlan::LoopData segments_slice(loop_data.segments.begin() + start_idx,
                                                     loop_data.segments.begin() + end_idx);
   all_segments.push_back(segments_slice);
 }
 
-void RacePlanCreator::create_loop_block(LoopData* loop_data,
-                                        PlanAttributes* att,
-                                        BasicLut* route_distances,
-                                        PlanHistory* history,
-                                        FileLogger& logger,  // NOLINT
+void RacePlanCreator::create_loop_block(Loop* loop_data,
+                                        const BasicLut* route_distances,
                                         int num_loops_in_block,
                                         bool is_last_block,
-                                        bool is_first_block) {
+                                        bool is_first_block,
+                                        PlanAttributes* att,
+                                        PlanHistory* history,
+                                        FileLogger* logger) {
   RUNTIME_EXCEPTION(loop_data != nullptr, "Intermediate loop data is null");
   RUNTIME_EXCEPTION(att != nullptr, "Race Plan attributes struct is null");
   RUNTIME_EXCEPTION(route_distances != nullptr, "Route distances LUT must be computed");
 
-  logger("\n////CREATED LOOP////");
-  logger(RacePlan::get_loop_string(loop_data->segments));
+  (*logger)("\n////CREATED LOOP////");
+  (*logger)(RacePlan::get_loop_string(loop_data->segments));
 
   // --------------- Create the first loop of the block ---------------
-  logger("Creating loop 1");
+  (*logger)("Creating loop 1");
   // For loops in a block greater than the first one, they will begin with segments that travel from
   // the last corner of the route to the first corner. Add these segments to the last loop of the previous block.
   // For example, the beginning of a typical loop past the first block looks something like this:
@@ -331,13 +333,13 @@ void RacePlanCreator::create_loop_block(LoopData* loop_data,
   // to the end of the original segment
 
   // For the very first block, these segments will not exist, since we're starting at index 0
-  history->num_added_wrap_around_segments.push(0);
+  if (history) history->num_added_wrap_around_segments.push(0);
   while (!is_first_block && loop_data->segments[0].end_idx != 0 &&
         loop_data->segments[0].start_idx < loop_data->segments[0].end_idx) {
     att->all_segments.back().push_back(loop_data->segments[0]);
-    history->num_added_wrap_around_segments.top() += 1;
+    if (history) history->num_added_wrap_around_segments.top() += 1;
 
-    logger("Moving segment [" + std::to_string(loop_data->segments[0].start_idx) + "," +
+    (*logger)("Moving segment [" + std::to_string(loop_data->segments[0].start_idx) + "," +
            std::to_string(loop_data->segments[0].end_idx) + "] to the previous loop");
 
     // Remove the first element of loop vectors - this is why we don't have to keep track of an index variable
@@ -378,7 +380,7 @@ void RacePlanCreator::create_loop_block(LoopData* loop_data,
   // We want to cut off at index 0, meaning we remove the [19,54] segment and break the crossover segment
   // into two sub-segments as in the above
   // Record the wrap around segments which needed to be added to the beginning of the loop later
-  std::vector<RacePlan::SegmentData> wrap_around_segments;
+  RacePlan::LoopData wrap_around_segments;
   while (num_repetitions > 1 && loop_data->segments.back().end_idx > loop_data->segments.back().start_idx &&
         loop_data->segments.back().end_idx != 0) {
     wrap_around_segments.insert(wrap_around_segments.begin(), loop_data->segments.back());
@@ -417,8 +419,8 @@ void RacePlanCreator::create_loop_block(LoopData* loop_data,
   }
   // Add the first loop
   if (num_loops_in_block > 1) {
-    logger("Loop 1 Modified:");
-    logger(RacePlan::get_loop_string(loop_data->segments));
+    (*logger)("Loop 1 Modified:");
+    (*logger)(RacePlan::get_loop_string(loop_data->segments));
     att->add_loop(*loop_data, 0, loop_data->segments.size());
   }
   // --------------------------------------------------------------------
@@ -426,7 +428,7 @@ void RacePlanCreator::create_loop_block(LoopData* loop_data,
   // --------------- Create the loops after the first one ---------------
   // This is only applicable if the number of loops in a block is greater than 1
   if (num_loops_in_block > 1) {
-    logger("Modifying loop construct for the second... loop in the block");
+    (*logger)("Modifying loop construct for the second... loop in the block");
     // Refer to figure A, we first want to delete the segments that extend up to and including
     // the first corner as they will be replaced by the wrap-around segment
     while (loop_data->segments[0].end_idx <= cornering_segment_bounds[0].second) {
@@ -441,8 +443,8 @@ void RacePlanCreator::create_loop_block(LoopData* loop_data,
     for (size_t i=1; i < num_loops_in_block - 1; i++) {
       att->add_loop(*loop_data, 0, loop_data->segments.size());
     }
-    logger("LOOP X MODIFIED");
-    logger(RacePlan::get_loop_string(loop_data->segments));
+    (*logger)("LOOP X MODIFIED");
+    (*logger)(RacePlan::get_loop_string(loop_data->segments));
   }
 
   // --------------------------------------------------------------------
@@ -456,10 +458,10 @@ void RacePlanCreator::create_loop_block(LoopData* loop_data,
   }
   if (is_last_block) {
     // Remove all the segments past the last corner and create a constant segment until index 0
-    logger("Last corner ending idx " + std::to_string(last_corner_ending_idx));
-    logger("Loop segments size: " + std::to_string(loop_data->segments.size()));
+    (*logger)("Last corner ending idx " + std::to_string(last_corner_ending_idx));
+    (*logger)("Loop segments size: " + std::to_string(loop_data->segments.size()));
     const size_t num_segments_to_remove = loop_data->segments.size() - last_corner_ending_idx;
-    logger("Num segments to remove: " + std::to_string(num_segments_to_remove));
+    (*logger)("Num segments to remove: " + std::to_string(num_segments_to_remove));
     loop_data->segments.erase(loop_data->segments.end() - num_segments_to_remove, loop_data->segments.end());
 
     const size_t corner_end_idx = loop_data->segments.back().end_idx;
@@ -471,16 +473,18 @@ void RacePlanCreator::create_loop_block(LoopData* loop_data,
     loop_data->add_segment(&seg_data, history);
     att->add_loop(*loop_data, 0, loop_data->segments.size());
   } else {
-    logger("Last corner ending index: " + std::to_string(last_corner_ending_idx));
+    (*logger)("Last corner ending index: " + std::to_string(last_corner_ending_idx));
     // If this is the last loop of the block, then we stop at the end of the last corner
     // since we want the next loop to decide how to travel from the last corner to the first
     att->add_loop(*loop_data, 0, last_corner_ending_idx + 1);
   }
+  (*logger)("LOOP LAST MODIFIED");
+  (*logger)(RacePlan::get_loop_string(loop_data->segments));
   return;
 }
 
 bool RacePlanCreator::create_segments(size_t corner_idx,
-                                      LoopData* loop_data,
+                                      Loop* loop_data,
                                       bool is_first_segment,
                                       Gen* rng,
                                       PlanHistory* history,
@@ -1105,8 +1109,13 @@ bool RacePlanCreator::create_segments(size_t corner_idx,
         // Maintain same corner speed
         logger("Proposed corner speed is the same as the current speed of the car. Adding one segment");
         seg_data = RacePlan::SegmentData(
-          last_real_corner_end, corner_end, proposed_corner_speed, proposed_corner_speed,
-          0.0, route_distances.get_value(last_real_corner_end, corner_end), true
+          last_real_corner_end, corner_start, proposed_corner_speed, proposed_corner_speed, 0.0,
+          route_distances.get_value(last_real_corner_end, corner_start), false
+        );
+        loop_data->add_segment(&seg_data, history);
+        seg_data = RacePlan::SegmentData(
+          corner_start, corner_end, proposed_corner_speed, proposed_corner_speed,
+          0.0, route_distances.get_value(corner_start, corner_end), true
         );
         loop_data->add_segment(&seg_data, history);
 

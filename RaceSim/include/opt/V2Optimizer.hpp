@@ -36,6 +36,7 @@ class V2Optimizer : public Optimizer {
   double crossover_num;
   double mutation_num;
   unsigned int gen_seed;
+  const int num_loops_in_block;
 
   // Log optimization
   bool log_optimization;
@@ -45,9 +46,11 @@ class V2Optimizer : public Optimizer {
 
   // These parameters are required for mutating RacePlans and crossing over parents
   const double max_motor_power;
-  const double acceleration_power_budget;
+  const double car_mass;  // kg
+  const double acceleration_power_budget;  // Units of Watts, must be < max_motor_power
   const double max_acceleration;
   const double max_deceleration;
+  BasicLut route_distances;
 
   // Thread management
   ThreadManager thread_manager;
@@ -89,7 +92,25 @@ class V2Optimizer : public Optimizer {
   };
 
   /** @brief Perform constant speed mutation by replacing a deceleration segment with constant speed */
-  void constant_for_deceleration(RacePlan* plan, RacePlanCreator::Gen* gen);
+  RacePlan constant_for_deceleration(RacePlan* plan, RacePlanCreator::Gen* gen);
+
+  /** @brief Attempt to legalize a loop starting from some segment. Modification will be done in place
+   *
+   * @param loop Loop that was modified
+   * @param loop_idx Loop index to start examination
+   * @param seg_idx Segment index to start examination 
+   *
+   * Note: This assumes that there is some index/speed discontinuity e.g.
+   * Loop Indices: [0,5],[5,14],[16,26] -> Discontinuity going from segment 1 to segment 2
+   * Loop Speeds: [14,14],[14,15],[13,13] -> Discontinuity going from segment 1 to segment 2
+   * Discontinuities are rectified by attemping to propagate "truth" from replacement_idx
+   * 
+   * @return True if legalization was successful, false if unsuccessful
+  */
+  bool legalize_loop(RacePlan::PlanData& plan,
+                     size_t loop_idx,
+                     size_t seg_idx,
+                     FileLogger* logger = nullptr);
 
  public:
   V2Optimizer(std::shared_ptr<Simulator> simulator, std::shared_ptr<Route> route);

@@ -351,7 +351,7 @@ double Route::calc_segment_distance(const size_t starting_idx,
   return calculate_segment_distance(route_points, starting_idx, ending_idx);
 }
 
-std::string RacePlan::get_loop_string(std::vector<SegmentData> loop_segments) {
+std::string RacePlan::get_loop_string(LoopData loop_segments) {
   const size_t num_loops = loop_segments.size();
   std::ostringstream output;
 
@@ -388,15 +388,21 @@ std::string RacePlan::get_loop_string(std::vector<SegmentData> loop_segments) {
   };
 
   auto print_header = [&]() {
-    output << "+-----------+---------------+-----------------------+---------------+---------\n";
-    output << "; Segments  ; Speeds (m/s)  ; Acceleration (m/s^2)  ; Distances (m) ; Corner ;\n";
-    output << "+-----------+---------------+-----------------------+---------------+---------\n";
+    output << "+-------+-----------+---------------+-----------------------+---------------+---------\n";
+    output << ";  Idx  ; Segments  ; Speeds (m/s)  ; Acceleration (m/s^2)  ; Distances (m) ; Corner ;\n";
+    output << "+-------+-----------+---------------+-----------------------+---------------+---------\n";
   };
 
   print_header();
 
   const size_t num_segments = loop_segments.size();
   for (size_t seg_idx = 0; seg_idx < num_segments; seg_idx++) {
+    // Index (seg_idx)
+    output << "|";
+    print_char_n_times(' ', 1);
+    output << std::setw(3) << seg_idx;
+    print_char_n_times(' ', 3);
+
     // Segment indices
     output << "| [" << std::setw(3) << loop_segments[seg_idx].start_idx << ","
             << std::setw(3) << loop_segments[seg_idx].end_idx << "] |";
@@ -420,13 +426,13 @@ std::string RacePlan::get_loop_string(std::vector<SegmentData> loop_segments) {
     print_char_n_times(' ', 2);
     output << (loop_segments[seg_idx].includes_corner ? "True  |\n" : "False |\n");
   }
-  print_char_n_times('-', 78);
+  print_char_n_times('-', 86);
   output << "\n";
 
   return output.str();
 }
 
-std::string RacePlan::get_segment_string(RacePlan::SegmentData seg) {
+std::string RacePlan::get_segment_string(SegmentData seg) {
   std::stringstream ss;
   ss << "Segment: [" << seg.start_idx << "," << seg.end_idx << "]\n";
   ss << "Segment Distance: " << seg.distance << "m\n";
@@ -450,6 +456,17 @@ std::string RacePlan::get_plan_string() const {
   return ret;
 }
 
+std::string RacePlan::get_orig_plan_string() const {
+  const size_t num_blocks = orig_segments.size();
+  std::string ret = "";
+
+  for (size_t block_idx = 0; block_idx < num_blocks; block_idx++) {
+    ret += "\nBlock " + std::to_string(block_idx) + "\n";
+    ret += get_loop_string(orig_segments[block_idx]);
+  }
+  return ret;
+}
+
 bool RacePlan::validate_members(const std::vector<Coord>& route_points) const {
   RUNTIME_EXCEPTION(!empty, "RacePlan is empty");
   RUNTIME_EXCEPTION(segments.size() > 0, "No segments in Race Plan!");
@@ -459,7 +476,7 @@ bool RacePlan::validate_members(const std::vector<Coord>& route_points) const {
 
   double last_segment_start_speed, last_segment_end_speed;
   for (size_t loop_idx=0; loop_idx < num_loops; loop_idx++) {
-    const std::vector<SegmentData> loop_segments = segments[loop_idx];
+    const LoopData loop_segments = segments[loop_idx];
 
     const size_t num_segments = loop_segments.size();
     // Don't have this check in case we are starting at a different start point. More relevant to WSC than
@@ -523,10 +540,9 @@ bool RacePlan::validate_members(const std::vector<Coord>& route_points) const {
   return true;
 }
 
-RacePlan::RacePlan(std::vector<std::vector<SegmentData>> segments,
-                  std::vector<std::vector<SegmentData>> orig_segments,
-                  int num_repetitions) : segments(segments),
-                  orig_segments(orig_segments), num_repetitions(num_repetitions) {
+RacePlan::RacePlan(PlanData segments, PlanData orig_segments, int num_repetitions) :
+                   segments(segments), orig_segments(orig_segments),
+                   num_repetitions(num_repetitions) {
   this->num_loops = segments.size();
   RUNTIME_EXCEPTION(num_repetitions >= 1, "Number of repetitions per loop block must be at least 1");
   this->num_blocks = static_cast<int>(std::ceil(this->num_loops / this->num_repetitions));
@@ -537,33 +553,3 @@ RacePlan::RacePlan(std::vector<std::vector<SegmentData>> segments,
     empty = false;
   }
 }
-
-// RacePlan::RacePlan(std::vector<std::vector<std::pair<size_t, size_t>>> segments,
-//                    std::vector<std::vector<std::pair<double, double>>> segment_speeds,
-//                    std::vector<std::vector<bool>> acceleration_segments,
-//                    std::vector<std::vector<double>> acceleration,
-//                    std::vector<std::vector<double>> distances,
-//                    int num_repetitions,
-//                    std::vector<std::vector<std::pair<size_t, size_t>>> orig_loop_segments,
-//                    std::vector<std::vector<std::pair<double, double>>> orig_loop_speeds,
-//                    std::vector<std::vector<bool>> orig_loop_accelerations,
-//                    std::vector<std::vector<double>> orig_loop_acceleration_values,
-//                    std::vector<std::vector<double>> orig_loop_segment_distances) {
-//   this->num_loops = segments.size();
-//   RUNTIME_EXCEPTION(num_repetitions >= 1, "Number of repetitions per loop block must be at least 1");
-//   this->num_blocks = static_cast<int>(std::ceil(this->num_loops / this->num_repetitions));
-//   RUNTIME_EXCEPTION
-
-//   if (segments.size() == 0 && segment_speeds.size() == 0 &&
-//       this->acceleration_segments.size() == 0 && this->acceleration.size() == 0 &&
-//       this->distances.size() == 0) {
-//     empty = true;
-//   } else {
-//     empty = false;
-//   }
-
-//   int num_blocks{0};
-//   for (num_blocks=1; num_blocks<segments.size(); num_blocks++){
-//     if (segments[num_blocks]!=segments[num_blocks-1]) break;
-//   }
-// }

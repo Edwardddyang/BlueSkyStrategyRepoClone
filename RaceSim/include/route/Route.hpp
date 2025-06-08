@@ -58,28 +58,18 @@ class RacePlan {
     }
   };
 
-  RacePlan() : empty(true) {}
-  RacePlan(std::vector<std::vector<SegmentData>> segments,
-           std::vector<std::vector<SegmentData>> orig_segments = {},
-           int num_repetitions = 1);
+  using LoopData = std::vector<SegmentData>;
+  using PlanData = std::vector<LoopData>;
 
-  // RacePlan(std::vector<std::vector<std::pair<size_t, size_t>>> segments,
-  //          std::vector<std::vector<std::pair<double, double>>> segment_speeds,
-  //          std::vector<std::vector<bool>> acceleration_segments,
-  //          std::vector<std::vector<double>> acceleration,
-  //          std::vector<std::vector<double>> distances = {},
-  //          int num_repetitions = 1,
-  //          std::vector<std::vector<std::pair<size_t, size_t>>> orig_loop_segments = {},
-  //          std::vector<std::vector<std::pair<double, double>>> orig_loop_speeds = {},
-  //          std::vector<std::vector<bool>> orig_loop_accelerations = {},
-  //          std::vector<std::vector<double>> orig_loop_acceleration_values = {},
-  //          std::vector<std::vector<double>> orig_loop_segment_distances = {});
+  RacePlan() : empty(true) {}
+  RacePlan(PlanData segments, PlanData orig_segments = {}, int num_repetitions = 1);
+
   explicit RacePlan(std::string inviability_reason) : empty(true) {
     reason_for_inviability = inviability_reason; viable = false;
   }
 
-  inline std::vector<std::vector<SegmentData>> get_segments() const {return segments;}
-  inline std::vector<std::vector<SegmentData>> get_orig_segments() const {return orig_segments;}
+  inline PlanData get_segments() const {return segments;}
+  inline PlanData get_orig_segments() const {return orig_segments;}
   inline std::string get_inviability_reason() const {return reason_for_inviability;}
   inline double get_accumulated_distance() const {return accumulated_distance;}
   inline double get_driving_time() const {return driving_time;}
@@ -90,8 +80,8 @@ class RacePlan {
   inline bool is_viable() const {return viable;}
   inline bool is_empty() const {return empty;}
 
-  inline void set_segments(std::vector<std::vector<SegmentData>> new_segments) {segments = new_segments;}
-  inline void set_orig_segments(std::vector<std::vector<SegmentData>> new_segments) {orig_segments = new_segments;}
+  inline void set_segments(PlanData new_segments) {segments = new_segments;}
+  inline void set_orig_segments(PlanData new_segments) {orig_segments = new_segments;}
   inline void set_time_taken(time_t new_time_taken) {time_taken = new_time_taken;}
   inline void set_viability(bool viability) {viable = viability;}
   inline void set_num_loops(int loops) {num_loops = loops;}
@@ -111,9 +101,10 @@ class RacePlan {
   /** @brief Print the route plan to stdout */
   void print_plan() const;
   std::string get_plan_string() const;
+  std::string get_orig_plan_string() const;  // Same as above but with orig_segments
 
   /** @brief Get a single string displaying a race plan loop in a human readable way */
-  static std::string get_loop_string(std::vector<SegmentData> loop);
+  static std::string get_loop_string(LoopData loop);
 
   /** @brief Get a single string displaying a segment in a human readable way */
   static std::string get_segment_string(SegmentData seg);
@@ -138,10 +129,10 @@ class RacePlan {
   double score;
 
   /* Hold the entire race plan as a 2D matrix where each row is a single loop */
-  std::vector<std::vector<SegmentData>> segments;
+  PlanData segments;
 
   /* Same as above before any loop gluing occurred */
-  std::vector<std::vector<SegmentData>> orig_segments;
+  PlanData orig_segments;
 
   // Number of loops completed by the car i.e. segments.size()
   int num_loops;
@@ -267,7 +258,7 @@ class Route {
   inline double get_route_length() const {return route_length;}
   inline const BasicLut& get_precomputed_distances() {return route_distances;}
   inline const double get_max_route_speed() {return max_route_speed;}
-  inline const std::unordered_map<size_t, size_t> get_corner_end_map() const {
+  inline std::unordered_map<size_t, size_t> get_corner_end_map() const {
     return corner_end_to_corner_idx;
   }
   inline const std::unordered_map<size_t, size_t> get_corner_start_map() const {

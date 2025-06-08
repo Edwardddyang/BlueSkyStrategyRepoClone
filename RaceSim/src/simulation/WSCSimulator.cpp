@@ -46,7 +46,7 @@ void WSCSimulator::run_sim(const std::shared_ptr<Route>& route, RacePlan* race_p
   /* Get route and race plan data */
   const size_t num_points = route->get_num_points();
   const std::vector<Coord>& route_points = route->get_route_points();
-  const std::vector<RacePlan::SegmentData> segments = race_plan->get_segments()[0];
+  const RacePlan::LoopData segments = race_plan->get_segments()[0];
   const std::unordered_set<size_t> control_stops = route->get_control_stops();
 
   /* Get starting position in the route */

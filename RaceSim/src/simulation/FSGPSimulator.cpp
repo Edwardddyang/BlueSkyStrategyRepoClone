@@ -52,7 +52,7 @@ void FSGPSimulator::run_sim(const std::shared_ptr<Route>& route, RacePlan* race_
   const std::vector<Coord>& route_points = route->get_route_points();
 
   /* Get race plan data */
-  const std::vector<std::vector<RacePlan::SegmentData>> segments = race_plan->get_segments();
+  const RacePlan::PlanData segments = race_plan->get_segments();
 
   /* Get starting position in the route */
   size_t starting_route_index = 0;
@@ -85,7 +85,7 @@ void FSGPSimulator::run_sim(const std::shared_ptr<Route>& route, RacePlan* race_
   const size_t num_loops = segments.size();
   for (size_t loop_idx = 0; loop_idx < num_loops; loop_idx++) {
     // Get plan for current loop
-    const std::vector<RacePlan::SegmentData> loop_segments = segments[loop_idx];
+    const RacePlan::LoopData loop_segments = segments[loop_idx];
 
     // Get plan for current segment
     const size_t num_segments = loop_segments.size();

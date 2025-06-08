@@ -77,8 +77,8 @@ class RacePlanCreator {
   };
 
   // Holds the intermediate loop data when creating a race plan
-  struct LoopData {
-    std::vector<RacePlan::SegmentData> segments;
+  struct Loop {
+    RacePlan::LoopData segments;
     uint64_t segment_counter;
 
     void clear() {
@@ -102,8 +102,8 @@ class RacePlanCreator {
     // Modify the loop segments in place by slicing from start_idx to loop_idx inclusive
     void slice_loop(size_t start_idx, size_t end_idx);
 
-    LoopData(
-      std::vector<RacePlan::SegmentData> segments = {},
+    Loop(
+      RacePlan::LoopData segments = {},
       uint64_t segment_counter = 0) : segments(segments),
         segment_counter(segment_counter) {}
   };
@@ -113,16 +113,16 @@ class RacePlanCreator {
     // Data holders for each loop before processing when constructing a loop block. For each loop
     // block, we create one loop and modify the beginning or ending segments in order to glue the
     // loops of the block together. These vectors hold the uniquely created loop for each block
-    std::vector<std::vector<RacePlan::SegmentData>> raw_segments;
+    RacePlan::PlanData raw_segments;
 
     // RacePlan attributes
-    std::vector<std::vector<RacePlan::SegmentData>> all_segments;
+    RacePlan::PlanData all_segments;
 
-    void add_loop(const LoopData& loop_data, size_t start_idx, size_t end_idx);
+    void add_loop(const Loop& loop_data, size_t start_idx, size_t end_idx);
 
     PlanAttributes(
-      std::vector<std::vector<RacePlan::SegmentData>> raw_loop_segments = {},
-      std::vector<std::vector<RacePlan::SegmentData>> all_segments = {}) :
+      RacePlan::PlanData raw_loop_segments = {},
+      RacePlan::PlanData all_segments = {}) :
         raw_segments(raw_loop_segments),
         all_segments(all_segments) {}
   };
@@ -149,14 +149,14 @@ class RacePlanCreator {
    * @param is_last_block Whether the block to be created is the last block of the entire plan
    * @param is_first_block Whether the block to be created is the first block of the entire plan
   */
-  void create_loop_block(LoopData* loop_data,
-                         PlanAttributes* att,
-                         BasicLut* route_distances,
-                         PlanHistory* history,
-                         FileLogger& logger,  // NOLINT
+  void create_loop_block(Loop* loop_data,
+                         const BasicLut* route_distances,
                          int num_loops_in_block = 1,
                          bool is_last_block = false,
-                         bool is_first_block = false);
+                         bool is_first_block = false,
+                         PlanAttributes* att = nullptr,
+                         PlanHistory* history = nullptr,
+                         FileLogger* logger = nullptr);
 
   // Create only one rng at the beginning of create_plan and pass it to
   // create_segments each corner so that the state is constantly changed
@@ -181,7 +181,7 @@ class RacePlanCreator {
 
   /** @brief Helper to create_plan used to create segments for a single corner */
   bool create_segments(size_t corner_idx,
-                       LoopData* loop_data,
+                       Loop* loop_data,
                        bool is_first_segment,
                        Gen* rng,
                        PlanHistory* history,
@@ -190,7 +190,7 @@ class RacePlanCreator {
   /** @brief Helper to create_plan used for rolling back a corner after failed segment generation 
    * @return Index of last real corner to which we are rolling back
   */
-  size_t rollback_to_last_real_corner(size_t corner_idx, PlanHistory* history, LoopData* loop_data,
+  size_t rollback_to_last_real_corner(size_t corner_idx, PlanHistory* history, Loop* loop_data,
                                       PlanAttributes* att, FileLogger& logger);  // NOLINT
 
  private:

@@ -52,7 +52,11 @@ RacePlan V2Optimizer::optimize() {
   // Create initial population
   create_initial_population();
 
-  for (size_t i=0; i < num_generations; i++) {
+  for (size_t i=0; i < num_generations + 1; i++) {
+    if (population.size() == 1) {
+      population[0].print_plan();
+    }
+
     // Simulate race plans
     simulate_population();
 
@@ -62,6 +66,9 @@ RacePlan V2Optimizer::optimize() {
     // Sort in order of descending fitness scores
     std::sort(population.begin(), population.end(), comp_race_plan);
 
+    if (i == num_generations) {
+      break;
+    }
     // Crossover fittest parents
     // crossover_population();
 
@@ -70,7 +77,7 @@ RacePlan V2Optimizer::optimize() {
     mutation_logger("// Mutating population in generation " + std::to_string(i) + " //");
     mutation_logger("//////////////////////////////////////////\n");
 
-    // mutate_population();
+    mutate_population();
   }
 
   // Process results
@@ -961,7 +968,6 @@ void V2Optimizer::create_initial_population() {
   } else {
     // Population size 1 is really only used for debugging
     population[0] = generator->create_plan();
-    population[0].print_plan();
   }
   auto end = std::chrono::high_resolution_clock::now();
   auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
@@ -1012,7 +1018,11 @@ V2Optimizer::V2Optimizer(std::shared_ptr<Simulator> simulator, std::shared_ptr<R
       mutation_percentage(Config::get_instance()->get_mutation_percentage()),
       mutation_strategy(Config::get_instance()->get_mutation_strategy()),
       max_motor_power(kw2watts(Config::get_instance()->get_max_motor_power())),
-      acceleration_power_budget(Config::get_instance()->get_acceleration_power_budget()),
+      acceleration_power_budget(Config::get_instance()->get_acceleration_power_budget() *
+                                kw2watts(Config::get_instance()->get_max_motor_power())),
+      car_mass(Config::get_instance()->get_car_mass()),
       max_acceleration(Config::get_instance()->get_max_acceleration()),
       max_deceleration(Config::get_instance()->get_max_deceleration()),
-      log_optimization(Config::get_instance()->get_log_optimization()) {}
+      log_optimization(Config::get_instance()->get_log_optimization()),
+      route_distances(route->get_precomputed_distances()),
+      num_loops_in_block(Config::get_instance()->get_num_repetitions()) {}
