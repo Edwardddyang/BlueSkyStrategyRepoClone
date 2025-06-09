@@ -76,7 +76,7 @@
 
   log_optimization: true # Log optimization process e.g. race plan creation, mutation, crossover. Should really only be used
                          # for population_size = 1
-  fix_seeds: true # Fix seeds for route segmentation. If true, use the seeds below
+  fix_seeds: false # Fix seeds for route segmentation. If true, use the seeds below
   loop_seed: 698622046
   speed_seed: 3768552939
   aggressive_seed: 1447428516

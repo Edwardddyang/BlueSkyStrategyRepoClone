@@ -15,7 +15,8 @@ void V2Optimizer::mutate_plan(RacePlan* plan) {
 
 RacePlan V2Optimizer::constant_for_deceleration(RacePlan* plan, RacePlanCreator::Gen* rng) {
   // Get raw plan data
-  const RacePlan::PlanData raw_segments = plan->get_orig_segments();
+  const RacePlan::PlanData raw_plan = plan->get_orig_segments();
+  RacePlan::PlanData new_raw_plan = plan->get_orig_segments();
   const BasicLut route_distances = route->get_precomputed_distances();
   RacePlanCreator::PlanAttributes att;
   std::unordered_set<size_t> corner_start_indices = route->get_corner_start_indices();
@@ -24,12 +25,11 @@ RacePlan V2Optimizer::constant_for_deceleration(RacePlan* plan, RacePlanCreator:
   std::unordered_map<size_t, size_t> corner_start_map = route->get_corner_start_map();
   const size_t num_blocks = static_cast<int>(std::ceil(plan->get_num_loops() /
                               Config::get_instance()->get_num_repetitions()));
-  mutation_logger("Mutating the following plan: " + plan->get_orig_plan_string());
 
-  RUNTIME_EXCEPTION(num_blocks == raw_segments.size(), "raw_segments vector shoud "
+  RUNTIME_EXCEPTION(num_blocks == raw_plan.size(), "raw_segments vector shoud "
                     "have number of loops equal to the number of blocks {}", num_blocks);
   for (size_t block_idx=0; block_idx < num_blocks; block_idx++) {
-    RacePlan::LoopData loop_segments = raw_segments[block_idx];
+    RacePlan::LoopData& loop_segments = new_raw_plan[block_idx];
     mutation_logger("Mutating block " + std::to_string(block_idx) + ": ");
     mutation_logger(RacePlan::get_loop_string(loop_segments));
 
@@ -79,26 +79,26 @@ RacePlan V2Optimizer::constant_for_deceleration(RacePlan* plan, RacePlanCreator:
         // Replace the deceleration segment and corner segment with the new segment
         mutation_logger("Inserting the following segment at index " + std::to_string(seg_idx)
                         + "\n" + RacePlan::get_segment_string(straight_seg_data));
-        loop_segments[seg_idx] = straight_seg_data;
+        
+        new_raw_plan[block_idx][seg_idx] = straight_seg_data;
         mutation_logger("Inserting the following segment at index " + std::to_string(seg_idx + 1)
                         + "\n" + RacePlan::get_segment_string(corner_seg_data));
-        loop_segments[seg_idx + 1] = corner_seg_data;
+        new_raw_plan[block_idx][seg_idx + 1] = corner_seg_data;
 
-        // if (!legalize_loop(loop_segments, seg_idx+1, &mutation_logger)) {
-        //   mutation_logger("Loop legalization failed - restoring added segments");
-        //   loop_segments[seg_idx] = orig_straight_seg_data;
-        //   loop_segments[seg_idx + 1] = orig_corner_seg_data;
-        // }
+        if (!legalize_loop(new_raw_plan, block_idx, seg_idx+1, &mutation_logger)) {
+          mutation_logger("Loop legalization failed - restoring added segments\n");
+          new_raw_plan[block_idx][seg_idx] = orig_straight_seg_data;
+          new_raw_plan[block_idx][seg_idx + 1] = orig_corner_seg_data;
+        }
       } else {
         mutation_logger("Corner speed is greater than the desired new cruising speed. Skipping");
       }
     }
     mutation_logger("\nNew loop block " + std::to_string(block_idx));
     mutation_logger(RacePlan::get_loop_string(loop_segments));
-    RacePlanCreator::Loop new_loop(loop_segments);
-    att.raw_segments.push_back(loop_segments);
-    generator->create_loop_block(&new_loop, &route_distances, this->num_loops_in_block,
-      block_idx == num_blocks - 1, block_idx == 0, &att, nullptr, &mutation_logger
+    att.raw_segments.push_back(new_raw_plan[block_idx]);
+    generator->create_loop_block(&new_raw_plan[block_idx], &route_distances, this->num_loops_in_block,
+      block_idx == num_blocks - 1, block_idx == 0, &att, &mutation_logger
     );
   }
 
@@ -115,7 +115,7 @@ bool V2Optimizer::legalize_loop(RacePlan::PlanData& plan,
   RUNTIME_EXCEPTION(logger != nullptr, "Logger is null");
   RUNTIME_EXCEPTION(loop_idx < plan.size(), "Loop index exceeds no. loops in plan");
   RUNTIME_EXCEPTION(seg_idx < plan[loop_idx].size(), "Segment index exceeds no. segments in plan");
-  // Ending index of the last corner of the route
+  // Ending route index of the last corner of the route
   const size_t last_corner_ending_idx = this->route->get_cornering_segment_bounds().back().second;
   const RacePlan::PlanData saved_plan = plan;
 
@@ -127,14 +127,15 @@ bool V2Optimizer::legalize_loop(RacePlan::PlanData& plan,
     const size_t starting_seg_idx = l == loop_idx ? seg_idx : 0;
     RacePlan::LoopData& loop = plan[l];
 
-    for (size_t i=starting_seg_idx; i < num_segments; i++) {
+    for (size_t i=starting_seg_idx; i < num_segments - 1; i++) {
       // Continuity satisifed, return
       if (loop[i].end_idx == loop[i+1].start_idx &&
           loop[i].end_speed == loop[i+1].start_speed) {
-        (*logger)("Continuity satisifed from " + std::to_string(i));
+        (*logger)("Continuity satisifed from segment index " + std::to_string(i) + "\n");
         return true;
       }
 
+      // Discontinuity, replace i+1 segment
       RacePlan::SegmentData new_segment = loop[i+1];
       if (loop[i].end_idx != loop[i+1].start_idx) {
         // Index discontinuity
@@ -168,7 +169,9 @@ bool V2Optimizer::legalize_loop(RacePlan::PlanData& plan,
           return false;
         }
       }
-      loop[i+1] = new_segment;
+      plan[l][i+1] = new_segment;
+      (*logger)("Fixed discontinuity at index " + std::to_string(i+1) + "\n"
+                + RacePlan::get_segment_string(new_segment));
     }
   }
   return true;

@@ -41,27 +41,13 @@ class RacePlanCreator {
     std::stack<double> real_corner_speeds;
     // Real corner indices for which segments were created
     std::stack<size_t> real_corner_indices;
-    // Number of segments added for each real corner
-    std::stack<uint64_t> num_segments_added;
     // Speed of the first corner of a generated loop
     std::stack<uint64_t> first_corner_speeds;
-    // Number of segments added to the last loop of the previous loop block
-    // as a result of carrying over the wrap-around segments.
-    std::stack<uint64_t> num_added_wrap_around_segments;
-    // Counter to track the number of segments added for each real corner
-    uint64_t segment_counter;
-
-    void reset_segment_counter() {
-      segment_counter = 0;
-    }
 
     PlanHistory() {
       real_corner_speeds.push(0.0);
       real_corner_indices.push(0);
-      num_segments_added.push(0);
       first_corner_speeds.push(0);
-      num_added_wrap_around_segments.push(0);
-      segment_counter = 0;
     }
 
     PlanHistory(double real_corner_speed, size_t real_corner_idx,
@@ -69,43 +55,8 @@ class RacePlanCreator {
                 uint64_t num_added_segments = 0) {
       real_corner_speeds.push(real_corner_speed);
       real_corner_indices.push(real_corner_idx);
-      num_segments_added.push(num_segments);
       first_corner_speeds.push(first_speed);
-      num_added_wrap_around_segments.push(num_added_segments);
-      segment_counter = 0;
     }
-  };
-
-  // Holds the intermediate loop data when creating a race plan
-  struct Loop {
-    RacePlan::LoopData segments;
-    uint64_t segment_counter;
-
-    void clear() {
-      segments.clear();
-      segment_counter = 0;
-    }
-
-    void reset_segment_counter() {
-      segment_counter = 0;
-    }
-
-    // Delete indices from x to y (inclusive) from all vectors
-    void delete_range(size_t start_idx, size_t end_idx);
-
-    // Insert a segment at some index
-    void insert_segment(size_t idx, RacePlan::SegmentData seg_data);
-
-    void add_segment(RacePlan::SegmentData* seg_data,
-                     PlanHistory* history = nullptr);
-
-    // Modify the loop segments in place by slicing from start_idx to loop_idx inclusive
-    void slice_loop(size_t start_idx, size_t end_idx);
-
-    Loop(
-      RacePlan::LoopData segments = {},
-      uint64_t segment_counter = 0) : segments(segments),
-        segment_counter(segment_counter) {}
   };
 
   // Holds the RacePlan attributes that will be passed into the return object
@@ -118,7 +69,7 @@ class RacePlanCreator {
     // RacePlan attributes
     RacePlan::PlanData all_segments;
 
-    void add_loop(const Loop& loop_data, size_t start_idx, size_t end_idx);
+    void add_loop(const RacePlan::LoopData& loop_data, size_t start_idx, size_t end_idx);
 
     PlanAttributes(
       RacePlan::PlanData raw_loop_segments = {},
@@ -149,13 +100,12 @@ class RacePlanCreator {
    * @param is_last_block Whether the block to be created is the last block of the entire plan
    * @param is_first_block Whether the block to be created is the first block of the entire plan
   */
-  void create_loop_block(Loop* loop_data,
+  void create_loop_block(RacePlan::LoopData* loop_data,
                          const BasicLut* route_distances,
                          int num_loops_in_block = 1,
                          bool is_last_block = false,
                          bool is_first_block = false,
                          PlanAttributes* att = nullptr,
-                         PlanHistory* history = nullptr,
                          FileLogger* logger = nullptr);
 
   // Create only one rng at the beginning of create_plan and pass it to
@@ -181,7 +131,7 @@ class RacePlanCreator {
 
   /** @brief Helper to create_plan used to create segments for a single corner */
   bool create_segments(size_t corner_idx,
-                       Loop* loop_data,
+                       RacePlan::LoopData* loop_data,
                        bool is_first_segment,
                        Gen* rng,
                        PlanHistory* history,
@@ -190,7 +140,8 @@ class RacePlanCreator {
   /** @brief Helper to create_plan used for rolling back a corner after failed segment generation 
    * @return Index of last real corner to which we are rolling back
   */
-  size_t rollback_to_last_real_corner(size_t corner_idx, PlanHistory* history, Loop* loop_data,
+  size_t rollback_to_last_real_corner(size_t corner_idx, PlanHistory* history,
+                                      RacePlan::LoopData* loop_data,
                                       PlanAttributes* att, FileLogger& logger);  // NOLINT
 
  private:

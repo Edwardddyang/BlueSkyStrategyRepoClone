@@ -96,7 +96,7 @@ class V2Optimizer : public Optimizer {
 
   /** @brief Attempt to legalize a loop starting from some segment. Modification will be done in place
    *
-   * @param loop Loop that was modified
+   * @param plan The raw loop plan
    * @param loop_idx Loop index to start examination
    * @param seg_idx Segment index to start examination 
    *
@@ -104,7 +104,7 @@ class V2Optimizer : public Optimizer {
    * Loop Indices: [0,5],[5,14],[16,26] -> Discontinuity going from segment 1 to segment 2
    * Loop Speeds: [14,14],[14,15],[13,13] -> Discontinuity going from segment 1 to segment 2
    * Discontinuities are rectified by attemping to propagate "truth" from replacement_idx
-   * 
+   *
    * @return True if legalization was successful, false if unsuccessful
   */
   bool legalize_loop(RacePlan::PlanData& plan,
