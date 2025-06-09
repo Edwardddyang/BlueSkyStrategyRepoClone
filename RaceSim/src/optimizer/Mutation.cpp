@@ -104,7 +104,7 @@ RacePlan V2Optimizer::constant_for_deceleration(RacePlan* plan, RacePlanCreator:
 
   // Create new loop plan
   RacePlan new_plan(att.all_segments, att.raw_segments, this->num_loops_in_block);
-  return *plan;
+  // return *plan;
   return new_plan;
 }
 
@@ -116,7 +116,8 @@ bool V2Optimizer::legalize_loop(RacePlan::PlanData& plan,
   RUNTIME_EXCEPTION(loop_idx < plan.size(), "Loop index exceeds no. loops in plan");
   RUNTIME_EXCEPTION(seg_idx < plan[loop_idx].size(), "Segment index exceeds no. segments in plan");
   // Ending route index of the last corner of the route
-  const size_t last_corner_ending_idx = this->route->get_cornering_segment_bounds().back().second;
+  const size_t last_corner_end_idx = this->route->get_cornering_segment_bounds().back().second;
+  const size_t first_corner_end_idx = this->route->get_cornering_segment_bounds().front().second;
   const RacePlan::PlanData saved_plan = plan;
 
   (*logger)("Legalizing loop starting with index " + std::to_string(seg_idx));
@@ -127,12 +128,41 @@ bool V2Optimizer::legalize_loop(RacePlan::PlanData& plan,
     const size_t starting_seg_idx = l == loop_idx ? seg_idx : 0;
     RacePlan::LoopData& loop = plan[l];
 
+    // Speed of the first corner of the loop
+    double first_corner_speed = 0.0;
+    for (size_t i=0; i < num_segments; i++) {
+      if (loop[i].end_idx == first_corner_end_idx) {
+        RUNTIME_EXCEPTION(loop[i].start_speed == loop[i].end_speed, "Corner speed is not constant");
+        first_corner_speed = loop[i].start_speed;
+      }
+    }
+    RUNTIME_EXCEPTION(first_corner_speed > 0.0, "First corner not found");
+
+    bool encountered_first_crossover_segment = false;  // Connecting segments from last loop
+    bool encountered_second_crossover_segment = false;  // Wrap-around segments
     for (size_t i=starting_seg_idx; i < num_segments - 1; i++) {
-      // Continuity satisifed, return
-      if (loop[i].end_idx == loop[i+1].start_idx &&
+      if (loop[i].is_crossover_segment()) {
+        if (!encountered_first_crossover_segment) {
+          encountered_first_crossover_segment = true;
+        } else {
+          encountered_second_crossover_segment = true;
+        }
+      }
+
+      // Check continuity of indices and speeds. If continuous from current segment to the next,
+      // return success
+      if (loop[i].end_idx == last_corner_end_idx && plan.size() > l + 1) {
+        // For the last corner of the loop, check continuity with the connecting segment of the next loop
+        // if (loop[i].end_idx == plan[])
+                  plan = saved_plan;
+          return false;
+
+      } else {
+        if (loop[i].end_idx == loop[i+1].start_idx &&
           loop[i].end_speed == loop[i+1].start_speed) {
-        (*logger)("Continuity satisifed from segment index " + std::to_string(i) + "\n");
-        return true;
+          (*logger)("Continuity satisifed from segment index " + std::to_string(i) + "\n");
+          return true;
+        }
       }
 
       // Discontinuity, replace i+1 segment

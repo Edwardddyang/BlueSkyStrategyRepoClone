@@ -46,6 +46,16 @@ class RacePlan {
     double distance;
     // Whether the segment includes a corner of the route
     bool includes_corner;
+    // This field is used only for the "raw" loops
+
+    // A crossover segment is one that crosses the start line (route index 0)
+    // start_idx | end_idx
+    //          ...
+    //    568       578
+    //    578       6      -> crossover segment
+    bool is_crossover_segment() {
+      return end_idx < start_idx;
+    }
 
     SegmentData(size_t start_idx = 0, size_t end_idx = 0,
                 double start_speed = 0.0, double end_speed = 0.0,

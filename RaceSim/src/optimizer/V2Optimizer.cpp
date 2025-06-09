@@ -53,10 +53,6 @@ RacePlan V2Optimizer::optimize() {
   create_initial_population();
 
   for (size_t i=0; i < num_generations + 1; i++) {
-    if (population.size() == 1) {
-      population[0].print_plan();
-    }
-
     // Simulate race plans
     simulate_population();
 
@@ -65,6 +61,8 @@ RacePlan V2Optimizer::optimize() {
 
     // Sort in order of descending fitness scores
     std::sort(population.begin(), population.end(), comp_race_plan);
+
+    spdlog::info("Generation {} -> Best Plan Average Speed: {}", i, mps2kph(population[0].get_average_speed()));
 
     if (i == num_generations) {
       break;
@@ -89,7 +87,7 @@ RacePlan V2Optimizer::optimize() {
   }
 
   if (best_race_plan.is_viable()) {
-    best_race_plan.print_plan();
+    // best_race_plan.print_plan();
     ResultsLut best_race_result;
     std::cout << "Best Race Plan Average Speed: " << mps2kph(best_race_plan.get_average_speed()) << "kph" << std::endl;
     std::cout << "Best Race Plan Number of Loops: " << best_race_plan.get_num_loops() << std::endl;
