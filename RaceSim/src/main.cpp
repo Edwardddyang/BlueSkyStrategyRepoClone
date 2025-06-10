@@ -47,8 +47,17 @@ int main(int argc, char* argv[]) {
   std::shared_ptr<Optimizer> opt = OptimizerFactory::get_optimizer(Config::get_instance()->get_optimizer(),
                                                                    route, sim);
 
-  /* Run optimizer */
-  RacePlan viable_race_plan = opt->optimize();
+  /* Run optimizer based on run_type */
+  RacePlan viable_race_plan;
+  if (Config::get_instance()->get_run_type() == RunType::SimWithTelem) {
+    spdlog::info("Run type: sim_with_telem");
+    RUNTIME_EXCEPTION(Config::get_instance()->get_optimizer() == "fsgp", 
+                      "sim_with_telem mode requires optimizer to be of type 'fsgp'");
+    viable_race_plan = opt->optimize_telem();
+  } else {
+    spdlog::info("Run type: normal");
+    viable_race_plan = opt->optimize();
+  }
 
   /* Print the optimal speed profile */
 

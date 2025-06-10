@@ -36,4 +36,7 @@ class Optimizer {
       the segments of the race
   */
   virtual RacePlan optimize() = 0;
+  virtual RacePlan optimize_telem(){
+    throw std::runtime_error("optimize_telem() not implemented in this optimizer");
+  }
 };

@@ -35,35 +35,77 @@ void thread_create_plan(std::shared_ptr<RacePlanCreator> generator,
   *space = generator->create_plan();
   thread_manager->release();
 }
-void telem_plan(std::shared_ptr<RacePlanCreator> generator,
-                std::vector<Coord>* coords,
-                std::vector<Time>* times,
-                ThreadManager* thread_manager,
-                std::shared_ptr<Route> route) {
-    thread_manager->acquire();
-    auto plan = generator->create_plan();
+// void telem_plan(std::shared_ptr<RacePlanCreator> generator,
+//                 std::vector<Coord>* coords,
+//                 std::vector<Time>* times,
+//                 ThreadManager* thread_manager,
+//                 std::shared_ptr<Route> route) {
+//     thread_manager->acquire();
+//     auto plan = generator->create_plan();
 
-    // Extract segment indices from RacePlan
-    const auto& segments = plan.get_segments();
-    const auto& route_points = route->get_route_points();
+//     // Extract segment indices from RacePlan
+//     const auto& segments = plan.get_segments();
+//     const auto& route_points = route->get_route_points();
 
-    coords->clear();
-    for (const auto& loop : segments) {
-        for (const auto& seg : loop) {
-            for (size_t idx = seg.first; idx <= seg.second; ++idx) {
-                coords->push_back(route_points[idx]);
-            }
-        }
-    }
+//     coords->clear();
+//     for (const auto& loop : segments) {
+//         for (const auto& seg : loop) {
+//             for (size_t idx = seg.first; idx <= seg.second; ++idx) {
+//                 coords->push_back(route_points[idx]);
+//             }
+//         }
+//     }
 
-    // If you have a way to extract times, do it here. Otherwise, clear or fill as needed.
-    times->clear();
-    // Example: times->resize(coords->size());
+//     // If you have a way to extract times, do it here. Otherwise, clear or fill as needed.
+//     times->clear();
+//     // Example: times->resize(coords->size());
 
-    thread_manager->release();
+//     thread_manager->release();
+// }
+
+RacePlan V2Optimizer::optimize_telem() {
+  // Create results folder
+  bool save_csv = Config::get_instance()->get_save_csv();
+  std::filesystem::path results_folder;
+  if (save_csv) {
+    const std::string strat_root = Config::get_instance()->get_strat_root();
+    results_folder = std::filesystem::path(strat_root) / "Acceleration_Results";
+    std::filesystem::create_directory(results_folder);
+  }
+
+  spdlog::info("Using {} threads", num_threads);
+  init_params();
+
+  // Create initial population
+  create_initial_population();
+
+  for (size_t i=0; i < num_generations; i++) {
+    // Simulate race plans
+    simulate_population();
+
+    // Evaluate race plans and gather fitness scores
+    evaluate_population();
+
+    // Sort in order of descending fitness scores
+    std::sort(population.begin(), population.end(), comp_race_plan);
+
+    // Crossover fittest parents
+    // crossover_population();
+
+    // Mutate the remaining parents
+    mutate_population();
+  }
+
+  // Process results
+  RacePlan best_race_plan = population[0];
+  size_t best_average_speed = mps2kph(best_race_plan.get_average_speed());
+  best_race_plan.print_plan();
+  ResultsLut best_race_result;
+  std::cout << "Best Race Plan Average Speed: " << mps2kph(best_race_plan.get_average_speed()) << "kph" << std::endl;
+  std::cout << "Best Race Plan Number of Loops: " << best_race_plan.get_num_loops() << std::endl;
+
+  return best_race_plan;
 }
-
-
 
 RacePlan V2Optimizer::optimize() {
   // Create results folder
@@ -869,7 +911,7 @@ void V2Optimizer::create_initial_population() {
                     "This will dramatically slow down population creation.");
     }
     for (int i=0; i < population_size; i++) {
-      threads[i] = std::thread(telem_plan, generator, &population[i], &thread_manager);
+      threads[i] = std::thread(optimize_telem, generator, &population[i], &thread_manager);
     }
     for (int i=0; i < population_size; i++) {
       threads[i].join();
@@ -903,7 +945,7 @@ void V2Optimizer::simulate_population() {
   threads.resize(population_size);
   if (population_size > 1) {
     for (int i=0; i < population_size; i++) {
-      threads[i] = std::thread(telem_plan, simulator, route, result_luts[i], &population[i], &thread_manager);
+      threads[i] = std::thread(optimize_telem, simulator, route, result_luts[i], &population[i], &thread_manager);
     }
     for (int i=0; i < population_size; i++) {
       threads[i].join();

@@ -122,6 +122,11 @@
   PARAM(mutation_percentage, double, double, 50)                                            \
   PARAM(mutation_strategy, std::string, std::string, "PreferConstantSpeed")                 \
 
+enum class RunType {
+    Normal,
+    SimWithTelem
+};
+
 /* Class that holds all information from a .yaml file storing configuration parameters for
  * a race simulation
 */
@@ -146,6 +151,8 @@ class Config {
   static char* STRAT_ROOT;
 
   static const int MAX_RECURSION_DEPTH = 10;
+
+  RunType run_type = RunType::Normal; // Default value
 
   // Dummy variable to satisfy macro syntax
   int b;
@@ -184,6 +191,9 @@ class Config {
   #define PARAM(name, type, return_type, default_value) \
     inline return_type get_##name() {return name.get_value();}
 
+    inline RunType get_run_type() const {
+    return run_type;
+}
   CONFIG_PARAMETERS
   #undef PARAM
   static inline std::string get_strat_root() {return STRAT_ROOT;}

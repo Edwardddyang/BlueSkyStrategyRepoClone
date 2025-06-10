@@ -1,5 +1,8 @@
 # For Gen 11.5
 /Version: "FSGP_2025"
+
+run_type: sim_with_telem # Type of run to perform. Can be sim_with_telem, normal
+
 /Car: # Car characterizationss
   max_soc: 10.0 # kwh
   max_car_speed: 104 # kph
@@ -98,3 +101,5 @@
 \Simulation:
   simulator: FSGP # Type of simulator
   save_csv: true # Save simulation results to CSVs
+  
+
