@@ -230,7 +230,7 @@ void WSCSimulator::run_sim(const std::shared_ptr<Route>& route, RacePlan* race_p
     spdlog::debug("Battery Energy: {}", battery_energy);
 
     /* Update the logs */
-    results_lut->update_logs(update, battery_energy, delta_energy, accumulated_distance,
+    results_lut->update_logs(update, irr, battery_energy, delta_energy, accumulated_distance,
                              next_coord, curr_speed, curr_time, acceleration);
 
     /* Invalid simulation if battery goes below 0 or if the end of the race has been reached */

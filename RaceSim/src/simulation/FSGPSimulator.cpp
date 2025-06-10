@@ -102,7 +102,7 @@ void FSGPSimulator::run_sim(const std::shared_ptr<Route>& route, RacePlan* race_
 
     if (loop_idx == 0) {
       // Write starting condition of the car to the result csv
-      results_lut->update_logs(car_update, battery_energy, 0.0, 0.0,
+      results_lut->update_logs(car_update, Irradiance(0,0,0), battery_energy, 0.0, 0.0,
                                route_points[0], 0.0, curr_time, 0.0);
     }
 
@@ -160,11 +160,10 @@ void FSGPSimulator::run_sim(const std::shared_ptr<Route>& route, RacePlan* race_
         dhi_lut->update_index_cache(&dhi_cache, coord_one_forecast, curr_time.get_utc_time_point());
         double dhi = dhi_lut->get_value(dhi_cache);
 
-        std::cout << "GHI Cache" << std::endl;
         ghi_lut->update_index_cache(&ghi_cache, coord_one_forecast, curr_time.get_utc_time_point());
         double ghi = ghi_lut->get_value(ghi_cache);
 
-        std::cout << "Ghi: " << ghi << std::endl;
+        
 
 
         Wind wind = Wind(wind_dir, wind_speed);
@@ -273,10 +272,10 @@ void FSGPSimulator::run_sim(const std::shared_ptr<Route>& route, RacePlan* race_
 
         /* Update the logs */
         if (!is_accelerating) {
-          results_lut->update_logs(car_update, battery_energy, delta_energy, accumulated_distance,
+          results_lut->update_logs(car_update, irr, battery_energy, delta_energy, accumulated_distance,
                                   next_coord, curr_speed, curr_time, acceleration);
         } else {
-          results_lut->update_logs(car_update, battery_energy, delta_energy, accumulated_distance,
+          results_lut->update_logs(car_update, irr, battery_energy, delta_energy, accumulated_distance,
                                   route_points[current_segment.second], curr_speed, curr_time, acceleration);
         }
 

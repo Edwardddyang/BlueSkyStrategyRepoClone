@@ -364,8 +364,6 @@ void ForecastLut::update_index_cache(std::pair<size_t, size_t>* index_caches,
     // specified in the c/c++ standard (crazy)
     int64_t current_time = static_cast<int64_t>(forecast_times[column_cache]);
     int64_t next_time = static_cast<int64_t>(forecast_times[column_cache+1]);
-    std::cout << "Number of Columns: " << num_cols << ", Current Array Time: " << current_time
-              << ", Next Array Time: " << next_time << ", Current Actual Time: " << time << std::endl;
 
     uint64_t diff_time_from_current = abs(static_cast<double>(time - current_time));
     uint64_t diff_time_from_next = abs(static_cast<double>(time - next_time));
@@ -374,7 +372,6 @@ void ForecastLut::update_index_cache(std::pair<size_t, size_t>* index_caches,
   }
   index_caches->first = row_cache;
   index_caches->second = column_cache;
-  std::cout << "Row " << row_cache << " Col, " << column_cache << " Lut: " << lut_path.string().substr(30) <<std::endl;
 }
 
 void ForecastLut::update_index_cache(std::pair<size_t, size_t>* index_caches,
@@ -446,6 +443,10 @@ void ResultsLut::load_LUT() {
 
     std::getline(file_linestream, cell, ',');
     RUNTIME_EXCEPTION(isDouble(cell), "Value {} is not a number in Results csv {}", cell, lut_path.string());
+    ghi.emplace_back(std::stod(cell));
+
+    std::getline(file_linestream, cell, ',');
+    RUNTIME_EXCEPTION(isDouble(cell), "Value {} is not a number in Results csv {}", cell, lut_path.string());
     array_power.emplace_back(std::stod(cell));
 
     std::getline(file_linestream, cell, ',');
@@ -513,6 +514,7 @@ void ResultsLut::reset_logs() {
   longitude.clear();
   altitude.clear();
   speed.clear();
+  ghi.clear();
   array_energy.clear();
   array_power.clear();
   motor_power.clear();
@@ -544,6 +546,7 @@ void ResultsLut::write_logs(const std::string lut_path) const {
               << "Altitude(m),"
               << "Speed(m/s),"
               << "Acceleration(m/s^2),"
+              << "GHI(W/m^2),"
               << "Array Power(W),"
               << "Array Energy(kWh),"
               << "Motor Power(W),"
@@ -572,6 +575,7 @@ void ResultsLut::write_logs(const std::string lut_path) const {
       output_csv << std::to_string(altitude[i]) + ",";
       output_csv << std::to_string(speed[i]) + ",";
       output_csv << std::to_string(acceleration[i]) + ",";
+      output_csv << std::to_string(ghi[i]) + ",";
       output_csv << std::to_string(array_power[i]) + ",";
       output_csv << std::to_string(array_energy[i]) + ",";
       output_csv << std::to_string(motor_power[i]) + ",";
@@ -589,7 +593,7 @@ void ResultsLut::write_logs(const std::string lut_path) const {
   }
 }
 
-void ResultsLut::update_logs(const CarUpdate update, double battery, double d_energy,
+void ResultsLut::update_logs(const CarUpdate update, Irradiance irr, double battery, double d_energy,
                              double distance, Coord next_coord, double curr_speed, Time curr_time,
                              double accel) {
   battery_energy.push_back(battery);
@@ -597,6 +601,7 @@ void ResultsLut::update_logs(const CarUpdate update, double battery, double d_en
   accumulated_distance.push_back(distance);
   azimuth.push_back(update.az_el.Az);
   elevation.push_back(update.az_el.El);
+  ghi.push_back(irr.ghi);
   bearing.push_back(update.bearing);
   latitude.push_back(next_coord.lat);
   longitude.push_back(next_coord.lon);
