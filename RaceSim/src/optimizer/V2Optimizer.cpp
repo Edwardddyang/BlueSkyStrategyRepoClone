@@ -62,8 +62,8 @@ RacePlan V2Optimizer::optimize() {
     // Sort in order of descending fitness scores
     std::sort(population.begin(), population.end(), comp_race_plan);
 
-    spdlog::info("Generation {} -> Best Plan Average Speed: {}", i, mps2kph(population[0].get_average_speed()));
-
+    this->print_population_status(i);
+  
     if (i == num_generations) {
       break;
     }
@@ -975,7 +975,29 @@ void V2Optimizer::create_initial_population() {
   }
 }
 
+void V2Optimizer::print_population_status(int generation) {
+  if (generation > -1) {
+    std::cout << "#############################################" << std::endl;
+    std::cout << "########## Generation " << generation << " ####################" << std::endl;
+    std::cout << "#############################################" << std::endl;
+  }
+  std::cout << "Population Average Speed: " << mps2kph(population_average_speed) << "kph" << std::endl;
+  std::cout << "Number of Viable Plans: " << num_viable_plans << std::endl;
+  std::cout << "Best Race Plan Average Speed: " << mps2kph(population[0].get_average_speed()) << std::endl;
+  std::cout << "Best Loop Plans: " << population[0].get_num_loops() << std::endl;
+  if (Config::get_instance()->get_print_population()) {
+    int i = 0;
+    for (const auto& plan : population) {
+      std::cout << "Average Speed of " << i << ": " << mps2kph(plan.get_average_speed()) << std::endl;
+      i++;
+    }
+  }
+  std::cout << std::endl;
+}
+
 void V2Optimizer::evaluate_population() {
+  num_viable_plans = 0;
+  double total_speed = 0.0;
   for (int i=0; i < population_size; i++) {
     if (fix_num_loops) {
       population[i].set_score(mps2kph(population[i].get_average_speed()));
@@ -984,8 +1006,12 @@ void V2Optimizer::evaluate_population() {
     }
     if (!population[i].is_viable()) {
       population[i].set_score(-1.0);
+    } else {
+      num_viable_plans += 1;
+      total_speed += population[i].get_average_speed();
     }
   }
+  population_average_speed = total_speed / num_viable_plans;
 }
 
 void V2Optimizer::simulate_population() {

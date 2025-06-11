@@ -108,6 +108,7 @@
   PARAM(aggressive_straight_threshold, double, double, 200.0)                               \
   PARAM(num_repetitions, int, int, 5)                                                       \
   PARAM(log_optimization, bool, bool, false)                                                \
+  PARAM(print_population, bool, bool, false)                                                \
   PARAM(fix_seeds, bool, bool, false)                                                       \
   PARAM(loop_seed, unsigned int, unsigned int, 1)                                           \
   PARAM(speed_seed, unsigned int, unsigned int, 1)                                          \

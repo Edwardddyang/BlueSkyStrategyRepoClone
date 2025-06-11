@@ -104,7 +104,6 @@ RacePlan V2Optimizer::constant_for_deceleration(RacePlan* plan, RacePlanCreator:
 
   // Create new loop plan
   RacePlan new_plan(att.all_segments, att.raw_segments, this->num_loops_in_block);
-  // return *plan;
   return new_plan;
 }
 
@@ -126,6 +125,8 @@ bool V2Optimizer::legalize_loop(RacePlan::PlanData& plan,
   /** @brief Resolve either an index or speed discontinuity between segment i and i+1
    * @param loop The loop to modify
    * @param i "True" segment, i+1 will be modified
+   * @param starting_speed Optional parameter for the ending speed of segment i. Used when evaluating the first segment
+   * of the next loop
    * @return True if discontinuity resolution was successful, False otherwise
   */
   auto resolve_next_segment = [&](RacePlan::LoopData& loop, size_t i) -> bool {
@@ -198,28 +199,22 @@ bool V2Optimizer::legalize_loop(RacePlan::PlanData& plan,
   if (resolve_connection_segments) {
     RUNTIME_EXCEPTION(loop_idx + 1 < plan.size() && carry_over_speed != -1, "Invalid parameters to resolve next loop");
     RacePlan::LoopData& next_loop = plan[loop_idx + 1];
-    // Speed of the first corner of the loop
-    size_t first_corner_idx = 0;
-    for (size_t i=0; i < num_segments; i++) {
-      if (next_loop[i].end_idx == first_corner_end_idx) {
-        RUNTIME_EXCEPTION(next_loop[i].start_speed == next_loop[i].end_speed, "Corner speed is not constant");
-        first_corner_idx = i;
-        break;
-      }
-    }
-    for (size_t i = 0; i <= first_corner_idx; i++) {
-      bool continuous_with_next_segment = next_loop[i].end_idx == next_loop[i+1].start_idx &&
-                                          next_loop[i].end_speed == next_loop[i+1].start_speed;
-      if (continuous_with_next_segment) {
-        (*logger)("Legalization successful");
-        return true;
-      }
-      if (i == first_corner_idx) {
-        (*logger)("Could not resolve connection segments to next loop");
+
+    // Evaluate if the starting speed of the next loop can be modified
+    next_loop[0].start_speed = carry_over_speed;
+    next_loop[0].acceleration_value = calc_acceleration(next_loop[0].start_speed,
+                                                        next_loop[0].end_speed,
+                                                        next_loop[0].distance); 
+    // Check acceleration constraints
+    const double drawn_power = next_loop[0].acceleration_value * this->car_mass * next_loop[0].end_speed;
+    if (next_loop[0].acceleration_value > 0.0) {
+      if (drawn_power < this->acceleration_power_budget ||
+          next_loop[0].acceleration_value > this->max_acceleration) {
         plan = saved_plan;
         return false;
       }
-      if (!resolve_next_segment(next_loop, i)) {
+    } else if (next_loop[0].acceleration_value < 0.0) {
+      if (next_loop[0].acceleration_value < this->max_deceleration) {
         plan = saved_plan;
         return false;
       }

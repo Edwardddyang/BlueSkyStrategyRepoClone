@@ -154,6 +154,7 @@ class RacePlanCreator {
   BasicLut route_distances;
   double max_route_speed;
   size_t num_points;
+  Gen rng_collection;
 
   // Maximum number of loops to create
   int max_num_loops;

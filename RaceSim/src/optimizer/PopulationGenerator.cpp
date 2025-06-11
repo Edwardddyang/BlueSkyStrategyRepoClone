@@ -92,12 +92,12 @@ RacePlanCreator::RacePlanCreator(std::shared_ptr<Route> route,
 
   acceleration_power_allowance = acceleration_power_budget * max_motor_power;
   num_corners = cornering_segment_bounds.size();
+
+  // Create random number generators
+  rng_collection = Gen(speed_seed, loop_seed, aggressive_seed, idx_seed, acceleration_seed, skip_seed);
 }
 
 RacePlan RacePlanCreator::create_plan() {
-  // Create random number generators
-  Gen rng_collection(speed_seed, loop_seed, aggressive_seed, idx_seed, acceleration_seed, skip_seed);
-
   // Number of corners for which we need to create segments for
   const size_t num_corners_to_create = num_repetitions > 1 ? num_corners + 1 : num_corners;
 

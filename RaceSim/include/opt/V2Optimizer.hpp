@@ -38,6 +38,10 @@ class V2Optimizer : public Optimizer {
   unsigned int gen_seed;
   const int num_loops_in_block;
 
+  // Population status
+  double population_average_speed;
+  int num_viable_plans;
+
   // Log optimization
   bool log_optimization;
 
@@ -84,11 +88,18 @@ class V2Optimizer : public Optimizer {
   /** @brief Sample and mutate members of the population */
   void mutate_population();
 
+  /** @brief Print summary of population status
+   * @param generation Generation number. If provided, print banner
+   */
+  void print_population_status(int generation = -1);
+
   /** @brief Mutate a race plan according to some strategy chosen from configuration */
   void mutate_plan(RacePlan* plan);
 
-  enum MutationStrategy {
-    ConstantForDeceleration,
+  std::unordered_set<std::string> MUTATION_STRATEGIES = {
+    "ConstantForDeceleration",
+    "GaussianAddition",
+    "ConstantForAcceleration"
   };
 
   /** @brief Perform constant speed mutation by replacing a deceleration segment with constant speed */
