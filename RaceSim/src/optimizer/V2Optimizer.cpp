@@ -87,7 +87,7 @@ RacePlan V2Optimizer::optimize() {
   }
 
   if (best_race_plan.is_viable()) {
-    // best_race_plan.print_plan();
+    best_race_plan.print_plan();
     ResultsLut best_race_result;
     std::cout << "Best Race Plan Average Speed: " << mps2kph(best_race_plan.get_average_speed()) << "kph" << std::endl;
     std::cout << "Best Race Plan Number of Loops: " << best_race_plan.get_num_loops() << std::endl;
@@ -921,12 +921,6 @@ void V2Optimizer::init_params() {
   population.resize(population_size);
   result_luts.resize(population_size);
   threads.resize(population_size);
-}
-
-void V2Optimizer::create_initial_population() {
-  RUNTIME_EXCEPTION(population_size > 0, "Initial population size must be greater than 1");
-  RUNTIME_EXCEPTION(population.size() == population_size, "Population vector not resized");
-  RUNTIME_EXCEPTION(result_luts.size() == population_size, "Results lut vector not resized");
   // Create a random device to seed the random number generator
   std::random_device rd;
 
@@ -935,13 +929,12 @@ void V2Optimizer::create_initial_population() {
 
   // Define the range for the random numbers
   std::uniform_int_distribution<unsigned int> dis(0, std::numeric_limits<unsigned int>::max());
-
-  unsigned int idx_seed = dis(gen);
-  unsigned int speed_seed = dis(gen);
-  unsigned int acceleration_seed = dis(gen);
-  unsigned int aggressive_seed = dis(gen);
-  unsigned int loop_seed = dis(gen);
-  unsigned int skip_seed = dis(gen);
+  idx_seed = dis(gen);
+  speed_seed = dis(gen);
+  acceleration_seed = dis(gen);
+  aggressive_seed = dis(gen);
+  loop_seed = dis(gen);
+  skip_seed = dis(gen);
   if (Config::get_instance()->get_fix_seeds()) {
     idx_seed = Config::get_instance()->get_idx_seed();
     speed_seed = Config::get_instance()->get_speed_seed();
@@ -950,6 +943,16 @@ void V2Optimizer::create_initial_population() {
     loop_seed = Config::get_instance()->get_loop_seed();
     skip_seed = Config::get_instance()->get_skip_seed();
   }
+  rng_collection = RacePlanCreator::Gen(
+    speed_seed, loop_seed, aggressive_seed, idx_seed, acceleration_seed, skip_seed
+  );
+}
+
+void V2Optimizer::create_initial_population() {
+  RUNTIME_EXCEPTION(population_size > 0, "Initial population size must be greater than 1");
+  RUNTIME_EXCEPTION(population.size() == population_size, "Population vector not resized");
+  RUNTIME_EXCEPTION(result_luts.size() == population_size, "Results lut vector not resized");
+
   threads.clear();
   threads.resize(population_size);
   generator = std::make_shared<RacePlanCreator>(route, speed_seed, loop_seed, aggressive_seed,

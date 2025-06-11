@@ -4,25 +4,41 @@
 void V2Optimizer::mutate_plan(RacePlan* plan) {
   RUNTIME_EXCEPTION(plan != nullptr, "RacePlan object is null");
   RUNTIME_EXCEPTION(!plan->is_empty(), "RacePlan object to mutate cannot be empty");
-  RacePlanCreator::Gen rng_collection;
 
-  if (Config::get_instance()->get_mutation_strategy() == "ConstantForDeceleration") {
+  const std::string mutation_type = Config::get_instance()->get_mutation_strategy();
+  RUNTIME_EXCEPTION(MUTATION_STRATEGIES.find(mutation_type) != MUTATION_STRATEGIES.end(),
+                    "Unrecognized mutation strategy {}", mutation_type);
+
+  if (mutation_type == "ConstantForDeceleration") {
     *plan = constant_for_deceleration(plan, &rng_collection);
+  } else if (mutation_type == "GaussianNoise") {
+    *plan = gaussian_noise(plan, &rng_collection);
+  } else if (mutation_type == "ConstantForAcceleration") {
+    *plan = constant_for_acceleration(plan, &rng_collection);
   }
 
   return;
 }
 
+RacePlan V2Optimizer::gaussian_noise(RacePlan* plan, RacePlanCreator::Gen* rng) {
+  RUNTIME_EXCEPTION(rng != nullptr, "rng struct for gaussian noise is null");
+  return *plan;
+}
+
+RacePlan V2Optimizer::constant_for_acceleration(RacePlan* plan, RacePlanCreator::Gen* rng) {
+  RUNTIME_EXCEPTION(rng != nullptr, "rng struct for gaussian noise is null");
+  return *plan;
+}
+
 RacePlan V2Optimizer::constant_for_deceleration(RacePlan* plan, RacePlanCreator::Gen* rng) {
+  RUNTIME_EXCEPTION(rng != nullptr, "rng struct for constant_for_deceleration is null");
   // Get raw plan data
   const RacePlan::PlanData raw_plan = plan->get_orig_segments();
   RacePlan::PlanData new_raw_plan = plan->get_orig_segments();
   const BasicLut route_distances = route->get_precomputed_distances();
   RacePlanCreator::PlanAttributes att;
-  std::unordered_set<size_t> corner_start_indices = route->get_corner_start_indices();
   std::unordered_set<size_t> corner_end_indices = route->get_corner_end_indices();
   std::unordered_map<size_t, size_t> corner_end_map = route->get_corner_end_map();
-  std::unordered_map<size_t, size_t> corner_start_map = route->get_corner_start_map();
   const size_t num_blocks = static_cast<int>(std::ceil(plan->get_num_loops() /
                               Config::get_instance()->get_num_repetitions()));
 
@@ -57,8 +73,21 @@ RacePlan V2Optimizer::constant_for_deceleration(RacePlan* plan, RacePlanCreator:
       mutation_logger("Replacing straight leading to corner index " + std::to_string(corner_idx) +
                       ", Segment Index: " + std::to_string(seg_idx));
       const size_t corner_max_speed = route->get_cornering_speed_bounds()[corner_idx];
-      // Sample a probability to do this at all?
 
+      const double probability = 0.3;
+      // Pick a corner speed. If the current speed is already >= the target average speed of the course,
+      // then bias towards maintaining this constant speed rather than trying to accelerate
+      // bool maintain_speed = false;
+      // if (last_real_corner_speed >= target_average_speed && last_real_corner_speed < max_corner_speed) {
+      //   logger("Last corner speed is greater or equal to the target average speed. Sample chance to maintain"
+      //           " same corner speed.");
+      //   const double sample = skip_dist(rng->skip_rng);
+      //   if (sample < probability) {
+      //     proposed_corner_speed = last_real_corner_speed;
+      //     maintain_speed = true;
+      //     logger("Maintaining last corner speed of " + std::to_string(last_real_corner_speed) + "m/s");
+      //   }
+      // }
       // Check if the starting speed of the deceleration is less than the maximum corner speed.
       // If it is, then we can remove the deceleration and maintain the constant speed
       bool successful_mutation = false;
@@ -114,9 +143,7 @@ bool V2Optimizer::legalize_loop(RacePlan::PlanData& plan,
   RUNTIME_EXCEPTION(logger != nullptr, "Logger is null");
   RUNTIME_EXCEPTION(loop_idx < plan.size(), "Loop index exceeds no. loops in plan");
   RUNTIME_EXCEPTION(seg_idx < plan[loop_idx].size(), "Segment index exceeds no. segments in plan");
-  // Ending route index of the last corner of the route
-  const size_t last_corner_end_idx = this->route->get_cornering_segment_bounds().back().second;
-  const size_t first_corner_end_idx = this->route->get_cornering_segment_bounds().front().second;
+
   const RacePlan::PlanData saved_plan = plan;
 
   (*logger)("Legalizing loop starting with index " + std::to_string(seg_idx));
@@ -170,17 +197,59 @@ bool V2Optimizer::legalize_loop(RacePlan::PlanData& plan,
   double carry_over_speed = -1;
   RacePlan::LoopData& loop = plan[loop_idx];
   const size_t num_segments = plan[loop_idx].size();
+
+  int last_real_corner_end_idx;
+  const auto corner_end = this->route->get_corner_end_indices();
+  bool crossed_over = false;
+  for (size_t i=loop.size() - 1; i >= 0; i--) {
+    const size_t end_idx = loop[i].end_idx;
+    const size_t start_idx = loop[i].start_idx;
+    if (end_idx < start_idx) {
+      crossed_over = true;
+    }
+    if (crossed_over && corner_end.find(end_idx) != corner_end.end()) {
+      last_real_corner_end_idx = end_idx;
+      break;
+    }
+  }
+
+  int first_real_corner_end_idx = 0;
+  crossed_over = false;
+  for (size_t i=0; i < loop.size(); i++) {
+    const size_t end_idx = loop[i].end_idx;
+    const size_t start_idx = loop[i].start_idx;
+    if (end_idx < start_idx || (loop_idx == 0 && start_idx == 0)) {
+      crossed_over = true;
+    }
+    if (crossed_over && corner_end.find(end_idx) != corner_end.end()) {
+      first_real_corner_end_idx = end_idx;
+      break;
+    }
+  }
+  (*logger)("End of first real corner is: " + std::to_string(first_real_corner_end_idx));
+
+  // Do not attempt to modify the speed of the first segment
+  (*logger)("Plan end of thing " + std::to_string(plan[loop_idx][seg_idx].end_idx));
+  if (plan[loop_idx][seg_idx].end_idx == first_real_corner_end_idx) {
+    return false;
+  }
+
   for (size_t i=seg_idx; i < num_segments - 1; i++) {
     // Check continuity of indices and speeds. If continuous from current segment to the next,
     // return success
     bool continuous_with_next_segment = loop[i].end_idx == loop[i+1].start_idx &&
                                         loop[i].end_speed == loop[i+1].start_speed;
+    if (loop[i+1].end_idx == first_real_corner_end_idx) {
+      plan = saved_plan;
+      return false;
+    }
+
     if (i == num_segments - 2 && !continuous_with_next_segment && plan.size() - 1 > loop_idx) {
       (*logger)("Could not resolve wrap-around segment - giving up");
       plan = saved_plan;
       return false;
     }
-    if (loop[i].end_idx == last_corner_end_idx && plan.size() - 1 > loop_idx && !continuous_with_next_segment) {
+    if (loop[i].end_idx == last_real_corner_end_idx && plan.size() - 1 > loop_idx && !continuous_with_next_segment) {
       // For the last corner of the loop, need to check continuity with the connecting segment of the next loop
       // and with the wrap-around segments ONLY until the first corner
       resolve_connection_segments = true;

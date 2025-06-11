@@ -439,17 +439,25 @@ void RacePlanCreator::create_loop_block(RacePlan::LoopData* loop_data,
   // --------------------------------------------------------------------
 
   // --------------- Add the last loop of the block ---------------
-  size_t last_corner_ending_idx = 0;
-  for (; last_corner_ending_idx < loop_data->size(); last_corner_ending_idx++) {
-    if ((*loop_data)[last_corner_ending_idx].end_idx == cornering_segment_bounds.back().second) {
+  int last_real_corner_ending_idx = loop_data->size() - 1;  // A segment index
+  const auto corner_end = this->route->get_corner_end_indices();
+  bool crossed_over = false;
+  for (; last_real_corner_ending_idx >= 0; last_real_corner_ending_idx--) {
+    const size_t end_idx = (*loop_data)[last_real_corner_ending_idx].end_idx;
+    const size_t start_idx = (*loop_data)[last_real_corner_ending_idx].start_idx;
+    if (end_idx < start_idx) {
+      crossed_over = true;
+    }
+    if (crossed_over && corner_end.find(end_idx) != corner_end.end()) {
       break;
     }
   }
+  RUNTIME_EXCEPTION(last_real_corner_ending_idx >= 0, "Failed search for last real corner index");
   if (is_last_block) {
     // Remove all the segments past the last corner and create a constant segment until index 0
-    (*logger)("Last corner ending idx " + std::to_string(last_corner_ending_idx));
+    (*logger)("Last corner ending idx " + std::to_string(last_real_corner_ending_idx));
     (*logger)("Loop segments size: " + std::to_string(loop_data->size()));
-    const size_t num_segments_to_remove = loop_data->size() - last_corner_ending_idx;
+    const size_t num_segments_to_remove = loop_data->size() - last_real_corner_ending_idx;
     (*logger)("Num segments to remove: " + std::to_string(num_segments_to_remove));
     loop_data->erase(loop_data->end() - num_segments_to_remove, loop_data->end());
 
@@ -462,13 +470,14 @@ void RacePlanCreator::create_loop_block(RacePlan::LoopData* loop_data,
     loop_data->push_back(seg_data);
     att->add_loop(*loop_data, 0, loop_data->size());
   } else {
-    (*logger)("Last corner ending index: " + std::to_string(last_corner_ending_idx));
+
+    (*logger)("Last corner ending index: " + std::to_string(last_real_corner_ending_idx));
     // If this is the last loop of the block, then we stop at the end of the last corner
     // since we want the next loop to decide how to travel from the last corner to the first
-    att->add_loop(*loop_data, 0, last_corner_ending_idx + 1);
+    att->add_loop(*loop_data, 0, last_real_corner_ending_idx + 1);
   }
   (*logger)("LOOP LAST MODIFIED");
-  (*logger)(RacePlan::get_loop_string(*loop_data));
+  (*logger)(RacePlan::get_loop_string(att->all_segments.back()));
   return;
 }
 
@@ -940,19 +949,19 @@ bool RacePlanCreator::create_segments(size_t corner_idx,
       const double probability = 0.5;
       // Pick a corner speed. If the current speed is already >= the target average speed of the course,
       // then bias towards maintaining this constant speed rather than trying to accelerate
-      bool maintain_speed = false;
-      if (last_real_corner_speed >= target_average_speed && last_real_corner_speed < max_corner_speed) {
-        logger("Last corner speed is greater or equal to the target average speed. Sample chance to maintain"
-                " same corner speed.");
-        const double sample = skip_dist(rng->skip_rng);
-        if (sample < probability) {
-          proposed_corner_speed = last_real_corner_speed;
-          maintain_speed = true;
-          logger("Maintaining last corner speed of " + std::to_string(last_real_corner_speed) + "m/s");
-        }
-      }
+      // bool maintain_speed = false;
+      // if (last_real_corner_speed >= target_average_speed && last_real_corner_speed < max_corner_speed) {
+      //   logger("Last corner speed is greater or equal to the target average speed. Sample chance to maintain"
+      //           " same corner speed.");
+      //   const double sample = skip_dist(rng->skip_rng);
+      //   if (sample < probability) {
+      //     proposed_corner_speed = last_real_corner_speed;
+      //     maintain_speed = true;
+      //     logger("Maintaining last corner speed of " + std::to_string(last_real_corner_speed) + "m/s");
+      //   }
+      // }
 
-      if (corner_idx == num_corners && !maintain_speed) {
+      if (corner_idx == num_corners) {
         // Wrap-around corner
         proposed_corner_speed = history->first_corner_speeds.top();
         // If this isn't the first time that we tried reaching the corner speed, unsupport
@@ -961,7 +970,7 @@ bool RacePlanCreator::create_segments(size_t corner_idx,
           return false;
         }
         sampled_speeds.insert(proposed_corner_speed);
-      } else if (!maintain_speed) {
+      } else {
         proposed_corner_speed = bounded_gaussian<int>(speed_dist, rng->speed_rng, lower_bound_speed,
                                                       upper_bound_speed, logger);
         // If all speeds have been attempted, return false and rollback to the last corner

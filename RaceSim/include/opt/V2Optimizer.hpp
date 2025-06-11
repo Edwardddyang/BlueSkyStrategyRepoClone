@@ -10,10 +10,6 @@
 #include "sim/Simulator.hpp"
 #include "opt/PopulationGenerator.hpp"
 
-enum class MutationStrategy {
-  PreferConstantSpeed = 0
-};
-
 class V2Optimizer : public Optimizer {
  private:
   // Race plan population and their results
@@ -23,6 +19,14 @@ class V2Optimizer : public Optimizer {
 
   // Initial population generator
   std::shared_ptr<RacePlanCreator> generator;
+  // rng variables
+  unsigned int idx_seed;
+  unsigned int speed_seed;
+  unsigned int acceleration_seed;
+  unsigned int aggressive_seed;
+  unsigned int loop_seed;
+  unsigned int skip_seed;
+  RacePlanCreator::Gen rng_collection;
 
   // Genetic algorithm parameters
   const int population_size;
@@ -98,12 +102,17 @@ class V2Optimizer : public Optimizer {
 
   std::unordered_set<std::string> MUTATION_STRATEGIES = {
     "ConstantForDeceleration",
-    "GaussianAddition",
-    "ConstantForAcceleration"
+    "GaussianNoise",
+    "ConstantForAcceleration",
+    "ConstantForAggressive"
   };
 
   /** @brief Perform constant speed mutation by replacing a deceleration segment with constant speed */
-  RacePlan constant_for_deceleration(RacePlan* plan, RacePlanCreator::Gen* gen);
+  RacePlan constant_for_deceleration(RacePlan* plan, RacePlanCreator::Gen* rng);
+  /** @brief Perform constant speed mutation by replacing a deceleration segment with constant speed */
+  RacePlan constant_for_acceleration(RacePlan* plan, RacePlanCreator::Gen* rng);
+  /** @brief Perform constant speed mutation by replacing a deceleration segment with constant speed */
+  RacePlan gaussian_noise(RacePlan* plan, RacePlanCreator::Gen* rng);
 
   /** @brief Attempt to legalize a loop starting from some segment. Modification will be done in place
    *

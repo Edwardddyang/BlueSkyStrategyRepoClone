@@ -508,7 +508,8 @@ bool RacePlan::validate_members(const std::vector<Coord>& route_points) const {
                           "Segment start must be <= segment end in loop {} segment {}", loop_idx, i);
         RUNTIME_EXCEPTION(loop_segments[i].end_idx == loop_segments[i+1].start_idx,
                           "Segments must be continuous i.e. segment end = next segment start."
-                          " Invalid on segment {}, loop {}", i, loop_idx);
+                          " Invalid on segment {}, loop {}. Ending index = {}, Next Starting index = {}",
+                          i, loop_idx, loop_segments[i].end_idx, loop_segments[i+1].start_idx);
         RUNTIME_EXCEPTION(loop_segments[i].end_speed == loop_segments[i+1].start_speed,
                           "Ending speed of segment {} must equal starting speed of next segment in loop {}. {} {}", i,
                           loop_idx, loop_segments[i].end_speed, loop_segments[i+1].start_speed);
