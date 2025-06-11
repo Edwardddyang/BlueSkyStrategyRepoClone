@@ -13,6 +13,9 @@
 #include "utils/Luts.hpp"
 #include "config/ConfigParam.hpp"
 #include "utils/Defines.hpp"
+#include <fstream>
+#include <sstream>
+
 
 /* Define all config parameters
    PARAM(<parameter name as it appears exactly in the .yaml configuration file>,
@@ -154,6 +157,9 @@ class Config {
 
   RunType run_type = RunType::Normal; // Default value
 
+  std::vector<Coord> telem_coords;
+  std::vector<Time> telem_times;
+
   // Dummy variable to satisfy macro syntax
   int b;
 
@@ -189,14 +195,20 @@ class Config {
 
   /* Getters */
   #define PARAM(name, type, return_type, default_value) \
-    inline return_type get_##name() {return name.get_value();}
+    inline return_type get_##name() { return name.get_value(); }
 
-    inline RunType get_run_type() const {
-    return run_type;
-}
   CONFIG_PARAMETERS
   #undef PARAM
-  static inline std::string get_strat_root() {return STRAT_ROOT;}
+
+  inline RunType get_run_type() const { return run_type; }
+  static inline std::string get_strat_root() { return STRAT_ROOT; }
+
+  /* Load telemetry from a CSV into telem_coords and telem_times */
+  void load_telem_csv(const std::string& csv_path);
+
+  /* Access loaded telemetry data */
+  inline const std::vector<Coord>& get_telem_coords() const { return telem_coords; }
+  inline const std::vector<Time>& get_telem_times() const { return telem_times; }
 
   /* No setters since config parameters should never change after initialization */
 };

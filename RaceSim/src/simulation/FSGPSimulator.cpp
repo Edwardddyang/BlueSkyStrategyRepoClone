@@ -7,11 +7,21 @@
 #include "sim/FSGPSimulator.hpp"
 #include "utils/CustomException.hpp"
 
-   std::vector<double> FSGPSimulator::run_sim(const std::shared_ptr<Route>& route, std::vector<Coord>, std::vector<Time>,
+std::vector<double> FSGPSimulator::run_sim(std::vector<Coord> telem_coords, std::vector<Time> telem_times,
             std::shared_ptr<ResultsLut> results_lut){
 
   // Reset results lut logs
   results_lut->reset_logs();
+
+// Ensure telemetry vectors are the same size
+RUNTIME_EXCEPTION(telem_coords.size() == telem_times.size(),
+    "Mismatch in number of telemetry coordinates and timestamps");
+
+const size_t num_points = telem_coords.size();
+    if (num_points < 2) {
+        spdlog::warn("Not enough telemetry points to simulate.");
+        return {};
+    }
 
   // Initialize simulation state variables
   double accumulated_distance = 0.0;  // In meters
@@ -20,10 +30,10 @@
   double battery_energy = this->sim_start_soc;
   Coord starting_coord = this->sim_start_coord;
   double delta_energy;
-  double curr_speed;
+  double curr_speed = 0.0;
   bool is_accelerating;
-  double acceleration;
-
+  double acceleration = 0.0;
+                
   // Initialize index caches for forecast lut lookups
   std::pair<size_t, size_t> wind_speed_cache = wind_speed_lut->initialize_caches(starting_coord,
                                                                                  curr_time.get_utc_time_point());
@@ -34,34 +44,36 @@
   std::pair<size_t, size_t> dhi_cache = dhi_lut->initialize_caches(starting_coord,
                                                                    curr_time.get_utc_time_point());
 
-  /* Get route data */
-const std::vector<Coord>& route_points = route->get_route_points();
-const size_t num_points = route_points.size();
+/* Get telemetry data */
+// const size_t num_points = telem_coords.size();
+RUNTIME_EXCEPTION(num_points >= 2, "Telemetry must contain at least two coordinates.");
 
-/* Get starting position in the route */
-size_t starting_route_index = 0;
+/* Get starting position in telemetry data */
+// Coord starting_coord = this->sim_start_coord;
+size_t starting_index = 0;
 double min_distance = std::numeric_limits<double>::max();
 
 for (size_t i = 0; i < num_points; ++i) {
-    const Coord& route_coord = route_points[i];
-    double distance = get_distance(route_coord, starting_coord);
+    double distance = get_distance(telem_coords[i], starting_coord);
     if (distance < min_distance) {
         min_distance = distance;
-        starting_route_index = i;
+        starting_index = i;
     }
 }
 
-/* (Optional) Iterate through segments of the route for processing */
-for (size_t i = starting_route_index; i < num_points - 1; ++i) {
-    const Coord& start = route_points[i];
-    const Coord& end = route_points[i + 1];
+/* (Optional) Iterate through segments of the telemetry path */
+for (size_t i = starting_index; i < num_points - 1; ++i) {
+    const Coord& start = telem_coords[i];
+    const Coord& end = telem_coords[i + 1];
 
     // Example: calculate segment distance
     double segment_distance = get_distance(start, end);
 
     // You can also calculate estimated speed, acceleration, etc. here if needed
 }
-  spdlog::debug("Starting SOC: {}", max_soc);
+
+spdlog::debug("Starting SOC: {}", max_soc);
+
 
   // bool is_first_day = curr_time >= day_one_start_time && curr_time < day_one_end_time;
 
@@ -80,16 +92,26 @@ for (size_t i = starting_route_index; i < num_points - 1; ++i) {
 
 CarUpdate car_update;
 // Instead of looping over segments, loop directly over the route points (coords or route_points)
-const size_t num_points = route_points.size();
+curr_time = telem_times[starting_index];
+
+RUNTIME_EXCEPTION(num_points >= 2, "Telemetry must contain at least two coordinates.");
 
 // Optionally, write starting condition to the result CSV
 results_lut->update_logs(car_update, battery_energy, 0.0, 0.0,
-                         route_points[0], 0.0, curr_time, 0.0);
+                         telem_coords[starting_index], 0.0, curr_time, 0.0);
 
 // Main simulation loop: iterate over each segment (pair of points)
-for (size_t i = starting_route_index; i < num_points - 1; ++i) {
-    const Coord& current_coord = route_points[i];
-    const Coord& next_coord = route_points[i + 1];
+for (size_t i = starting_index; i < num_points - 1; ++i) {
+    const Coord& current_coord = telem_coords[i];
+    const Coord& next_coord = telem_coords[i + 1];
+    const Time& current_time = telem_times[i];
+    const Time& next_time = telem_times[i + 1];
+    curr_time = current_time;
+
+    double segment_distance = get_distance(current_coord, next_coord);
+    double segment_duration = next_time.get_utc_time_point() - current_time.get_utc_time_point();
+
+    acceleration = 0.0;
     delta_energy = 0.0;
 
     // Update forecast LUT index caches and get forecast data at the src coordinate
@@ -111,14 +133,14 @@ for (size_t i = starting_route_index; i < num_points - 1; ++i) {
     Irradiance irr = Irradiance(dni, dhi);
 
     // Compute state update of the car for this segment
-    double constant_distance = get_distance(current_coord, next_coord);
+    // double constant_distance = get_distance(current_coord, next_coord);
     try {
         car_update = car->compute_travel_update(
             current_coord, next_coord, curr_speed, curr_speed,
-            acceleration, &curr_time, wind, irr, 0.0, constant_distance
+            acceleration, &curr_time, wind, irr, 0.0, segment_distance
         );
     } catch (const InvalidCalculation& e) {
-        // Handle invalid calculation (e.g., log or break out)
+        spdlog::error("Invalid calculation during simulation: {}", e.what());
         return {};
     }
 
@@ -147,6 +169,8 @@ for (size_t i = starting_route_index; i < num_points - 1; ++i) {
         return {};
     }
 }
+
+return {accumulated_distance, driving_time, accumulated_distance / driving_time};
 
 // Optionally, set summary statistics or return results as needed
     }

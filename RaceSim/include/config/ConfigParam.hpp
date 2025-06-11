@@ -33,16 +33,16 @@ class Config_Param {
     name = param_name;
     if (key_values.find(name) != key_values.end()) {
       if constexpr (std::is_same<Coord, T>::value) {
-        value = create_coord(key_values[name].as<std::string>());
+        value = create_coord(key_values[name].template as<std::string>());
       } else if constexpr (std::is_same<std::unordered_set<size_t>, T>::value) {
-        value = convert_string_to_int_set(key_values[name].as<std::string>());
+        value = convert_string_to_int_set(key_values[name].template as<std::string>());
       } else if constexpr (std::is_same<std::unique_ptr<Time>, T>::value) {
-        value = std::make_unique<Time>(key_values[name].as<std::string>(),
-                                        key_values["utc_adjustment"].as<double>());
+        value = std::make_unique<Time>(key_values[name].template as<std::string>(),
+                                        key_values["utc_adjustment"].template as<double>());
       } else if constexpr (std::is_same<std::filesystem::path, T>::value) {
-        value = std::filesystem::path(STRAT_ROOT) / std::filesystem::path(key_values[name].as<std::string>());
+        value = std::filesystem::path(STRAT_ROOT) / std::filesystem::path(key_values[name].template as<std::string>());
       } else {
-        value = key_values[name].as<T>();
+        value = key_values[name].template as<T>();
       }
     } else {
       if constexpr(std::is_same<std::unique_ptr<Time>, T>::value) {

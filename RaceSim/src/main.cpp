@@ -18,6 +18,9 @@
 #include "route/Route.hpp"
 #include "opt/OptimizerFactory.hpp"
 #include "utils/Defines.hpp"
+#include "opt/V2Optimizer.hpp"
+#include "sim/FSGPSimulator.hpp"
+
 
 int main(int argc, char* argv[]) {
   spdlog::set_level(spdlog::level::debug);
@@ -41,7 +44,9 @@ int main(int argc, char* argv[]) {
                                                          Config::get_instance()->get_calculate_distances());
 
   /* Create simulator */
-  std::shared_ptr<Simulator> sim = SimulatorFactory::get_simulator(Config::get_instance()->get_simulator(), car);
+  std::shared_ptr<Simulator> sim = std::make_shared<FSGPSimulator>(car);
+  spdlog::info("Forced creation of FSGP Simulator from main.cpp");
+  spdlog::info("Config simulator: '{}'", Config::get_instance()->get_simulator());
 
   /* Create optimizer */
   std::shared_ptr<Optimizer> opt = OptimizerFactory::get_optimizer(Config::get_instance()->get_optimizer(),
@@ -51,9 +56,16 @@ int main(int argc, char* argv[]) {
   RacePlan viable_race_plan;
   if (Config::get_instance()->get_run_type() == RunType::SimWithTelem) {
     spdlog::info("Run type: sim_with_telem");
-    RUNTIME_EXCEPTION(Config::get_instance()->get_optimizer() == "fsgp", 
-                      "sim_with_telem mode requires optimizer to be of type 'fsgp'");
-    viable_race_plan = opt->optimize_telem();
+    RUNTIME_EXCEPTION(Config::get_instance()->get_optimizer() == "Acceleration", 
+                      "sim_with_telem mode requires optimizer to be of type 'Acceleration'");
+                      
+    auto v2opt = std::dynamic_pointer_cast<V2Optimizer>(opt);
+    RUNTIME_EXCEPTION(v2opt != nullptr, "Failed to cast optimizer to V2Optimizer.");
+
+    const auto& coords = Config::get_instance()->get_telem_coords();
+    const auto& times = Config::get_instance()->get_telem_times();
+
+    viable_race_plan = v2opt->optimize_telem();
   } else {
     spdlog::info("Run type: normal");
     viable_race_plan = opt->optimize();

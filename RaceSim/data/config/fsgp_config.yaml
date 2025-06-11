@@ -2,6 +2,7 @@
 /Version: "FSGP_2025"
 
 run_type: sim_with_telem # Type of run to perform. Can be sim_with_telem, normal
+telemetry_csv: /Users/calvert.zhu/Downloads/test_telem.csv
 
 /Car: # Car characterizationss
   max_soc: 10.0 # kwh

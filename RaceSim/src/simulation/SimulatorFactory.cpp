@@ -6,7 +6,6 @@
 #include "spdlog/spdlog.h"
 #include "sim/SimulatorFactory.hpp"
 #include "model/V2Car.hpp"
-#include "sim/WSCSimulator.hpp"
 #include "sim/FSGPSimulator.hpp"
 
 std::unordered_map<std::string, SIMULATORS> SimulatorFactory::config_to_simulators = {
@@ -17,6 +16,8 @@ const char SimulatorFactory::DEFAULT_SIMULATOR[] = "FSGP";
 
 std::shared_ptr<Simulator> SimulatorFactory::get_simulator(std::string sim_type,
                                                            std::shared_ptr<Car> model) {
+  std::transform(sim_type.begin(), sim_type.end(), sim_type.begin(), ::toupper); // normalize case
+
   SIMULATORS sim;
   if (config_to_simulators.find(sim_type) != config_to_simulators.end()) {
     sim = config_to_simulators[sim_type];
