@@ -123,86 +123,109 @@ bool V2Optimizer::legalize_loop(RacePlan::PlanData& plan,
   (*logger)("Legalizing loop starting with index " + std::to_string(seg_idx));
   const size_t num_loops = plan.size();
 
-  for (size_t l=loop_idx; l < num_loops; l++) {
-    const size_t num_segments = plan[l].size();
-    const size_t starting_seg_idx = l == loop_idx ? seg_idx : 0;
-    RacePlan::LoopData& loop = plan[l];
-
-    // Speed of the first corner of the loop
-    double first_corner_speed = 0.0;
-    for (size_t i=0; i < num_segments; i++) {
-      if (loop[i].end_idx == first_corner_end_idx) {
-        RUNTIME_EXCEPTION(loop[i].start_speed == loop[i].end_speed, "Corner speed is not constant");
-        first_corner_speed = loop[i].start_speed;
+  /** @brief Resolve either an index or speed discontinuity between segment i and i+1
+   * @param loop The loop to modify
+   * @param i "True" segment, i+1 will be modified
+   * @return True if discontinuity resolution was successful, False otherwise
+  */
+  auto resolve_next_segment = [&](RacePlan::LoopData& loop, size_t i) -> bool {
+    // Discontinuity, replace i+1 segment
+    RacePlan::SegmentData new_segment = loop[i+1];
+    if (loop[i].end_idx != loop[i+1].start_idx) {
+      // Index discontinuity
+      const double new_distance = this->route_distances.get_value(loop[i].end_idx, loop[i+1].end_idx);
+      new_segment.start_idx = loop[i].end_idx;
+      new_segment.distance = new_distance;
+      // In the case of acceleration, attempt to modify the acceleration
+      const double required_acceleration = calc_acceleration(loop[i+1].start_speed,
+                                                             loop[i+1].end_speed, 
+                                                             new_distance);
+      new_segment.acceleration_value = required_acceleration;
+    } else {
+      // Speed discontinuity
+      new_segment.start_speed = loop[i].end_speed;
+      const double required_acceleration = calc_acceleration(loop[i].end_speed,
+                                                            loop[i+1].end_speed,
+                                                            new_segment.distance);
+      new_segment.acceleration_value = required_acceleration;
+    }
+    // Check acceleration constraints
+    const double drawn_power = new_segment.acceleration_value * this->car_mass * loop[i+1].end_speed;
+    if (new_segment.acceleration_value > 0.0) {
+      if (drawn_power < this->acceleration_power_budget ||
+          new_segment.acceleration_value > this->max_acceleration) {
+        return false;
+      }
+    } else if (new_segment.acceleration_value < 0.0) {
+      if (new_segment.acceleration_value < this->max_deceleration) {
+        return false;
       }
     }
-    RUNTIME_EXCEPTION(first_corner_speed > 0.0, "First corner not found");
+    plan[loop_idx][i+1] = new_segment;
+    return true;
+  };
 
-    bool encountered_first_crossover_segment = false;  // Connecting segments from last loop
-    bool encountered_second_crossover_segment = false;  // Wrap-around segments
-    for (size_t i=starting_seg_idx; i < num_segments - 1; i++) {
-      if (loop[i].is_crossover_segment()) {
-        if (!encountered_first_crossover_segment) {
-          encountered_first_crossover_segment = true;
-        } else {
-          encountered_second_crossover_segment = true;
-        }
-      }
-
-      // Check continuity of indices and speeds. If continuous from current segment to the next,
-      // return success
-      if (loop[i].end_idx == last_corner_end_idx && plan.size() > l + 1) {
-        // For the last corner of the loop, check continuity with the connecting segment of the next loop
-        // if (loop[i].end_idx == plan[])
-                  plan = saved_plan;
-          return false;
-
-      } else {
-        if (loop[i].end_idx == loop[i+1].start_idx &&
-          loop[i].end_speed == loop[i+1].start_speed) {
-          (*logger)("Continuity satisifed from segment index " + std::to_string(i) + "\n");
-          return true;
-        }
-      }
-
-      // Discontinuity, replace i+1 segment
-      RacePlan::SegmentData new_segment = loop[i+1];
-      if (loop[i].end_idx != loop[i+1].start_idx) {
-        // Index discontinuity
-        const double new_distance = this->route_distances.get_value(loop[i].end_idx, loop[i+1].end_idx);
-        new_segment.start_idx = loop[i].end_idx;
-        new_segment.distance = new_distance;
-        // In the case of acceleration, attempt to modify the acceleration
-        const double required_acceleration = calc_acceleration(loop[i+1].start_speed,
-                                                                loop[i+1].end_speed, 
-                                                                new_distance);
-        new_segment.acceleration_value = required_acceleration;
-      } else {
-        // Speed discontinuity
-        new_segment.start_speed = loop[i].end_speed;
-        const double required_acceleration = calc_acceleration(loop[i].end_speed,
-                                                              loop[i+1].end_speed,
-                                                              new_segment.distance);
-        new_segment.acceleration_value = required_acceleration;
-      }
-      // Check acceleration constraints
-      const double drawn_power = new_segment.acceleration_value * this->car_mass * loop[i+1].end_speed;
-      if (new_segment.acceleration_value > 0.0) {
-        if (drawn_power < this->acceleration_power_budget ||
-            new_segment.acceleration_value > this->max_acceleration) {
-          plan = saved_plan;
-          return false;
-        }
-      } else if (new_segment.acceleration_value < 0.0) {
-        if (new_segment.acceleration_value < this->max_deceleration) {
-          plan = saved_plan;
-          return false;
-        }
-      }
-      plan[l][i+1] = new_segment;
-      (*logger)("Fixed discontinuity at index " + std::to_string(i+1) + "\n"
-                + RacePlan::get_segment_string(new_segment));
+  bool resolve_connection_segments = false;
+  double carry_over_speed = -1;
+  RacePlan::LoopData& loop = plan[loop_idx];
+  const size_t num_segments = plan[loop_idx].size();
+  for (size_t i=seg_idx; i < num_segments - 1; i++) {
+    // Check continuity of indices and speeds. If continuous from current segment to the next,
+    // return success
+    bool continuous_with_next_segment = loop[i].end_idx == loop[i+1].start_idx &&
+                                        loop[i].end_speed == loop[i+1].start_speed;
+    if (i == num_segments - 2 && !continuous_with_next_segment && plan.size() - 1 > loop_idx) {
+      (*logger)("Could not resolve wrap-around segment - giving up");
+      plan = saved_plan;
+      return false;
+    }
+    if (loop[i].end_idx == last_corner_end_idx && plan.size() - 1 > loop_idx && !continuous_with_next_segment) {
+      // For the last corner of the loop, need to check continuity with the connecting segment of the next loop
+      // and with the wrap-around segments ONLY until the first corner
+      resolve_connection_segments = true;
+      carry_over_speed = loop[i].end_speed;
+    }
+    if (continuous_with_next_segment) {
+      break;
+    }
+    // Discontinuity, replace i+1 segment
+    if (!resolve_next_segment(loop, i)) {
+      plan = saved_plan;
+      return false;
     }
   }
+
+  if (resolve_connection_segments) {
+    RUNTIME_EXCEPTION(loop_idx + 1 < plan.size() && carry_over_speed != -1, "Invalid parameters to resolve next loop");
+    RacePlan::LoopData& next_loop = plan[loop_idx + 1];
+    // Speed of the first corner of the loop
+    size_t first_corner_idx = 0;
+    for (size_t i=0; i < num_segments; i++) {
+      if (next_loop[i].end_idx == first_corner_end_idx) {
+        RUNTIME_EXCEPTION(next_loop[i].start_speed == next_loop[i].end_speed, "Corner speed is not constant");
+        first_corner_idx = i;
+        break;
+      }
+    }
+    for (size_t i = 0; i <= first_corner_idx; i++) {
+      bool continuous_with_next_segment = next_loop[i].end_idx == next_loop[i+1].start_idx &&
+                                          next_loop[i].end_speed == next_loop[i+1].start_speed;
+      if (continuous_with_next_segment) {
+        (*logger)("Legalization successful");
+        return true;
+      }
+      if (i == first_corner_idx) {
+        (*logger)("Could not resolve connection segments to next loop");
+        plan = saved_plan;
+        return false;
+      }
+      if (!resolve_next_segment(next_loop, i)) {
+        plan = saved_plan;
+        return false;
+      }
+    }
+  }
+
+  (*logger)("Legalization successful");
   return true;
 }

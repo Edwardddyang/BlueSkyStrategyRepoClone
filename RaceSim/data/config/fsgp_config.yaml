@@ -84,7 +84,7 @@
   idx_seed: 2577208919
   skip_seed: 4202181234
   ####### Genetic Algorithm Parameters #######
-  num_generations: 1  # Number of iterations
+  num_generations: 4  # Number of iterations
   population_size: 1 # Number of race plans to maintain the in population
   survival_percentage: 0  # % of the population to pass onto the next iteration unaltered
   crossover_percentage: 0  # Top % of the population to use to crossover to create new children
