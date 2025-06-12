@@ -156,9 +156,7 @@ void Route::init_base_route(const std::filesystem::path route_path, bool telem_f
   while (!base_route.eof()) {
     std::string line;
     base_route >> line;
-    if (line.empty()) {
-      break;
-    }
+    std::cout << line << std::endl;
     std::stringstream linestream(line);
 
     std::string cell;
@@ -167,23 +165,36 @@ void Route::init_base_route(const std::filesystem::path route_path, bool telem_f
     std::getline(linestream, cell, ',');
     RUNTIME_EXCEPTION(isDouble(cell), "Value {} in route file {} is not a number", cell, route_path.string());
     coord.lat = std::stod(cell);
+    std::cout << cell << std::endl;
 
     std::getline(linestream, cell, ',');
     RUNTIME_EXCEPTION(isDouble(cell), "Value {} in route file {} is not a number", cell, route_path.string());
     coord.lon = std::stod(cell);
+    std::cout << cell << std::endl;
 
     std::getline(linestream, cell, ',');
     RUNTIME_EXCEPTION(isDouble(cell), "Value {} in route file {} is not a number", cell, route_path.string());
     coord.alt = std::stod(cell);
+    std::cout << cell << std::endl;
 
     if (telem_flow) {
+      if (linestream.eof()) {
+        std::cout << cell << std::endl;
+        std::cout << "Yo what?" << std::endl;
+      }
+      if (linestream.peek() == '\n' || linestream.eof()) {
+        RUNTIME_EXCEPTION(false, "No new values detected for telemetry flow. Does {} have |time|speed| columns?",
+                          route_path.string());
+      }
       std::getline(linestream, cell, ',');
+      std::cout << cell << std::endl;
       Time time_point(cell, Config::get_instance()->get_utc_adjustment());
       timestamps.emplace_back(time_point);
 
       std::getline(linestream, cell, ',');
       RUNTIME_EXCEPTION(isDouble(cell), "Value {} in route file {} is not a number", cell, route_path.string());
       double speed = std::stod(cell);
+      std::cout << cell << std::endl;
       speeds.push_back(speed);
     }
     route_points.emplace_back(coord);
