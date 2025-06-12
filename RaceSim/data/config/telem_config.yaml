@@ -24,7 +24,7 @@
 
 \LutPaths:
   # All following luts are relative to gen12_strategy/RaceSim/
-  base_route_path: data/luts/fsgp/static/fsgp_base_route.csv # 3 or 5 column csv --> latitude (degrees) | longitude (degrees) | altitude (km) | Time (YYYY-MM-DD HH:MM:SS) | Speed (m/s)
+  base_route_path: data/luts/fsgp/static/telem.csv # 3 or 5 column csv --> latitude (degrees) | longitude (degrees) | altitude (km) | Time (YYYY-MM-DD HH:MM:SS) | Speed (m/s)
   power_factor_path: data/luts/fsgp/static/powerfactor.csv
   corners_path: data/luts/fsgp/static/fsgp_corners.csv # 3 Column csv -> Corner start index | Corner end index | Max speed (mps)
   roll_res_slope_path: data/luts/fsgp/static/rr2.csv
@@ -54,7 +54,7 @@
 
 \Telemetry: # Current state of the car
   current_soc: 9.2 # in kWh, should be <= max_soc
-  gps_coordinates: 37.0011542,-86.3683294,0.157135 # Lat(degrees),Lon(degrees),Alt(metres)
+  gps_coordinates: 37.00109968421053,-86.36844294736842,0.1570890526315789 # Lat(degrees),Lon(degrees),Alt(metres)
   current_date_time: 2024-08-16 10:00:00 # YYYY-MM-DD HH:MM:SS local 24 hour time
   utc_adjustment: +6.0 # Hour conversion from local time to UTC. This will be applied to all times. 
                        # This parameter MUST be present
@@ -100,7 +100,7 @@
   threads: 0.5
 
 \Simulation:
-  simulator: FSGP # Type of simulator - if "TELEMETRY", no optimizer is used
+  simulator: TELEMETRY # Type of simulator - if "TELEMETRY", no optimizer is used
   save_csv: true # Save simulation results to CSVs
   
 

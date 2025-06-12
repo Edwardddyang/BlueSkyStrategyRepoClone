@@ -34,6 +34,6 @@ class TelemetrySimulator : public WSCSimulator {
                std::shared_ptr<ResultsLut> result_lut) override;
 
   /** @brief Run the car through all points on the route */
-  std::vector<double> run_sim(const std::shared_ptr<Route>& route,
+  void run_sim(const std::shared_ptr<Route>& route,
                               std::shared_ptr<ResultsLut> results_lut);
 };

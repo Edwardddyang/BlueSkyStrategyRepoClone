@@ -69,8 +69,10 @@ int main(int argc, char* argv[]) {
     );
     RUNTIME_EXCEPTION(telem_sim != nullptr, "Telemetry simulator instantiation failed");
 
+    spdlog::info("Starting simulation");
     std::shared_ptr<ResultsLut> result = std::make_shared<ResultsLut>();
-    std::vector<double> soc = telem_sim->run_sim(route, result);
+    telem_sim->run_sim(route, result);
+    spdlog::info("Finished simulation");
 
     // Save the logs
     bool save_csv = Config::get_instance()->get_save_csv();

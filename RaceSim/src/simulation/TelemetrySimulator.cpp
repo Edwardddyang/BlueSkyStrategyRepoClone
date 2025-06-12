@@ -13,8 +13,8 @@ void TelemetrySimulator::run_sim(const std::shared_ptr<Route>& route, RacePlan* 
     return;
 }
 
-std::vector<double> TelemetrySimulator::run_sim(const std::shared_ptr<Route>& route,
-                                                std::shared_ptr<ResultsLut> results_lut){
+void TelemetrySimulator::run_sim(const std::shared_ptr<Route>& route,
+                                 std::shared_ptr<ResultsLut> results_lut){
     RUNTIME_EXCEPTION(route != nullptr, "Route is null");
     RUNTIME_EXCEPTION(results_lut != nullptr, "Results is null");
 
@@ -39,9 +39,6 @@ std::vector<double> TelemetrySimulator::run_sim(const std::shared_ptr<Route>& ro
     double delta_energy;
     bool is_accelerating;
     double acceleration = 0.0;
-
-    // Log battery SOC
-    std::vector<double> battery_soc;
                     
     // Initialize index caches for forecast lut lookups
     std::pair<size_t, size_t> wind_speed_cache = wind_speed_lut->initialize_caches(starting_coord,
@@ -66,7 +63,7 @@ std::vector<double> TelemetrySimulator::run_sim(const std::shared_ptr<Route>& ro
         }
     }
 
-    for (size_t i = starting_index; i < num_points - 1; ++i) {
+    for (size_t i = starting_index; i < num_points - 1; i++) {
         const Coord& start = telem_coords[i];
         const Coord& end = telem_coords[i + 1];
         const double init_speed = telem_speeds[i];
@@ -94,23 +91,21 @@ std::vector<double> TelemetrySimulator::run_sim(const std::shared_ptr<Route>& ro
 
         double segment_distance = get_distance(start, end);
 
-        CarUpdate car_update;
-
         RUNTIME_EXCEPTION(num_points >= 2, "Telemetry must contain at least two coordinates.");
 
         /* Compute state update of the car */
         const double acceleration = calc_acceleration(init_speed, end_speed, segment_distance);
         const double acceleration_distance = acceleration ? segment_distance : 0.0;
         const double constant_distance = acceleration ? 0.0 : segment_distance;
-        CarUpdate update = car->compute_travel_update(start, end, telem_speeds[i],
-                                                      telem_speeds[i+1], acceleration,
+        CarUpdate update = car->compute_travel_update(start, end, init_speed,
+                                                      end_speed, acceleration,
                                                       &curr_time, wind, irr,
                                                       acceleration_distance, constant_distance);
 
         /* Update the running state of the simulation */
-        delta_energy += car_update.delta_energy;
-        accumulated_distance += car_update.delta_distance;
-        driving_time += car_update.delta_time;
+        delta_energy = update.delta_energy;
+        accumulated_distance += update.delta_distance;
+        driving_time += update.delta_time;
 
         /* Make sure the battery doesn't exceed the maximum bound */
         if (battery_energy + delta_energy > max_soc) {
@@ -120,12 +115,9 @@ std::vector<double> TelemetrySimulator::run_sim(const std::shared_ptr<Route>& ro
         }
 
         /* Update the logs */
-        results_lut->update_logs(car_update, battery_energy, delta_energy, accumulated_distance,
+        results_lut->update_logs(update, battery_energy, delta_energy, accumulated_distance,
                                 end, end_speed, curr_time, acceleration);
-        battery_soc.push_back(battery_energy);
     }
-
-    return battery_soc;
 }
 
 TelemetrySimulator::TelemetrySimulator(std::shared_ptr<Car> model) :
