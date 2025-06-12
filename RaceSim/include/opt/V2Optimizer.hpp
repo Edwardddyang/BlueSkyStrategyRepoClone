@@ -10,10 +10,6 @@
 #include "sim/Simulator.hpp"
 #include "opt/PopulationGenerator.hpp"
 
-enum class MutationStrategy {
-  PreferConstantSpeed = 0
-};
-
 class V2Optimizer : public Optimizer {
  private:
   // Race plan population and their results
@@ -23,6 +19,14 @@ class V2Optimizer : public Optimizer {
 
   // Initial population generator
   std::shared_ptr<RacePlanCreator> generator;
+  // rng variables
+  unsigned int idx_seed;
+  unsigned int speed_seed;
+  unsigned int acceleration_seed;
+  unsigned int aggressive_seed;
+  unsigned int loop_seed;
+  unsigned int skip_seed;
+  RacePlanCreator::Gen rng_collection;
 
   // Genetic algorithm parameters
   const int population_size;
@@ -36,12 +40,25 @@ class V2Optimizer : public Optimizer {
   double crossover_num;
   double mutation_num;
   unsigned int gen_seed;
+  const int num_loops_in_block;
+
+  // Population status
+  double population_average_speed;
+  int num_viable_plans;
+
+  // Log optimization
+  bool log_optimization;
+
+  // Mutation logger
+  FileLogger mutation_logger;
 
   // These parameters are required for mutating RacePlans and crossing over parents
   const double max_motor_power;
-  const double acceleration_power_budget;
+  const double car_mass;  // kg
+  const double acceleration_power_budget;  // Units of Watts, must be < max_motor_power
   const double max_acceleration;
   const double max_deceleration;
+  BasicLut route_distances;
 
   // Thread management
   ThreadManager thread_manager;
@@ -75,15 +92,45 @@ class V2Optimizer : public Optimizer {
   /** @brief Sample and mutate members of the population */
   void mutate_population();
 
+  /** @brief Print summary of population status
+   * @param generation Generation number. If provided, print banner
+   */
+  void print_population_status(int generation = -1);
+
   /** @brief Mutate a race plan according to some strategy chosen from configuration */
   void mutate_plan(RacePlan* plan);
 
-  enum MutationStrategy {
-    ConstantForDeceleration,
+  std::unordered_set<std::string> MUTATION_STRATEGIES = {
+    "ConstantForDeceleration",
+    "GaussianNoise",
+    "ConstantForAcceleration",
+    "ConstantForAggressive"
   };
 
   /** @brief Perform constant speed mutation by replacing a deceleration segment with constant speed */
-  void constant_for_deceleration(RacePlan* plan, RacePlanCreator::Gen* gen);
+  RacePlan constant_for_deceleration(RacePlan* plan, RacePlanCreator::Gen* rng);
+  /** @brief Perform constant speed mutation by replacing a deceleration segment with constant speed */
+  RacePlan constant_for_acceleration(RacePlan* plan, RacePlanCreator::Gen* rng);
+  /** @brief Perform constant speed mutation by replacing a deceleration segment with constant speed */
+  RacePlan gaussian_noise(RacePlan* plan, RacePlanCreator::Gen* rng);
+
+  /** @brief Attempt to legalize a loop starting from some segment. Modification will be done in place
+   *
+   * @param plan The raw loop plan
+   * @param loop_idx Loop index to start examination
+   * @param seg_idx Segment index to start examination 
+   *
+   * Note: This assumes that there is some index/speed discontinuity e.g.
+   * Loop Indices: [0,5],[5,14],[16,26] -> Discontinuity going from segment 1 to segment 2
+   * Loop Speeds: [14,14],[14,15],[13,13] -> Discontinuity going from segment 1 to segment 2
+   * Discontinuities are rectified by attemping to propagate "truth" from replacement_idx
+   *
+   * @return True if legalization was successful, false if unsuccessful
+  */
+  bool legalize_loop(RacePlan::PlanData& plan,
+                     size_t loop_idx,
+                     size_t seg_idx,
+                     FileLogger* logger = nullptr);
 
  public:
   V2Optimizer(std::shared_ptr<Simulator> simulator, std::shared_ptr<Route> route);

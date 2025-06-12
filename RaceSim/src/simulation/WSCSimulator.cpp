@@ -46,10 +46,7 @@ void WSCSimulator::run_sim(const std::shared_ptr<Route>& route, RacePlan* race_p
   /* Get route and race plan data */
   const size_t num_points = route->get_num_points();
   const std::vector<Coord>& route_points = route->get_route_points();
-  const std::vector<std::pair<size_t, size_t>> segments = race_plan->get_segments()[0];
-  const std::vector<std::pair<double, double>> segment_speeds = race_plan->get_speed_profile()[0];
-  const std::vector<bool> acceleration_profile = race_plan->get_acceleration_segments()[0];
-  const std::vector<double> acceleration_values = race_plan->get_acceleration_values()[0];
+  const RacePlan::LoopData segments = race_plan->get_segments()[0];
   const std::unordered_set<size_t> control_stops = route->get_control_stops();
 
   /* Get starting position in the route */
@@ -80,24 +77,18 @@ void WSCSimulator::run_sim(const std::shared_ptr<Route>& route, RacePlan* race_p
 
   Time race_start_time(curr_time);  // Save starting time to calculate total elapsed time
   size_t segment_counter = 0;
-  std::pair<size_t, size_t> current_segment = segments[segment_counter];
-  std::pair<double, double> speeds = segment_speeds[segment_counter];
-  is_accelerating = acceleration_profile[segment_counter];
-  acceleration = acceleration_values[segment_counter];
-  curr_speed = kph2mps(speeds.first);
+  RacePlan::SegmentData current_segment = segments[segment_counter];
+  curr_speed = kph2mps(current_segment.start_speed);
 
   for (size_t idx=starting_route_index; idx < num_points-1; idx++) {
     const Coord& current_coord = route_points[idx];
     const Coord& next_coord = route_points[idx+1];
     delta_energy = 0.0;
     // Update route segment
-    if (idx > current_segment.second) {
+    if (idx > current_segment.end_idx) {
       segment_counter++;
       current_segment = segments[segment_counter];
-      speeds = segment_speeds[segment_counter];
-      is_accelerating = acceleration_profile[segment_counter];
-      acceleration = acceleration_values[segment_counter];
-      curr_speed = kph2mps(speeds.first);
+      curr_speed = kph2mps(current_segment.start_speed);
     }
 
     /* Update forecast lut index caches and get forecast data at coordinate 1 */

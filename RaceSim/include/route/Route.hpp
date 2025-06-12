@@ -18,9 +18,9 @@
 #include "utils/Luts.hpp"
 #include "utils/CustomTime.hpp"
 
-double calc_segment_distance(const std::vector<Coord>& coords,
-                            const size_t starting_idx,
-                            const size_t ending_idx);
+double calculate_segment_distance(const std::vector<Coord>& coords,
+                                  const size_t starting_idx,
+                                  const size_t ending_idx);
 
 /** A class to represent a proposed race plan
  * 
@@ -30,6 +30,96 @@ double calc_segment_distance(const std::vector<Coord>& coords,
  * final speed.
  */
 class RacePlan {
+ public:
+  // Describes a segment between two points, A and B, as follows:
+  // A --------------------------- B
+  struct SegmentData {
+    // {route index of point A (start), route index of point B (end)}
+    size_t start_idx;
+    size_t end_idx;
+    // {Speed in m/s at point A, Speed in m/s at point B}
+    double start_speed;
+    double end_speed;
+    // Acceleration of the segment in m/s^2. Note that
+    // |acceleration_value| >= |acceleration to travel from A to B|
+    double acceleration_value;
+    // Distance from A and B in meters
+    double distance;
+    // Whether the segment includes a corner of the route
+    bool includes_corner;
+    // This field is used only for the "raw" loops
+
+    // A crossover segment is one that crosses the start line (route index 0)
+    // start_idx | end_idx
+    //          ...
+    //    568       578
+    //    578       6      -> crossover segment
+    bool is_crossover_segment() {
+      return end_idx < start_idx;
+    }
+
+    SegmentData(size_t start_idx = 0, size_t end_idx = 0,
+                double start_speed = 0.0, double end_speed = 0.0,
+                double acceleration_value = 0.0,
+                double distance = -1.0,
+                bool includes_corner = false) : start_idx(start_idx),
+                end_idx(end_idx), start_speed(start_speed), end_speed(end_speed),
+                acceleration_value(acceleration_value), distance(distance),
+                includes_corner(includes_corner) {
+    }
+  };
+
+  using LoopData = std::vector<SegmentData>;
+  using PlanData = std::vector<LoopData>;
+
+  RacePlan() : empty(true) {}
+  RacePlan(PlanData segments, PlanData orig_segments = {}, int num_repetitions = 1);
+
+  explicit RacePlan(std::string inviability_reason) : empty(true) {
+    reason_for_inviability = inviability_reason; viable = false;
+  }
+
+  inline PlanData get_segments() const {return segments;}
+  inline PlanData get_orig_segments() const {return orig_segments;}
+  inline std::string get_inviability_reason() const {return reason_for_inviability;}
+  inline double get_accumulated_distance() const {return accumulated_distance;}
+  inline double get_driving_time() const {return driving_time;}
+  inline double get_average_speed() const {return average_speed;}
+  inline double get_score() const {return score;}
+  inline int get_num_loops() const {return num_loops;}
+  inline int get_num_blocks() const {return num_blocks;}
+  inline bool is_viable() const {return viable;}
+  inline bool is_empty() const {return empty;}
+
+  inline void set_segments(PlanData new_segments) {segments = new_segments;}
+  inline void set_orig_segments(PlanData new_segments) {orig_segments = new_segments;}
+  inline void set_time_taken(time_t new_time_taken) {time_taken = new_time_taken;}
+  inline void set_viability(bool viability) {viable = viability;}
+  inline void set_num_loops(int loops) {num_loops = loops;}
+  inline void set_inviability_reason(std::string message) {reason_for_inviability = message;}
+  inline void set_accumulated_distance(double distance) {accumulated_distance = distance;}
+  inline void set_driving_time(double time) {driving_time = time;}
+  inline void set_average_speed(double speed) {average_speed = speed;}
+  inline void set_score(double new_score) {score = new_score;}
+
+  /** @brief Validate members of a race plan. Should be called before run_sim()
+   *
+   * @param route_points Coordinate points of the base route
+   * @return True if all members are valid
+   */
+  bool validate_members(const std::vector<Coord>& route_points) const;
+
+  /** @brief Print the route plan to stdout */
+  void print_plan() const;
+  std::string get_plan_string() const;
+  std::string get_orig_plan_string() const;  // Same as above but with orig_segments
+
+  /** @brief Get a single string displaying a race plan loop in a human readable way */
+  static std::string get_loop_string(LoopData loop);
+
+  /** @brief Get a single string displaying a segment in a human readable way */
+  static std::string get_segment_string(SegmentData seg);
+
  private:
   /* Viability of race plan */
   bool viable = false;
@@ -49,32 +139,11 @@ class RacePlan {
   /* Score of the race plan in comparison to other race plans */
   double score;
 
-  /* 2D matrix where each row is a single loop of the track split into segments of
-  {start index, end index} pairs. Both indices are inclusive */
-  std::vector<std::vector<std::pair<size_t, size_t>>> segments;
+  /* Hold the entire race plan as a 2D matrix where each row is a single loop */
+  PlanData segments;
 
-  /* 2D matrix where each row consists of the {speed at start index in m/s, speed at end index in m/s}
-  for each segment of the specific loop of the track. Order is the same as segments. Note that if
-  segment_speeds[loop][segment].second = segment_speeds[loop][segment].first, then the car
-  travels at a constant speed throughout the segment */
-  std::vector<std::vector<std::pair<double, double>>> segment_speeds;
-
-  /* 2D matrix where each row is a single loop of the track. If acceleration_segments[loop][segment]
-  is true, then the car is accelerating starting from segment_speeds[loop][segment].first to
-  segment_speeds[loop][segment].second at acceleration[loop][segment] */
-  std::vector<std::vector<bool>> acceleration_segments;
-
-  /* 2D matrix where each row is a single loop of the track. If acceleration_segments[loop][segment]
-  is true, then the car accelerates at a rate of acceleration[loop][segment] m/s */
-  std::vector<std::vector<double>> acceleration;
-
-  /* 2D matrix where each row is a single loop of the track. Cell values are the distances covered by 
-     a segment in m */
-  std::vector<std::vector<double>> distances;
-
-  // Note that acceleration.size() = acceleration_segments.size() = segments.size() = segment_speeds.size()
-  // AND acceleration[i].size() = acceleration_segments[i].size() = segments[i].size() = segment_speeds[i].size()
-  // for all i in the range of [0, acceleration.size()-1]
+  /* Same as above before any loop gluing occurred */
+  PlanData orig_segments;
 
   // Number of loops completed by the car i.e. segments.size()
   int num_loops;
@@ -90,85 +159,6 @@ class RacePlan {
 
   // Represents an empty race plan
   bool empty;
-
-  // When num_repetitions > 1, then one loop is created for each block and is replicated
-  // num_repetitions times with modifications such that they are "glued" together.
-  // These vectors preserve those original unique loops
-  std::vector<std::vector<std::pair<size_t, size_t>>> orig_loop_segments;
-  std::vector<std::vector<std::pair<double, double>>> orig_loop_speeds;
-  std::vector<std::vector<bool>> orig_loop_accelerations;
-  std::vector<std::vector<double>> orig_loop_acceleration_values;
-  std::vector<std::vector<double>> orig_loop_segment_distances;
-
- public:
-  RacePlan() : empty(true) {}
-  RacePlan(std::vector<std::vector<std::pair<size_t, size_t>>> segments,
-           std::vector<std::vector<std::pair<double, double>>> segment_speeds,
-           std::vector<std::vector<bool>> acceleration_segments,
-           std::vector<std::vector<double>> acceleration,
-           std::vector<std::vector<double>> distances = {},
-           int num_repetitions = 1,
-           std::vector<std::vector<std::pair<size_t, size_t>>> orig_loop_segments = {},
-           std::vector<std::vector<std::pair<double, double>>> orig_loop_speeds = {},
-           std::vector<std::vector<bool>> orig_loop_accelerations = {},
-           std::vector<std::vector<double>> orig_loop_acceleration_values = {},
-           std::vector<std::vector<double>> orig_loop_segment_distances = {});
-  explicit RacePlan(std::string inviability_reason) : empty(true) {
-    reason_for_inviability = inviability_reason; viable = false;
-  }
-
-  inline std::vector<std::vector<std::pair<size_t, size_t>>> get_segments() const {return segments;}
-  inline std::vector<std::vector<std::pair<double, double>>> get_speed_profile() const {return segment_speeds;}
-  inline std::vector<std::vector<bool>> get_acceleration_segments() const {return acceleration_segments;}
-  inline std::vector<std::vector<double>> get_acceleration_values() const {return acceleration;}
-  inline std::vector<std::vector<double>> get_distances() const {return distances;}
-  inline std::vector<std::vector<std::pair<size_t, size_t>>> get_orig_loop_segments() const {return orig_loop_segments;}
-  inline std::vector<std::vector<std::pair<double, double>>> get_orig_loop_speeds() const {return orig_loop_speeds;}
-  inline std::vector<std::vector<bool>> get_orig_loop_accelerations() const {return orig_loop_accelerations;}
-  inline std::vector<std::vector<double>> get_orig_loop_acceleration_values() const
-    {return orig_loop_acceleration_values;}
-  inline std::vector<std::vector<double>> get_orig_loop_segment_distances() const {return orig_loop_segment_distances;}
-  inline std::string get_inviability_reason() const {return reason_for_inviability;}
-  inline double get_accumulated_distance() const {return accumulated_distance;}
-  inline double get_driving_time() const {return driving_time;}
-  inline double get_average_speed() const {return average_speed;}
-  inline double get_score() const {return score;}
-  inline int get_num_loops() const {return num_loops;}
-  inline int get_num_blocks() const {return num_blocks;}
-  inline bool is_viable() const {return viable;}
-  inline bool is_empty() const {return empty;}
-
-  inline void set_segments(std::vector<std::vector<std::pair<size_t, size_t>>> new_segments) {segments = new_segments;}
-  inline void set_speed_profile(std::vector<std::vector<std::pair<double, double>>> new_speed_profile) {
-    segment_speeds = new_speed_profile;
-  }
-  inline void set_acceleration_segments(std::vector<std::vector<bool>> new_acceleration_segments) {
-    acceleration_segments = new_acceleration_segments;
-  }
-  inline void set_time_taken(time_t new_time_taken) {time_taken = new_time_taken;}
-  inline void set_viability(bool viability) {viable = viability;}
-  inline void set_num_loops(int loops) {num_loops = loops;}
-  inline void set_inviability_reason(std::string message) {reason_for_inviability = message;}
-  inline void set_accumulated_distance(double distance) {accumulated_distance = distance;}
-  inline void set_driving_time(double time) {driving_time = time;}
-  inline void set_average_speed(double speed) {average_speed = speed;}
-  inline void set_score(double new_score) {score = new_score;}
-
-  /** @brief Validate members of a race plan. Should be called before run_sim()
-   *
-   * @param route_points Coordinate points of the base route
-   * @return True if all members are valid
-   */
-  bool validate_members(const std::vector<Coord>& route_points) const;
-
-  /** @brief Print the route plan to stdout */
-  void print_plan() const;
-
-  /** @brief Get a single string displaying a race plan loop in a human readable way */
-  static std::string get_loop_string(std::vector<std::pair<size_t, size_t>> loop_segments,
-                                    std::vector<std::pair<double, double>> loop_segment_speeds,
-                                    std::vector<double> loop_acceleration_values,
-                                    std::vector<double> loop_segment_distances);
 };
 
 /** A class to hold all points and control stop locations in a race route */
@@ -188,6 +178,8 @@ class Route {
 
   /* Cornering segments */
   std::vector<std::pair<size_t, size_t>> cornering_segment_bounds;
+  std::unordered_set<size_t> corner_start_indices;
+  std::unordered_set<size_t> corner_end_indices;
 
   /* Straight segments - straight_segment_bounds[i] denotes the straight segment between
      corner index i - 1 and corner index i */
@@ -286,7 +278,7 @@ class Route {
   inline double get_route_length() const {return route_length;}
   inline const BasicLut& get_precomputed_distances() {return route_distances;}
   inline const double get_max_route_speed() {return max_route_speed;}
-  inline const std::unordered_map<size_t, size_t> get_corner_end_map() const {
+  inline std::unordered_map<size_t, size_t> get_corner_end_map() const {
     return corner_end_to_corner_idx;
   }
   inline const std::unordered_map<size_t, size_t> get_corner_start_map() const {
@@ -304,6 +296,12 @@ class Route {
   inline const std::vector<double> get_speeds() const {
     return speeds;
   }
+  inline const std::unordered_set<size_t> get_corner_start_indices() const {
+    return corner_start_indices;
+  }
+  inline const std::unordered_set<size_t> get_corner_end_indices() const {
+    return corner_end_indices;
+  }
 
   /** @brief Return the corner index that a route index is closest to 
    *
@@ -315,4 +313,8 @@ class Route {
    * If route index is 200, return 2
   */
   size_t get_closest_corner_idx(size_t route_index) const;
+
+  /** @brief Calculate the distance from starting_idx to ending_idx inclusive in meters */
+  double calc_segment_distance(const size_t starting_idx,
+                               const size_t ending_idx);
 };
