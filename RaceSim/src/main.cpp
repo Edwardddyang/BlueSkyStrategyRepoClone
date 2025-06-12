@@ -20,6 +20,8 @@
 #include "utils/Defines.hpp"
 #include "opt/V2Optimizer.hpp"
 #include "sim/FSGPSimulator.hpp"
+#include "sim/TelemetrySimulator.hpp"
+#include "utils/Luts.hpp"
 
 
 int main(int argc, char* argv[]) {
@@ -36,39 +38,49 @@ int main(int argc, char* argv[]) {
   /* Create a model of the car */
   std::shared_ptr<Car> car = CarFactory::get_car(Config::get_instance()->get_model());
 
-  /* Create route */
-  std::shared_ptr<Route> route = std::make_shared<Route>(Config::get_instance()->get_base_route_path(),
-                                                         Config::get_instance()->get_init_control_stops(),
-                                                         Config::get_instance()->get_corners_path(),
-                                                         Config::get_instance()->get_precomputed_distances_path(),
-                                                         Config::get_instance()->get_calculate_distances());
+  const SIMULATORS sim_type = SimulatorFactory::get_sim_type(Config::get_instance()->get_simulator());
+  std::shared_ptr<Route> route;
+  if (sim_type != SIMULATORS::TELEMETRY) {
+    /* Optimization flow */
+    /* Create route */
+    route = std::make_shared<Route>(Config::get_instance()->get_base_route_path(),
+                                    false,
+                                    Config::get_instance()->get_init_control_stops(),
+                                    Config::get_instance()->get_corners_path(),
+                                    Config::get_instance()->get_precomputed_distances_path(),
+                                    Config::get_instance()->get_calculate_distances());
 
-  /* Create simulator */
-  std::shared_ptr<Simulator> sim = std::make_shared<FSGPSimulator>(car);
-  spdlog::info("Forced creation of FSGP Simulator from main.cpp");
-  spdlog::info("Config simulator: '{}'", Config::get_instance()->get_simulator());
+    /* Create simulator */
+    std::shared_ptr<Simulator> sim = SimulatorFactory::get_simulator(Config::get_instance()->get_simulator(), car);
 
-  /* Create optimizer */
-  std::shared_ptr<Optimizer> opt = OptimizerFactory::get_optimizer(Config::get_instance()->get_optimizer(),
-                                                                   route, sim);
+    /* Create optimizer */
+    std::shared_ptr<Optimizer> opt = OptimizerFactory::get_optimizer(Config::get_instance()->get_optimizer(),
+                                                                    route, sim);
 
-  /* Run optimizer based on run_type */
-  RacePlan viable_race_plan;
-  if (Config::get_instance()->get_run_type() == RunType::SimWithTelem) {
-    spdlog::info("Run type: sim_with_telem");
-    RUNTIME_EXCEPTION(Config::get_instance()->get_optimizer() == "Acceleration", 
-                      "sim_with_telem mode requires optimizer to be of type 'Acceleration'");
-                      
-    auto v2opt = std::dynamic_pointer_cast<V2Optimizer>(opt);
-    RUNTIME_EXCEPTION(v2opt != nullptr, "Failed to cast optimizer to V2Optimizer.");
-
-    const auto& coords = Config::get_instance()->get_telem_coords();
-    const auto& times = Config::get_instance()->get_telem_times();
-
-    viable_race_plan = v2opt->optimize_telem();
+    /* Run optimizer */
+    RacePlan viable_race_plan = opt->optimize();
   } else {
-    spdlog::info("Run type: normal");
-    viable_race_plan = opt->optimize();
+    /* Pure simulation flow using telemetry data*/
+    // Create car and route
+    route = std::make_shared<Route>(Config::get_instance()->get_base_route_path(), true);
+
+    std::shared_ptr<TelemetrySimulator> telem_sim = std::dynamic_pointer_cast<TelemetrySimulator>(
+      SimulatorFactory::get_simulator(Config::get_instance()->get_simulator(), car)
+    );
+    RUNTIME_EXCEPTION(telem_sim != nullptr, "Telemetry simulator instantiation failed");
+
+    std::shared_ptr<ResultsLut> result = std::make_shared<ResultsLut>();
+    std::vector<double> soc = telem_sim->run_sim(route, result);
+
+    // Save the logs
+    bool save_csv = Config::get_instance()->get_save_csv();
+    std::filesystem::path results_folder;
+    if (save_csv) {
+      const std::string strat_root = Config::get_instance()->get_strat_root();
+      results_folder = std::filesystem::path(strat_root) / "TelemetrySimResults";
+      std::filesystem::create_directory(results_folder);
+      result->write_logs((results_folder / "sim.csv").string());
+    }
   }
 
   /* Print the optimal speed profile */

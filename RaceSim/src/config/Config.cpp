@@ -43,28 +43,7 @@ Config* Config::get_instance() {
       RUNTIME_EXCEPTION(false, "Config file {} could not be loaded. Exiting", full_config_file_path);
     }
 
-    // STEP 1: Parse run_type from key_values map
-    RunType parsed_run_type = RunType::Normal; // default
-
-    if (Config::key_values.find("run_type") != Config::key_values.end()) {
-      std::string run_type_str = Config::key_values["run_type"].as<std::string>();
-      if (run_type_str == "sim_with_telem") {
-        parsed_run_type = RunType::SimWithTelem;
-      } else if (run_type_str == "normal") {
-        parsed_run_type = RunType::Normal;
-      } else {
-        RUNTIME_EXCEPTION(false, "Invalid run_type in config: {}", run_type_str);
-      }
-    }
-
-    // STEP 2: Construct the singleton instance
     instance_ptr = std::make_unique<Config>(Config());
-    instance_ptr->run_type = parsed_run_type;
-
-    if (Config::key_values.find("telemetry_csv") != Config::key_values.end()) {
-      std::string telemetry_csv = Config::key_values["telemetry_csv"].as<std::string>();
-      instance_ptr->load_telem_csv(telemetry_csv);
-    }
   }
   return instance_ptr.get();
 }
@@ -94,40 +73,4 @@ void Config::get_config_leaf_nodes(YAML::Node node, int current_depth) {
       }
     }
   }
-}
-
-void Config::load_telem_csv(const std::string& csv_path) {
-    telem_coords.clear();
-    telem_times.clear();
-
-    std::ifstream file(csv_path);
-    if (!file.is_open()) {
-        throw std::runtime_error("Could not open telemetry CSV file: " + csv_path);
-    }
-
-    std::string line;
-    std::getline(file, line); // skip header
-
-    while (std::getline(file, line)) {
-        std::stringstream ss(line);
-        std::string lat_str, lon_str, alt_str, time_str;
-
-        std::getline(ss, lat_str, ',');
-        std::getline(ss, lon_str, ',');
-        std::getline(ss, alt_str, ',');
-        std::getline(ss, time_str, ',');
-
-        double lat = std::stod(lat_str);
-        double lon = std::stod(lon_str);
-        double alt = std::stod(alt_str); // ensure units match Coord
-
-        Coord coord(lat, lon, alt);
-        Time time_obj(time_str, Config::get_instance()->get_utc_adjustment()); // assumes utc_adjustment is set
-
-        telem_coords.push_back(coord);
-        telem_times.push_back(time_obj);
-    }
-
-    file.close();
-    spdlog::info("Loaded {} telemetry points from {}", telem_coords.size(), csv_path);
 }

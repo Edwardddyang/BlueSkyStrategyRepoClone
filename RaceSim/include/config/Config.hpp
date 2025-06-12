@@ -58,6 +58,8 @@
   PARAM(control_stop_charge_time, int, int, 30)                                             \
   PARAM(base_route_path, std::filesystem::path, std::filesystem::path,                      \
         std::filesystem::path("data/luts/fsgp/static/fsgp_base_route.csv"))                 \
+  PARAM(telemetry_path, std::filesystem::path, std::filesystem::path,                       \
+        std::filesystem::path("data/luts/telemetry/sim.csv"))                               \
   PARAM(corners_path, std::filesystem::path, std::filesystem::path,                         \
         std::filesystem::path("data/luts/fsgp/static/fsgp_corners.csv"))                    \
   PARAM(power_factor_path, std::filesystem::path, std::filesystem::path,                    \
@@ -125,11 +127,6 @@
   PARAM(mutation_percentage, double, double, 50)                                            \
   PARAM(mutation_strategy, std::string, std::string, "PreferConstantSpeed")                 \
 
-enum class RunType {
-    Normal,
-    SimWithTelem
-};
-
 /* Class that holds all information from a .yaml file storing configuration parameters for
  * a race simulation
 */
@@ -154,8 +151,6 @@ class Config {
   static char* STRAT_ROOT;
 
   static const int MAX_RECURSION_DEPTH = 10;
-
-  RunType run_type = RunType::Normal; // Default value
 
   std::vector<Coord> telem_coords;
   std::vector<Time> telem_times;
@@ -200,15 +195,7 @@ class Config {
   CONFIG_PARAMETERS
   #undef PARAM
 
-  inline RunType get_run_type() const { return run_type; }
   static inline std::string get_strat_root() { return STRAT_ROOT; }
-
-  /* Load telemetry from a CSV into telem_coords and telem_times */
-  void load_telem_csv(const std::string& csv_path);
-
-  /* Access loaded telemetry data */
-  inline const std::vector<Coord>& get_telem_coords() const { return telem_coords; }
-  inline const std::vector<Time>& get_telem_times() const { return telem_times; }
 
   /* No setters since config parameters should never change after initialization */
 };

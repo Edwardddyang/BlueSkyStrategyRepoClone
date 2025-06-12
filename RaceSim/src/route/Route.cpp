@@ -22,11 +22,13 @@
 #include "utils/Geography.hpp"
 #include "utils/CustomException.hpp"
 
-Route::Route(const std::filesystem::path route_path, const bool init_control_stops,
+Route::Route(const std::filesystem::path route_path,
+            bool telem_flow,
+            const bool init_control_stops,
             const std::filesystem::path cornering_bounds_path,
             const std::filesystem::path precomputed_distances_path,
             const bool precompute_distances) {
-  init_base_route(route_path);
+  init_base_route(route_path, telem_flow);
 
   if (init_control_stops) {
     this->init_control_stops();
@@ -142,7 +144,7 @@ void Route::precompute_distances(const std::filesystem::path csv_path) {
   }
 }
 
-void Route::init_base_route(const std::filesystem::path route_path) {
+void Route::init_base_route(const std::filesystem::path route_path, bool telem_flow) {
   std::fstream base_route(route_path);
   RUNTIME_EXCEPTION(base_route.is_open(), "Base route file not found {}", route_path.string());
 
@@ -154,34 +156,45 @@ void Route::init_base_route(const std::filesystem::path route_path) {
   while (!base_route.eof()) {
     std::string line;
     base_route >> line;
+    if (line.empty()) {
+      break;
+    }
     std::stringstream linestream(line);
 
-    while (!linestream.eof() && !linestream.str().empty()) {
-      std::string cell;
-      Coord coord{};
+    std::string cell;
+    Coord coord{};
+
+    std::getline(linestream, cell, ',');
+    RUNTIME_EXCEPTION(isDouble(cell), "Value {} in route file {} is not a number", cell, route_path.string());
+    coord.lat = std::stod(cell);
+
+    std::getline(linestream, cell, ',');
+    RUNTIME_EXCEPTION(isDouble(cell), "Value {} in route file {} is not a number", cell, route_path.string());
+    coord.lon = std::stod(cell);
+
+    std::getline(linestream, cell, ',');
+    RUNTIME_EXCEPTION(isDouble(cell), "Value {} in route file {} is not a number", cell, route_path.string());
+    coord.alt = std::stod(cell);
+
+    if (telem_flow) {
+      std::getline(linestream, cell, ',');
+      Time time_point(cell, Config::get_instance()->get_utc_adjustment());
+      timestamps.emplace_back(time_point);
 
       std::getline(linestream, cell, ',');
       RUNTIME_EXCEPTION(isDouble(cell), "Value {} in route file {} is not a number", cell, route_path.string());
-      coord.lat = std::stod(cell);
-
-      std::getline(linestream, cell, ',');
-      RUNTIME_EXCEPTION(isDouble(cell), "Value {} in route file {} is not a number", cell, route_path.string());
-      coord.lon = std::stod(cell);
-
-      std::getline(linestream, cell, ',');
-      RUNTIME_EXCEPTION(isDouble(cell), "Value {} in route file {} is not a number", cell, route_path.string());
-      coord.alt = std::stod(cell);
-
-      route_points.emplace_back(coord);
-
-      if (!first_coord) {
-        route_length = route_length + get_distance(last_coord, coord);
-      } else {
-        first_coord = false;
-      }
-
-      last_coord = coord;
+      double speed = std::stod(cell);
+      speeds.push_back(speed);
     }
+    route_points.emplace_back(coord);
+
+    if (!first_coord) {
+      route_length = route_length + get_distance(last_coord, coord);
+    } else {
+      first_coord = false;
+    }
+
+    last_coord = coord;
   }
   num_points = route_points.size();
   spdlog::info("Loaded base route {} with {} coordinates", route_path.string(), std::to_string(num_points));

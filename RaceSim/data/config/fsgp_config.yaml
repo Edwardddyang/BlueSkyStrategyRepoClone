@@ -2,7 +2,6 @@
 /Version: "FSGP_2025"
 
 run_type: sim_with_telem # Type of run to perform. Can be sim_with_telem, normal
-telemetry_csv: /Users/calvert.zhu/Downloads/test_telem.csv
 
 /Car: # Car characterizationss
   max_soc: 10.0 # kwh
@@ -36,6 +35,7 @@ telemetry_csv: /Users/calvert.zhu/Downloads/test_telem.csv
   dhi_path: data/luts/fsgp/dynamic/dhi.csv
   wind_direction_path: data/luts/fsgp/dynamic/wind_direction_10m.csv
   wind_speed_path: data/luts/fsgp/dynamic/wind_speed_10m.csv
+  telemetry_path: /Users/calvert.zhu/Downloads/test_telem.csv
   precomputed_distances_path: data/luts/fsgp/static/precomputed_distances.csv # Precomputed distances between each pair of
                                                                               # coordinates in base_route_path.
                                                                               # If calculate_distances is true, it will
@@ -100,7 +100,7 @@ telemetry_csv: /Users/calvert.zhu/Downloads/test_telem.csv
   threads: 0.5
 
 \Simulation:
-  simulator: FSGP # Type of simulator
+  simulator: TELEMETRY # Type of simulator - if "TELEMETRY", no optimizer is used
   save_csv: true # Save simulation results to CSVs
   
 

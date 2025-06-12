@@ -8,8 +8,8 @@
 #include "utils/CustomException.hpp"
 
 std::vector<double> FSGPSimulator::run_sim(std::vector<Coord> telem_coords, std::vector<Time> telem_times,
-            std::shared_ptr<ResultsLut> results_lut){
-
+                                           std::shared_ptr<ResultsLut> results_lut){
+  
   // Reset results lut logs
   results_lut->reset_logs();
 
