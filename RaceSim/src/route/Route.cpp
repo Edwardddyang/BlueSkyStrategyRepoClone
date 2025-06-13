@@ -479,7 +479,6 @@ bool RacePlan::validate_members(std::shared_ptr<Route> route) const {
   RUNTIME_EXCEPTION(segments.size() > 0, "No segments in Race Plan!");
   RUNTIME_EXCEPTION(route != nullptr, "Route is null");
   const std::vector<Coord>& route_points = route->get_route_points();
-  const std::unordered_map<size_t, size_t> corner_end_map = route->get_corner_end_map();
   const std::vector<double> cornering_speed_bounds = route->get_cornering_speed_bounds();
   const std::vector<std::pair<size_t, size_t>> cornering_segment_bounds = route->get_cornering_segment_bounds();
   const size_t num_corners = cornering_segment_bounds.size();
@@ -524,29 +523,16 @@ bool RacePlan::validate_members(std::shared_ptr<Route> route) const {
       RUNTIME_EXCEPTION(std::abs(segment_distance - distance) < tolerance, "Segment distance is not equal");
       RUNTIME_EXCEPTION(start_speed >= 0.0 && end_speed >= 0.0, "Segment speed in segment {} is not positive", i);
       // If the segment traverses corner(s), check that the speed bounds are not violated
-      // if (has_corners && corner_counter < num_corners) {
-      //   size_t closest_corner_idx = 0;  // Smallest corner index greater than the segment
-      //   if ((end_idx >= next_corner.second && start_idx < next_corner.second && end_idx != 0) ||
-      //       (end_idx == 0 && start_idx < next_corner.second)) {
-      //     size_t idx = start_idx;
-      //     size_t ending = end_idx == 0 ? route_points.size() - 1 : end_idx;
-      //     while (idx < ending) {
-      //       if (idx >= next_corner.first) {
-      //         const double max_speed = cornering_speed_bounds[corner_counter];
-      //         RUNTIME_EXCEPTION(start_speed <= max_speed && end_speed <= max_speed,
-      //                           "Cornering speeds violated on segment " +
-      //                           get_segment_string(loop_segments[i]) +
-      //                           " and corner " + std::to_string(corner_counter));
-      //         corner_counter++;
-      //         if (corner_counter == num_corners) {
-      //           break;
-      //         }
-      //         next_corner = cornering_segment_bounds[corner_counter];
-      //       }
-      //       idx++;
-      //     }
-      //   }
-      // }
+      if (has_corners) {
+        RUNTIME_EXCEPTION(route->get_overlapping_corners({start_idx, end_idx}) == corners, "Segment is missing corners information");
+        for (const size_t& c : corners) {
+          const double max_c_speed = cornering_speed_bounds[c];
+          RUNTIME_EXCEPTION(max_c_speed >= start_speed && max_c_speed >= end_speed,
+                            "Segment speed exceeds maximum cornering speed");
+          RUNTIME_EXCEPTION(max_c_speed > kph2mps(route->get_max_route_speed()) &&
+                            acceleration <= 0.0, "Cannot accelerate on a corner. Segment {} of loop {}", i, loop_idx);
+        }
+      }
 
       if (i < num_segments-1) {
         RUNTIME_EXCEPTION(start_idx <= end_idx, "Segment start must be <= segment end in loop {} segment {}",
@@ -609,7 +595,7 @@ std::vector<size_t> Route::get_overlapping_corners(const std::pair<size_t, size_
       }
     } else {
       // Wrap-around segment
-      if (segment.first < corner.first || segment.second > corner.second) {
+      if (segment.first < corner.second || segment.second > corner.second) {
         ret.push_back(counter);
       }
     }

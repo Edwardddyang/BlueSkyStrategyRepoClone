@@ -640,7 +640,7 @@ bool RacePlanCreator::create_segments(size_t corner_idx,
   if (straight_includes_corners) {
     non_acceleration_zone_start = cornering_segment_bounds[last_real_corner_idx+1].first;
     max_acceleration_distance = route_distances.get_value(last_real_corner_end, non_acceleration_zone_start);
-    logger("The straight includes corners with maximum speeds less than the route speed");
+    logger("The straight includes corners with maximum speeds greater than the route speed");
     logger("Maximum acceleration distance is: " + std::to_string(max_acceleration_distance) +
           " from index " + std::to_string(last_real_corner_end) + " to index " +
           std::to_string(non_acceleration_zone_start));
@@ -865,6 +865,12 @@ bool RacePlanCreator::create_segments(size_t corner_idx,
           logger("Necessary deceleration to reach next corner exceeds maximum acceleration/deceleration "
                   "or exceeds maximum acceleration power allowance");
         }
+        if (proposed_deceleration > 0.0 && straight_includes_corners &&
+            route->get_overlapping_corners({deceleration_start_idx, corner_start}).size() > 0) {
+          logger("Proposed deceleration is positive and overlaps with a corner");
+          valid_corner_speed = false;
+          continue;
+        }
 
         // Check that the selected corner speed allows the car to reach the next corner's range of speeds in half
         // the straight distance
@@ -945,20 +951,29 @@ bool RacePlanCreator::create_segments(size_t corner_idx,
       + "m");
     }
 
-    // Center the gaussian distribution at the desired average speed
-    lower_bound_speed = std::max<int>(1, static_cast<int>(max_corner_speed * corner_speed_min_ratio));
-    upper_bound_speed = static_cast<int>(max_corner_speed * corner_speed_max_ratio);
-    if (target_average_speed > upper_bound_speed) {
-      speed_mean = upper_bound_speed;
-      speed_dev = speed_mean / 6.0;
+    if (!straight_includes_corners) {
+      // Center the gaussian distribution at the desired average speed
+      lower_bound_speed = std::max<int>(1, static_cast<int>(max_corner_speed * corner_speed_min_ratio));
+      upper_bound_speed = static_cast<int>(max_corner_speed * corner_speed_max_ratio);
+      if (target_average_speed > upper_bound_speed) {
+        speed_mean = upper_bound_speed;
+        speed_dev = speed_mean / 6.0;
+      } else {
+        speed_mean = target_average_speed;
+        speed_dev = speed_mean / 6.0;
+      }
+      speed_dist = std::normal_distribution<double>(speed_mean, speed_dev);
     } else {
-      speed_mean = target_average_speed;
+      lower_bound_speed = 1;
+      upper_bound_speed = last_real_corner_speed;
+      speed_mean = static_cast<int>((lower_bound_speed + upper_bound_speed) / 2.0);
       speed_dev = speed_mean / 6.0;
+      logger("Straight includes corners, upper bound of speed distribution will be the current speed of the car");
     }
-    speed_dist = std::normal_distribution<double>(speed_mean, speed_dev);
     logger("Created corner speed gaussian distribution with lower bound " + std::to_string(lower_bound_speed) +
           "m/s, upper bound " + std::to_string(upper_bound_speed) + "m/s, mean of " +
           std::to_string(speed_mean) + " and deviation of " + std::to_string(speed_dev));
+    speed_dist = std::normal_distribution<double>(speed_mean, speed_dev);
 
     valid = false;
     count = 0;
@@ -968,20 +983,6 @@ bool RacePlanCreator::create_segments(size_t corner_idx,
       if (count == max_iters) {
         return false;
       }
-      const double probability = 0.5;
-      // Pick a corner speed. If the current speed is already >= the target average speed of the course,
-      // then bias towards maintaining this constant speed rather than trying to accelerate
-      // bool maintain_speed = false;
-      // if (last_real_corner_speed >= target_average_speed && last_real_corner_speed < max_corner_speed) {
-      //   logger("Last corner speed is greater or equal to the target average speed. Sample chance to maintain"
-      //           " same corner speed.");
-      //   const double sample = skip_dist(rng->skip_rng);
-      //   if (sample < probability) {
-      //     proposed_corner_speed = last_real_corner_speed;
-      //     maintain_speed = true;
-      //     logger("Maintaining last corner speed of " + std::to_string(last_real_corner_speed) + "m/s");
-      //   }
-      // }
 
       if (corner_idx == num_corners) {
         // Wrap-around corner
