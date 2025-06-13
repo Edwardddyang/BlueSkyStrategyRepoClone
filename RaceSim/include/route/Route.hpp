@@ -17,6 +17,9 @@
 #include "utils/Units.hpp"
 #include "utils/Luts.hpp"
 
+// Forward declaration
+class Route;
+
 double calculate_segment_distance(const std::vector<Coord>& coords,
                                   const size_t starting_idx,
                                   const size_t ending_idx);
@@ -44,9 +47,11 @@ class RacePlan {
     double acceleration_value;
     // Distance from A and B in meters
     double distance;
-    // Whether the segment includes a corner of the route
+    // Whether the segment includes a corner of the route whose maximum
+    // speed is <= than the maximum speed of the route
     bool includes_corner;
-    // This field is used only for the "raw" loops
+    // Corner index if includes_corner is true
+    int corner_idx;
 
     // A crossover segment is one that crosses the start line (route index 0)
     // start_idx | end_idx
@@ -61,10 +66,11 @@ class RacePlan {
                 double start_speed = 0.0, double end_speed = 0.0,
                 double acceleration_value = 0.0,
                 double distance = -1.0,
-                bool includes_corner = false) : start_idx(start_idx),
+                bool includes_corner = false,
+                int corner_idx = -1) : start_idx(start_idx),
                 end_idx(end_idx), start_speed(start_speed), end_speed(end_speed),
                 acceleration_value(acceleration_value), distance(distance),
-                includes_corner(includes_corner) {
+                includes_corner(includes_corner), corner_idx(corner_idx) {
     }
   };
 
@@ -103,10 +109,10 @@ class RacePlan {
 
   /** @brief Validate members of a race plan. Should be called before run_sim()
    *
-   * @param route_points Coordinate points of the base route
-   * @return True if all members are valid
+   * @param route Race route
+   * @return True if race plan is valid
    */
-  bool validate_members(const std::vector<Coord>& route_points) const;
+  bool validate_members(std::shared_ptr<Route> route) const;
 
   /** @brief Print the route plan to stdout */
   void print_plan() const;
@@ -271,19 +277,19 @@ class Route {
   inline std::unordered_map<size_t, size_t> get_corner_end_map() const {
     return corner_end_to_corner_idx;
   }
-  inline const std::unordered_map<size_t, size_t> get_corner_start_map() const {
+  inline std::unordered_map<size_t, size_t> get_corner_start_map() const {
     return corner_start_to_corner_idx;
   }
-  inline const std::vector<std::pair<size_t, size_t>> get_cornering_segment_bounds() const {
+  inline std::vector<std::pair<size_t, size_t>> get_cornering_segment_bounds() const {
     return cornering_segment_bounds;
   }
-  inline const std::vector<double> get_cornering_speed_bounds() const {
+  inline std::vector<double> get_cornering_speed_bounds() const {
     return cornering_speed_bounds;
   }
-  inline const std::unordered_set<size_t> get_corner_start_indices() const {
+  inline std::unordered_set<size_t> get_corner_start_indices() const {
     return corner_start_indices;
   }
-  inline const std::unordered_set<size_t> get_corner_end_indices() const {
+  inline std::unordered_set<size_t> get_corner_end_indices() const {
     return corner_end_indices;
   }
 
@@ -301,4 +307,6 @@ class Route {
   /** @brief Calculate the distance from starting_idx to ending_idx inclusive in meters */
   double calc_segment_distance(const size_t starting_idx,
                                const size_t ending_idx);
+
+  /** @brief Given a segment, check to  */
 };

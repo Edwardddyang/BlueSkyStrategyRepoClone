@@ -16,9 +16,10 @@ void FSGPSimulator::run_sim(const std::shared_ptr<Route>& route, RacePlan* race_
     std::cout << "Empty race plan, reason: " << race_plan->get_inviability_reason() << std::endl;
     return;
   } else {
-    RUNTIME_EXCEPTION(race_plan->validate_members(route->get_route_points()), "Race Plan is improperly created");
+    RUNTIME_EXCEPTION(race_plan->validate_members(route), "Race Plan is improperly created");
   }
   const BasicLut& route_distances = route->get_precomputed_distances();
+  const std::vector<double> cornering_speed_limits = route->get_cornering_speed_bounds();
   RUNTIME_EXCEPTION(!route_distances.is_empty(), "FSGP Simulator must use pre-computed distances,"
                                                  "but no data was loaded");
   RUNTIME_EXCEPTION(wind_speed_lut != nullptr, "Wind speed lut must be loaded");
@@ -105,6 +106,16 @@ void FSGPSimulator::run_sim(const std::shared_ptr<Route>& route, RacePlan* race_
       const size_t ending_idx = current_segment.end_idx;
       const bool is_accelerating = current_segment.acceleration_value != 0.0;
       const double acceleration = current_segment.acceleration_value;
+      const size_t corner_idx = current_segment.corner_idx;
+      if (corner_idx != -1) {
+        const double max_corner_speed = cornering_speed_limits[corner_idx];
+        RUNTIME_EXCEPTION(curr_speed <= max_corner_speed,
+                          "Starting cornering speed {} exceeds maximum corner speed {} on corner index {}",
+                          curr_speed, max_corner_speed, corner_idx);
+        RUNTIME_EXCEPTION(ending_speed <= max_corner_speed,
+                          "Ending cornering speed {} exceeds maximum corner speed {} on corner index {}",
+                          ending_speed, max_corner_speed, corner_idx);
+      }
 
       // If accelerating, then we travel from segment start to end in one shot
       size_t num_segment_points;

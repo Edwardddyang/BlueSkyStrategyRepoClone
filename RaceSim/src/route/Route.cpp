@@ -424,7 +424,9 @@ std::string RacePlan::get_loop_string(LoopData loop_segments) {
 
     // Has Corner
     print_char_n_times(' ', 2);
-    output << (loop_segments[seg_idx].includes_corner ? "True  |\n" : "False |\n");
+    output << std::setw(3) << loop_segments[seg_idx].corner_idx;
+    print_char_n_times(' ', 3);
+    output << "|\n";
   }
   print_char_n_times('-', 86);
   output << "\n";
@@ -467,14 +469,22 @@ std::string RacePlan::get_orig_plan_string() const {
   return ret;
 }
 
-bool RacePlan::validate_members(const std::vector<Coord>& route_points) const {
+bool RacePlan::validate_members(std::shared_ptr<Route> route) const {
   RUNTIME_EXCEPTION(!empty, "RacePlan is empty");
   RUNTIME_EXCEPTION(segments.size() > 0, "No segments in Race Plan!");
+  RUNTIME_EXCEPTION(route != nullptr, "Route is null");
+  const std::vector<Coord>& route_points = route->get_route_points();
+  const std::unordered_map<size_t, size_t> corner_end_map = route->get_corner_end_map();
+  const std::vector<double> cornering_speed_bounds = route->get_cornering_speed_bounds();
+  const std::vector<std::pair<size_t, size_t>> cornering_segment_bounds = route->get_cornering_segment_bounds();
+  const size_t num_corners = cornering_segment_bounds.size();
+  bool has_corners = num_corners > 0;
 
   const size_t num_loops = segments.size();
   const double tolerance = 0.0001;  // Tolerance for comparing acceleration values
 
   double last_segment_start_speed, last_segment_end_speed;
+  size_t last_seen_corner = 0;
   for (size_t loop_idx=0; loop_idx < num_loops; loop_idx++) {
     const LoopData loop_segments = segments[loop_idx];
 
@@ -495,37 +505,69 @@ bool RacePlan::validate_members(const std::vector<Coord>& route_points) const {
                         "Last loop's ending speed must be the starting speed of the first segment in the next loop. "
                         "Error found in loop {}", loop_idx);
     }
+    size_t corner_counter = 0;
     for (size_t i=0; i < num_segments; i++) {
-      const double segment_distance = calculate_segment_distance(route_points, loop_segments[i].start_idx,
-                                                                loop_segments[i].end_idx);
-      RUNTIME_EXCEPTION(std::abs(segment_distance - loop_segments[i].distance) < tolerance,
-                        "Segment distance is not equal");
-      RUNTIME_EXCEPTION(loop_segments[i].start_speed >= 0.0 && loop_segments[i].end_speed >= 0.0,
-                        "Segment speed in segment {} is not positive", i);
-
-      if (i < num_segments-1) {
-        RUNTIME_EXCEPTION(loop_segments[i].start_idx <= loop_segments[i].end_idx,
-                          "Segment start must be <= segment end in loop {} segment {}", loop_idx, i);
-        RUNTIME_EXCEPTION(loop_segments[i].end_idx == loop_segments[i+1].start_idx,
-                          "Segments must be continuous i.e. segment end = next segment start."
-                          " Invalid on segment {}, loop {}. Ending index = {}, Next Starting index = {}",
-                          i, loop_idx, loop_segments[i].end_idx, loop_segments[i+1].start_idx);
-        RUNTIME_EXCEPTION(loop_segments[i].end_speed == loop_segments[i+1].start_speed,
-                          "Ending speed of segment {} must equal starting speed of next segment in loop {}. {} {}", i,
-                          loop_idx, loop_segments[i].end_speed, loop_segments[i+1].start_speed);
+      const size_t start_idx = loop_segments[i].start_idx;
+      const size_t end_idx = loop_segments[i].end_idx;
+      const double start_speed = loop_segments[i].start_speed;
+      const double end_speed = loop_segments[i].end_speed;
+      const double acceleration = loop_segments[i].acceleration_value;
+      const double distance = loop_segments[i].distance;
+      const double corner_idx = loop_segments[i].corner_idx;
+      if (has_corners) {
+        RUNTIME_EXCEPTION(corner_counter <= num_corners, "Corner counter anamoly");
       }
 
-      if (loop_segments[i].acceleration_value == 0.0) {
-        RUNTIME_EXCEPTION(loop_segments[i].start_speed == loop_segments[i].end_speed,
+      std::pair<size_t, size_t> next_corner;
+      if (has_corners) {
+        next_corner = cornering_segment_bounds[corner_counter];
+      }
+
+      const double segment_distance = calculate_segment_distance(route_points, start_idx, end_idx);
+      RUNTIME_EXCEPTION(std::abs(segment_distance - distance) < tolerance, "Segment distance is not equal");
+      RUNTIME_EXCEPTION(start_speed >= 0.0 && end_speed >= 0.0, "Segment speed in segment {} is not positive", i);
+      // If the segment traverses corner(s), check that the speed bounds are not violated
+      if (has_corners) {
+        if (end_idx >= next_corner.second ||
+            (end_idx == 0 && start_idx > end_idx)) {
+          size_t idx = start_idx;
+          size_t ending = end_idx == 0 ? route_points.size() - 1 : end_idx;
+          while (idx < ending) {
+            if (idx >= next_corner.first) {
+              const double max_speed = cornering_speed_bounds[corner_counter];
+              RUNTIME_EXCEPTION(start_speed <= max_speed && end_speed <= max_speed,
+                                "Cornering speeds violated");
+              corner_counter++;
+              if (corner_counter == num_corners) {
+                break;
+              }
+              next_corner = cornering_segment_bounds[corner_counter];
+            }
+            idx++;
+          }
+        }
+      }
+
+      if (i < num_segments-1) {
+        RUNTIME_EXCEPTION(start_idx <= end_idx, "Segment start must be <= segment end in loop {} segment {}",
+                          loop_idx, i);
+        RUNTIME_EXCEPTION(end_idx == loop_segments[i+1].start_idx,
+                          "Segments must be continuous i.e. segment end = next segment start."
+                          " Invalid on segment {}, loop {}. Ending index = {}, Next Starting index = {}",
+                          i, loop_idx, end_idx, loop_segments[i+1].start_idx);
+        RUNTIME_EXCEPTION(end_speed == loop_segments[i+1].start_speed,
+                          "Ending speed of segment {} must equal starting speed of next segment in loop {}. {} {}", i,
+                          loop_idx, end_speed, loop_segments[i+1].start_speed);
+      }
+
+      if (acceleration == 0.0) {
+        RUNTIME_EXCEPTION(start_speed == end_speed,
                           "Speed profile for non-acceleration segment {} must have equal and positive starting "
                           "and ending speeds", i);
       } else {
         // Verify acceleration value
-        const double acceleration_value = loop_segments[i].acceleration_value;
-        const double starting_speed = loop_segments[i].start_speed;
-        const double ending_speed = loop_segments[i].end_speed;
-        const double calculated_acceleration_distance = calc_distance_a(starting_speed, ending_speed,
-                                                                        acceleration_value);
+        const double calculated_acceleration_distance = calc_distance_a(start_speed, end_speed,
+                                                                        acceleration);
         RUNTIME_EXCEPTION(calculated_acceleration_distance < segment_distance ||
                           std::abs(calculated_acceleration_distance - segment_distance) < tolerance,
                           "Acceleration distance {} is invalid. Must be less than the segment distance {} "
