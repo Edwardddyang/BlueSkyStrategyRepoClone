@@ -13,8 +13,6 @@ void V2Optimizer::mutate_plan(RacePlan* plan) {
     *plan = constant_for_deceleration(plan, &rng_collection);
   } else if (mutation_type == "GaussianNoise") {
     *plan = gaussian_noise(plan, &rng_collection);
-  } else if (mutation_type == "ConstantForAcceleration") {
-    *plan = constant_for_acceleration(plan, &rng_collection);
   }
 
   return;
@@ -32,6 +30,7 @@ RacePlan V2Optimizer::gaussian_noise(RacePlan* plan, RacePlanCreator::Gen* rng) 
   const size_t num_blocks = static_cast<int>(std::ceil(plan->get_num_loops() /
                               Config::get_instance()->get_num_repetitions()));
   std::uniform_real_distribution<double> skip_dist(0.0, 1.0);
+  std::uniform_int_distribution<int> noise_dist(-1, 1);
 
   RUNTIME_EXCEPTION(num_blocks == raw_plan.size(), "raw_segments vector shoud "
                     "have number of loops equal to the number of blocks {}", num_blocks);
@@ -49,81 +48,43 @@ RacePlan V2Optimizer::gaussian_noise(RacePlan* plan, RacePlanCreator::Gen* rng) 
       const size_t seg_start = loop_segments[seg_idx].start_idx;
       size_t seg_end = loop_segments[seg_idx].end_idx;
 
-      // We only bias towards constant speeds for "normal straights".
-      // This means that the segment directly after this deceleration segment should include
-      // the corner that was being decelerated towards
-      if (seg_idx == num_segments - 1) {
-        continue;
-      }
-      const size_t theoretical_corner_end = loop_segments[seg_idx + 1].end_idx;
-      if (corner_end_indices.find(theoretical_corner_end) == corner_end_indices.end()) {
-        // This is likely an aggressive straight. Don't do anything about these
-        continue;
-      }
-      const size_t corner_idx = corner_end_map[theoretical_corner_end];
-      mutation_logger("Replacing straight leading to corner index " + std::to_string(corner_idx) +
-                      ", Segment Index: " + std::to_string(seg_idx));
-      const size_t corner_max_speed = route->get_cornering_speed_bounds()[corner_idx];
-
       // Pick a corner speed. If the current speed is already >= the target average speed of the course,
       // then bias towards maintaining this constant speed rather than trying to accelerate
-      const double probability = 0.3;
+      const double probability = 0.2;
       const double chance = skip_dist(rng->skip_rng);
       if (chance < probability) {
         mutation_logger("Sampled chance - not mutating this corner");
         continue;
       }
-      // Check if the starting speed of the deceleration is less than the maximum corner speed.
-      // If it is, then we can remove the deceleration and maintain the constant speed
-      bool successful_mutation = false;
-      if (corner_max_speed > loop_segments[seg_idx].start_speed) {
-        // Create the constant speed segments for the straight AND the corner
-        RacePlan::SegmentData straight_seg_data = loop_segments[seg_idx];
-        const double constant_speed = straight_seg_data.start_speed;
-        straight_seg_data.acceleration_value = 0.0;
-        straight_seg_data.end_speed = constant_speed;
-
-        RacePlan::SegmentData corner_seg_data = loop_segments[seg_idx + 1];
-        corner_seg_data.start_speed = constant_speed;
-        corner_seg_data.end_speed = constant_speed;
-
-        RacePlan::SegmentData orig_straight_seg_data = loop_segments[seg_idx];
-        RacePlan::SegmentData orig_corner_seg_data = loop_segments[seg_idx + 1];
-
-        // Replace the deceleration segment and corner segment with the new segment
-        mutation_logger("Inserting the following segment at index " + std::to_string(seg_idx)
-                        + "\n" + RacePlan::get_segment_string(straight_seg_data));
-        
-        new_raw_plan[block_idx][seg_idx] = straight_seg_data;
-        mutation_logger("Inserting the following segment at index " + std::to_string(seg_idx + 1)
-                        + "\n" + RacePlan::get_segment_string(corner_seg_data));
-        new_raw_plan[block_idx][seg_idx + 1] = corner_seg_data;
-
-        if (!legalize_loop(new_raw_plan, block_idx, seg_idx+1, &mutation_logger)) {
-          mutation_logger("Loop legalization failed - restoring added segments\n");
-          new_raw_plan[block_idx][seg_idx] = orig_straight_seg_data;
-          new_raw_plan[block_idx][seg_idx + 1] = orig_corner_seg_data;
-        }
-      } else {
-        mutation_logger("Corner speed is greater than the desired new cruising speed. Skipping");
+      // Sample a random noise to add to the speed
+      const int speed_increase = noise_dist(rng->speed_rng);
+      RacePlan::SegmentData orig_seg = new_raw_plan[block_idx][seg_idx];
+      new_raw_plan[block_idx][seg_idx].end_speed += speed_increase;
+      new_raw_plan[block_idx][seg_idx].acceleration_value = calc_acceleration(
+        new_raw_plan[block_idx][seg_idx].start_speed,
+        new_raw_plan[block_idx][seg_idx].end_speed,
+        new_raw_plan[block_idx][seg_idx].distance
+      );
+      mutation_logger("Trying the following at segment index " + std::to_string(seg_idx)
+                      + "\n" + RacePlan::get_segment_string(new_raw_plan[block_idx][seg_idx]));
+      if (!legalize_loop(new_raw_plan, block_idx, seg_idx, &mutation_logger)) {
+        mutation_logger("Loop legalization failed - restoring added segments\n");
+        new_raw_plan[block_idx][seg_idx] = orig_seg;
       }
     }
     mutation_logger("\nNew loop block " + std::to_string(block_idx));
     mutation_logger(RacePlan::get_loop_string(loop_segments));
     att.raw_segments.push_back(new_raw_plan[block_idx]);
-    generator->create_loop_block(&new_raw_plan[block_idx], &route_distances, this->num_loops_in_block,
+    generator->create_loop_block(&new_raw_plan[block_idx], this->num_loops_in_block,
       block_idx == num_blocks - 1, block_idx == 0, &att, &mutation_logger
     );
+    mutation_logger("Finished creating loop block");
   }
 
   // Create new loop plan
+  mutation_logger("Finished gaussian noise mutation");
   RacePlan new_plan(att.all_segments, att.raw_segments, this->num_loops_in_block);
   return new_plan;
-}
-
-RacePlan V2Optimizer::constant_for_acceleration(RacePlan* plan, RacePlanCreator::Gen* rng) {
-  RUNTIME_EXCEPTION(rng != nullptr, "rng struct for gaussian noise is null");
-  return *plan;
 }
 
 RacePlan V2Optimizer::constant_for_deceleration(RacePlan* plan, RacePlanCreator::Gen* rng) {
@@ -173,7 +134,7 @@ RacePlan V2Optimizer::constant_for_deceleration(RacePlan* plan, RacePlanCreator:
 
       // Pick a corner speed. If the current speed is already >= the target average speed of the course,
       // then bias towards maintaining this constant speed rather than trying to accelerate
-      const double probability = 0.3;
+      const double probability = 0.2;
       const double chance = skip_dist(rng->skip_rng);
       if (chance < probability) {
         mutation_logger("Sampled chance - not mutating this corner");
@@ -217,7 +178,7 @@ RacePlan V2Optimizer::constant_for_deceleration(RacePlan* plan, RacePlanCreator:
     mutation_logger("\nNew loop block " + std::to_string(block_idx));
     mutation_logger(RacePlan::get_loop_string(loop_segments));
     att.raw_segments.push_back(new_raw_plan[block_idx]);
-    generator->create_loop_block(&new_raw_plan[block_idx], &route_distances, this->num_loops_in_block,
+    generator->create_loop_block(&new_raw_plan[block_idx], this->num_loops_in_block,
       block_idx == num_blocks - 1, block_idx == 0, &att, &mutation_logger
     );
   }
@@ -240,6 +201,21 @@ bool V2Optimizer::legalize_loop(RacePlan::PlanData& plan,
   (*logger)("Legalizing loop starting with index " + std::to_string(seg_idx));
   const size_t num_loops = plan.size();
 
+  const double acceleration = saved_plan[loop_idx][seg_idx].acceleration_value;
+  if (acceleration > 0.0) {
+    const double drawn_power = acceleration *
+                               saved_plan[loop_idx][seg_idx].end_speed *
+                               this->car_mass;
+    if (drawn_power > this->acceleration_power_budget || acceleration > this->max_acceleration) {
+      (*logger)("Acceleration failed on the legalization start segment");
+      return false;
+    }
+  }
+  if (acceleration < 0.0 && acceleration < this->max_deceleration) {
+    (*logger)("Deceleration failed on the legalization start segment");
+    return false;
+  }
+
   /** @brief Resolve either an index or speed discontinuity between segment i and i+1
    * @param loop The loop to modify
    * @param i "True" segment, i+1 will be modified
@@ -250,7 +226,7 @@ bool V2Optimizer::legalize_loop(RacePlan::PlanData& plan,
   auto resolve_next_segment = [&](RacePlan::LoopData& loop, size_t i) -> bool {
     // Discontinuity, replace i+1 segment
     RacePlan::SegmentData new_segment = loop[i+1];
-    const size_t corner = loop[i+1].corner_idx;
+    const std::vector<size_t> corners = loop[i+1].corners;
     if (loop[i].end_idx != loop[i+1].start_idx) {
       // Index discontinuity
       const double new_distance = this->route_distances.get_value(loop[i].end_idx, loop[i+1].end_idx);
@@ -263,34 +239,41 @@ bool V2Optimizer::legalize_loop(RacePlan::PlanData& plan,
                                                              new_distance);
       new_segment.acceleration_value = required_acceleration;
       // Check cornering constraint
-      if (corner != -1) {
+      for (const auto& corner : corners) {
         const size_t corner_start = this->route->get_cornering_segment_bounds()[corner].first;
         if (new_segment.start_idx > corner_start) {
+          (*logger)("Goes into the next corner on segment index " + std::to_string(i+1));
           return false;
         }
       }
     } else {
       // Speed discontinuity
-      const double required_acceleration = calc_acceleration(loop[i].end_speed,
-                                                            loop[i+1].end_speed,
-                                                            new_segment.distance);
-      new_segment.acceleration_value = required_acceleration;
-      // Check cornering constraint
-      new_segment.start_speed = loop[i].end_speed;
-      if (corner != -1) {
-        const size_t max_corner_speed = this->route->get_cornering_speed_bounds()[corner];
-        new_segment.end_speed = loop[i].end_speed;
-        if (new_segment.start_speed > max_corner_speed) {
-          return false;
+      if (corners.size() > 0) {
+        for (const auto& corner : corners) {
+          new_segment.start_speed = new_segment.end_speed = loop[i].end_speed;
+          const size_t max_corner_speed = this->route->get_cornering_speed_bounds()[corner];
+          new_segment.end_speed = loop[i].end_speed;
+          if (new_segment.start_speed > max_corner_speed) {
+            (*logger)("Exceeds cornering speed on segment index "+ std::to_string(i+1));
+            return false;
+          }
         }
+      }else {
+        const double required_acceleration = calc_acceleration(loop[i].end_speed,
+                                                              loop[i+1].end_speed,
+                                                              new_segment.distance);
+        new_segment.acceleration_value = required_acceleration;
+        // Check cornering constraint
+        new_segment.start_speed = loop[i].end_speed;
       }
     }
 
     // Check acceleration constraints
     const double drawn_power = new_segment.acceleration_value * this->car_mass * loop[i+1].end_speed;
     if (new_segment.acceleration_value > 0.0) {
-      if (drawn_power < this->acceleration_power_budget ||
+      if (drawn_power > this->acceleration_power_budget ||
           new_segment.acceleration_value > this->max_acceleration) {
+        (*logger)("Exceeds acceleration budget on segment index " + std::to_string(i+1));
         return false;
       }
     } else if (new_segment.acceleration_value < 0.0) {
@@ -335,11 +318,10 @@ bool V2Optimizer::legalize_loop(RacePlan::PlanData& plan,
       break;
     }
   }
-  (*logger)("End of first real corner is: " + std::to_string(first_real_corner_end_idx));
 
   // Do not attempt to modify the speed of the first segment
-  (*logger)("Plan end of thing " + std::to_string(plan[loop_idx][seg_idx].end_idx));
   if (plan[loop_idx][seg_idx].end_idx == first_real_corner_end_idx) {
+    (*logger)("Attempted to modify first real corner");
     return false;
   }
 
@@ -350,6 +332,7 @@ bool V2Optimizer::legalize_loop(RacePlan::PlanData& plan,
                                         loop[i].end_speed == loop[i+1].start_speed;
     if (loop[i+1].end_idx == first_real_corner_end_idx) {
       plan = saved_plan;
+      (*logger)("Attempted to modify first real corner");
       return false;
     }
 
@@ -386,13 +369,15 @@ bool V2Optimizer::legalize_loop(RacePlan::PlanData& plan,
     // Check acceleration constraints
     const double drawn_power = next_loop[0].acceleration_value * this->car_mass * next_loop[0].end_speed;
     if (next_loop[0].acceleration_value > 0.0) {
-      if (drawn_power < this->acceleration_power_budget ||
+      if (drawn_power > this->acceleration_power_budget ||
           next_loop[0].acceleration_value > this->max_acceleration) {
+        (*logger)("Violated acceleration constraint in wrap-around");
         plan = saved_plan;
         return false;
       }
     } else if (next_loop[0].acceleration_value < 0.0) {
       if (next_loop[0].acceleration_value < this->max_deceleration) {
+        (*logger)("Violated max deceleration constraint in wrap-around");
         plan = saved_plan;
         return false;
       }

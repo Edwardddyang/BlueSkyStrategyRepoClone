@@ -110,7 +110,7 @@ class V2Optimizer : public Optimizer {
   /** @brief Perform constant speed mutation by replacing a deceleration segment with constant speed */
   RacePlan constant_for_deceleration(RacePlan* plan, RacePlanCreator::Gen* rng);
   /** @brief Perform constant speed mutation by replacing a deceleration segment with constant speed */
-  RacePlan constant_for_acceleration(RacePlan* plan, RacePlanCreator::Gen* rng);
+  // RacePlan constant_for_acceleration(RacePlan* plan, RacePlanCreator::Gen* rng);
   /** @brief Perform constant speed mutation by replacing a deceleration segment with constant speed */
   RacePlan gaussian_noise(RacePlan* plan, RacePlanCreator::Gen* rng);
 

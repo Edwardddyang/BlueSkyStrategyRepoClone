@@ -69,10 +69,10 @@
   aggressive_straight_threshold: 250.0 # m. Straights longer than this can be taken agressively
   num_repetitions: 5 # Number of times to repeat the plan for a single loop
   min_acceleration: 0.1 # Minimum acceleration that can be considered in m/s^2
-  average_speed: 12.0 # Average speed to try and maintain throughout the route. The profile creator
+  average_speed: 14.0 # Average speed to try and maintain throughout the route. The profile creator
                       # uses this value as the mean of a gaussian distribution to sample for
   fix_loops: true # Fix the number of loops to create. If true, then uses max_num_loops
-  max_num_loops: 60 # Maximum number of loops that can be completed
+  max_num_loops: 5 # Maximum number of loops that can be completed
 
   log_optimization: true # Log optimization process e.g. race plan creation, mutation, crossover. Should really only be used
                          # for population_size = 1
@@ -85,13 +85,24 @@
   idx_seed: 943638458
   skip_seed: 1137213140
   ####### Genetic Algorithm Parameters #######
-  num_generations: 5  # Number of iterations
+  num_generations: 1  # Number of iterations
   population_size: 1 # Number of race plans to maintain the in population
   survival_percentage: 0  # % of the population to pass onto the next iteration unaltered
   crossover_percentage: 0  # Top % of the population to use to crossover to create new children
   mutation_percentage: 100  # % of the population to mutate outside of the ones that are being crossed over
   # Note that survival_percentage + parents_percentage + mutation_percentage must be 100
+
+  # Mutation Strategies:
+  # ConstantForDeceleration -> Replace a deceleration segment with constant speed
+  # GaussianNoise -> Add 1m/s, -1m/s to an acceleration/deceleration segment
+  # CornerNoise -> Add some noise to a corner
+  # LowerAggressive -> Decrease the speed of an aggressive straight
+  # 
+  # Mix -> Try any of the above
   mutation_strategy: ConstantForDeceleration
+
+  # Crossover Strategy:
+  # LoopCross -> Crossover some loops
 
   # POSSIBLE MUTATION IDEAS:
   # PreferConstantSpeed, PreferConstantSpeedAggressive (Avoid deceleration by lowering the constant speed for the corner before a corner with lower max speed),

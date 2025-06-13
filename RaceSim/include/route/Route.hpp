@@ -47,11 +47,8 @@ class RacePlan {
     double acceleration_value;
     // Distance from A and B in meters
     double distance;
-    // Whether the segment includes a corner of the route whose maximum
-    // speed is <= than the maximum speed of the route
-    bool includes_corner;
-    // Corner index if includes_corner is true
-    int corner_idx;
+    // List of corner indices that this segment traverses
+    std::vector<size_t> corners;
 
     // A crossover segment is one that crosses the start line (route index 0)
     // start_idx | end_idx
@@ -66,11 +63,10 @@ class RacePlan {
                 double start_speed = 0.0, double end_speed = 0.0,
                 double acceleration_value = 0.0,
                 double distance = -1.0,
-                bool includes_corner = false,
-                int corner_idx = -1) : start_idx(start_idx),
+                std::vector<size_t> corners = {}) : start_idx(start_idx),
                 end_idx(end_idx), start_speed(start_speed), end_speed(end_speed),
                 acceleration_value(acceleration_value), distance(distance),
-                includes_corner(includes_corner), corner_idx(corner_idx) {
+                corners(corners) {
     }
   };
 
@@ -308,5 +304,11 @@ class Route {
   double calc_segment_distance(const size_t starting_idx,
                                const size_t ending_idx);
 
-  /** @brief Given a segment, check to  */
+  /** @brief Given a segment, check which corner indices it overlaps
+   *
+   * A segment x = {start, end} overlaps another y = {start, end}
+   * if x.start < y.end AND x.end > y.start
+   *
+   */
+  std::vector<size_t> get_overlapping_corners(const std::pair<size_t, size_t>& segment) const;
 };

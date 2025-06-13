@@ -388,9 +388,9 @@ std::string RacePlan::get_loop_string(LoopData loop_segments) {
   };
 
   auto print_header = [&]() {
-    output << "+-------+-----------+---------------+-----------------------+---------------+---------\n";
-    output << ";  Idx  ; Segments  ; Speeds (m/s)  ; Acceleration (m/s^2)  ; Distances (m) ; Corner ;\n";
-    output << "+-------+-----------+---------------+-----------------------+---------------+---------\n";
+    output << "+-------+-----------+---------------+-----------------------+---------------+-------------\n";
+    output << ";  Idx  ; Segments  ; Speeds (m/s)  ; Acceleration (m/s^2)  ; Distances (m) ; Corners    ;\n";
+    output << "+-------+-----------+---------------+-----------------------+---------------+-------------\n";
   };
 
   print_header();
@@ -423,12 +423,15 @@ std::string RacePlan::get_loop_string(LoopData loop_segments) {
     output << "|";
 
     // Has Corner
-    print_char_n_times(' ', 2);
-    output << std::setw(3) << loop_segments[seg_idx].corner_idx;
-    print_char_n_times(' ', 3);
-    output << "|\n";
+    std::string corner_str = vector_to_string<size_t>(loop_segments[seg_idx].corners);
+    if (corner_str.empty()) {
+      print_char_n_times(' ', 11);
+      output << " |\n";
+    } else {
+      output << std::setw(11) << corner_str << " |\n";
+    }
   }
-  print_char_n_times('-', 86);
+  print_char_n_times('-', 90);
   output << "\n";
 
   return output.str();
@@ -440,6 +443,8 @@ std::string RacePlan::get_segment_string(SegmentData seg) {
   ss << "Segment Distance: " << seg.distance << "m\n";
   ss << "Segment Speeds: [" << seg.start_speed << "," << seg.end_speed << "]\n";
   ss << "Acceleration Value: " << seg.acceleration_value << "\n";
+  ss << "Corner Indices: " << vector_to_string<size_t>(seg.corners) << "\n";
+
   return ss.str();
 }
 
@@ -505,7 +510,7 @@ bool RacePlan::validate_members(std::shared_ptr<Route> route) const {
                         "Last loop's ending speed must be the starting speed of the first segment in the next loop. "
                         "Error found in loop {}", loop_idx);
     }
-    size_t corner_counter = 0;
+
     for (size_t i=0; i < num_segments; i++) {
       const size_t start_idx = loop_segments[i].start_idx;
       const size_t end_idx = loop_segments[i].end_idx;
@@ -513,40 +518,35 @@ bool RacePlan::validate_members(std::shared_ptr<Route> route) const {
       const double end_speed = loop_segments[i].end_speed;
       const double acceleration = loop_segments[i].acceleration_value;
       const double distance = loop_segments[i].distance;
-      const double corner_idx = loop_segments[i].corner_idx;
-      if (has_corners) {
-        RUNTIME_EXCEPTION(corner_counter <= num_corners, "Corner counter anamoly");
-      }
-
-      std::pair<size_t, size_t> next_corner;
-      if (has_corners) {
-        next_corner = cornering_segment_bounds[corner_counter];
-      }
+      const std::vector<size_t> corners = loop_segments[i].corners;
 
       const double segment_distance = calculate_segment_distance(route_points, start_idx, end_idx);
       RUNTIME_EXCEPTION(std::abs(segment_distance - distance) < tolerance, "Segment distance is not equal");
       RUNTIME_EXCEPTION(start_speed >= 0.0 && end_speed >= 0.0, "Segment speed in segment {} is not positive", i);
       // If the segment traverses corner(s), check that the speed bounds are not violated
-      if (has_corners) {
-        if (end_idx >= next_corner.second ||
-            (end_idx == 0 && start_idx > end_idx)) {
-          size_t idx = start_idx;
-          size_t ending = end_idx == 0 ? route_points.size() - 1 : end_idx;
-          while (idx < ending) {
-            if (idx >= next_corner.first) {
-              const double max_speed = cornering_speed_bounds[corner_counter];
-              RUNTIME_EXCEPTION(start_speed <= max_speed && end_speed <= max_speed,
-                                "Cornering speeds violated");
-              corner_counter++;
-              if (corner_counter == num_corners) {
-                break;
-              }
-              next_corner = cornering_segment_bounds[corner_counter];
-            }
-            idx++;
-          }
-        }
-      }
+      // if (has_corners && corner_counter < num_corners) {
+      //   size_t closest_corner_idx = 0;  // Smallest corner index greater than the segment
+      //   if ((end_idx >= next_corner.second && start_idx < next_corner.second && end_idx != 0) ||
+      //       (end_idx == 0 && start_idx < next_corner.second)) {
+      //     size_t idx = start_idx;
+      //     size_t ending = end_idx == 0 ? route_points.size() - 1 : end_idx;
+      //     while (idx < ending) {
+      //       if (idx >= next_corner.first) {
+      //         const double max_speed = cornering_speed_bounds[corner_counter];
+      //         RUNTIME_EXCEPTION(start_speed <= max_speed && end_speed <= max_speed,
+      //                           "Cornering speeds violated on segment " +
+      //                           get_segment_string(loop_segments[i]) +
+      //                           " and corner " + std::to_string(corner_counter));
+      //         corner_counter++;
+      //         if (corner_counter == num_corners) {
+      //           break;
+      //         }
+      //         next_corner = cornering_segment_bounds[corner_counter];
+      //       }
+      //       idx++;
+      //     }
+      //   }
+      // }
 
       if (i < num_segments-1) {
         RUNTIME_EXCEPTION(start_idx <= end_idx, "Segment start must be <= segment end in loop {} segment {}",
@@ -566,6 +566,7 @@ bool RacePlan::validate_members(std::shared_ptr<Route> route) const {
                           "and ending speeds", i);
       } else {
         // Verify acceleration value
+        RUNTIME_EXCEPTION(start_speed != end_speed, "Acceleration segment must have different start and ending speeds");
         const double calculated_acceleration_distance = calc_distance_a(start_speed, end_speed,
                                                                         acceleration);
         RUNTIME_EXCEPTION(calculated_acceleration_distance < segment_distance ||
@@ -595,4 +596,24 @@ RacePlan::RacePlan(PlanData segments, PlanData orig_segments, int num_repetition
   } else {
     empty = false;
   }
+}
+
+std::vector<size_t> Route::get_overlapping_corners(const std::pair<size_t, size_t>& segment) const {
+  std::vector<size_t> ret;
+  size_t counter = 0;
+  for (const auto& corner : cornering_segment_bounds) {
+    if (segment.first < segment.second) {
+      // Normal segment
+      if (segment.first < corner.second && segment.second > corner.first) {
+        ret.push_back(counter);
+      }
+    } else {
+      // Wrap-around segment
+      if (segment.first < corner.first || segment.second > corner.second) {
+        ret.push_back(counter);
+      }
+    }
+    counter++;
+  }
+  return ret;
 }

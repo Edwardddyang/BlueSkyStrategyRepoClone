@@ -87,7 +87,6 @@ void FSGPSimulator::run_sim(const std::shared_ptr<Route>& route, RacePlan* race_
   for (size_t loop_idx = 0; loop_idx < num_loops; loop_idx++) {
     // Get plan for current loop
     const RacePlan::LoopData loop_segments = segments[loop_idx];
-
     // Get plan for current segment
     const size_t num_segments = loop_segments.size();
 
@@ -106,16 +105,6 @@ void FSGPSimulator::run_sim(const std::shared_ptr<Route>& route, RacePlan* race_
       const size_t ending_idx = current_segment.end_idx;
       const bool is_accelerating = current_segment.acceleration_value != 0.0;
       const double acceleration = current_segment.acceleration_value;
-      const size_t corner_idx = current_segment.corner_idx;
-      if (corner_idx != -1) {
-        const double max_corner_speed = cornering_speed_limits[corner_idx];
-        RUNTIME_EXCEPTION(curr_speed <= max_corner_speed,
-                          "Starting cornering speed {} exceeds maximum corner speed {} on corner index {}",
-                          curr_speed, max_corner_speed, corner_idx);
-        RUNTIME_EXCEPTION(ending_speed <= max_corner_speed,
-                          "Ending cornering speed {} exceeds maximum corner speed {} on corner index {}",
-                          ending_speed, max_corner_speed, corner_idx);
-      }
 
       // If accelerating, then we travel from segment start to end in one shot
       size_t num_segment_points;
