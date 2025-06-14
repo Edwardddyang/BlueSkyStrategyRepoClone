@@ -102,23 +102,50 @@ class V2Optimizer : public Optimizer {
 
   std::unordered_set<std::string> MUTATION_STRATEGIES = {
     "ConstantForDeceleration",
-    "GaussianNoise",
-    "ConstantForAcceleration",
-    "ConstantForAggressive"
+    "AccelerationNoise",
+    "ConstantNoise",
+    "Mix",
   };
 
-  /** @brief Perform constant speed mutation by replacing a deceleration segment with constant speed */
-  RacePlan constant_for_deceleration(RacePlan* plan, RacePlanCreator::Gen* rng);
-  /** @brief Perform constant speed mutation by replacing a deceleration segment with constant speed */
-  // RacePlan constant_for_acceleration(RacePlan* plan, RacePlanCreator::Gen* rng);
-  /** @brief Perform constant speed mutation by replacing a deceleration segment with constant speed */
-  RacePlan gaussian_noise(RacePlan* plan, RacePlanCreator::Gen* rng);
+  // All mutation functions below have the following signature:
+  // @param plan: Plan to mutate
+  // @param rng: Random number generator seeds
+  // @param loop_idx: Loop to mutate. If -1, mutate all loops
+  // Note: All functions operate on the "raw" loops prior to glueing
+
+  /** @brief Replace deceleration segment with constant speed in a specific loop */
+  void constant_for_deceleration(RacePlan* plan, RacePlanCreator::Gen* rng);
+  /** @brief Mutate a loop of the plan using the method described above
+   * @note new_raw_plan is modified in place 
+  */
+  void constant_for_deceleration_loop(RacePlan::PlanData* new_raw_plan,
+                                      size_t loop_idx,
+                                      RacePlanCreator::Gen* rng);
+
+  /** @brief Add either +1 or -1 m/s to the end of an acceleration/deceleration segment */
+  void acceleration_noise(RacePlan* plan, RacePlanCreator::Gen* rng);
+  /** @brief Mutate a loop of the plan using the method described above
+   * @note new_raw_plan is modified in place
+   */
+  void acceleration_noise_loop(RacePlan::PlanData* new_raw_plan, size_t loop_idx, RacePlanCreator::Gen* rng);
+
+  /** @brief Add either +1 or -1 m/s to a constant speed */
+  void constant_noise(RacePlan* plan, RacePlanCreator::Gen* rng);
+  /** @brief Mutate a loop of the plan using the method described above
+   * @note new_raw_plan is modified in place
+   */
+  void constant_noise_loop(RacePlan::PlanData* new_raw_plan, size_t loop_idx,
+                           RacePlanCreator::Gen* rng);
+
+  /** @brief Mutate each loop using one of the techniques above */
+  void mix(RacePlan* plan, RacePlanCreator::Gen* rng);
 
   /** @brief Attempt to legalize a loop starting from some segment. Modification will be done in place
    *
    * @param plan The raw loop plan
    * @param loop_idx Loop index to start examination
    * @param seg_idx Segment index to start examination 
+   * @note: plan is MODIFIED IN PLACE
    *
    * Note: This assumes that there is some index/speed discontinuity e.g.
    * Loop Indices: [0,5],[5,14],[16,26] -> Discontinuity going from segment 1 to segment 2
@@ -127,7 +154,7 @@ class V2Optimizer : public Optimizer {
    *
    * @return True if legalization was successful, false if unsuccessful
   */
-  bool legalize_loop(RacePlan::PlanData& plan,
+  bool legalize_loop(RacePlan::PlanData* plan,
                      size_t loop_idx,
                      size_t seg_idx,
                      FileLogger* logger = nullptr);

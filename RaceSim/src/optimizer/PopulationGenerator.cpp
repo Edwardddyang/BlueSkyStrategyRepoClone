@@ -867,7 +867,7 @@ bool RacePlanCreator::create_segments(size_t corner_idx,
         }
         if (proposed_deceleration > 0.0 && straight_includes_corners &&
             route->get_overlapping_corners({deceleration_start_idx, corner_start}).size() > 0) {
-          logger("Proposed deceleration is positive and overlaps with a corner");
+          logger("Proposed deceleration is positive and overlaps with a corner. Safety constraint violated");
           valid_corner_speed = false;
           continue;
         }

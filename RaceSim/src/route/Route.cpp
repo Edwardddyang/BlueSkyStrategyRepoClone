@@ -424,6 +424,7 @@ std::string RacePlan::get_loop_string(LoopData loop_segments) {
 
     // Has Corner
     std::string corner_str = vector_to_string<size_t>(loop_segments[seg_idx].corners);
+
     if (corner_str.empty()) {
       print_char_n_times(' ', 11);
       output << " |\n";
@@ -552,7 +553,8 @@ bool RacePlan::validate_members(std::shared_ptr<Route> route) const {
                           "and ending speeds", i);
       } else {
         // Verify acceleration value
-        RUNTIME_EXCEPTION(start_speed != end_speed, "Acceleration segment must have different start and ending speeds");
+        RUNTIME_EXCEPTION(start_speed != end_speed, "Acceleration segment must have different start and ending speeds."
+                                                    "Segment {} of loop {}", i, loop_idx);
         const double calculated_acceleration_distance = calc_distance_a(start_speed, end_speed,
                                                                         acceleration);
         RUNTIME_EXCEPTION(calculated_acceleration_distance < segment_distance ||
