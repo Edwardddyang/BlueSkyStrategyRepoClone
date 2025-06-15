@@ -127,7 +127,7 @@
   PARAM(crossover_percentage, double, double, 30)                                           \
   PARAM(mutation_percentage, double, double, 50)                                            \
   PARAM(mutation_strategy, std::string, std::string, "PreferConstantSpeed")                 \
-
+  PARAM(dump_dir, std::string, std::string, "results/dump")                                 \
 
 /* Class that holds all information from a .yaml file storing configuration parameters for
  * a race simulation

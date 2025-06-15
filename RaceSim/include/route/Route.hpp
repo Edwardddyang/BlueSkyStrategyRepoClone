@@ -110,7 +110,6 @@ class RacePlan {
    */
   bool validate_members(const std::vector<Coord>& route_points) const;
 
- 
   /** @brief Print the route plan to stdout */
   void print_plan() const;
   std::string get_plan_string() const;
@@ -121,6 +120,8 @@ class RacePlan {
 
   /** @brief Get a single string displaying a segment in a human readable way */
   static std::string get_segment_string(SegmentData seg);
+
+  void export_json() const; // Exports RacePlan to a json file in the dump directory
 
  private:
   /* Viability of race plan */

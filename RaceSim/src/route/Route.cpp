@@ -566,4 +566,40 @@ RacePlan::RacePlan(PlanData segments, PlanData orig_segments, int num_repetition
   }
 }
 
+using json = nlohmann::json;
+
+void RacePlan::export_json() const {
+    const std::string& dumpDir = Config::get_instance()->get_dump_dir();
+    std::filesystem::create_directories(dumpDir);
+    const std::string path = dumpDir + "/best_raceplan.json";
+
+    json j = json::array();
+
+    for (const auto& loop : segments) {
+        json loop_json = json::array();
+
+        for (const auto& seg : loop) {
+            loop_json.push_back({
+                {"start_idx", seg.start_idx},
+                {"end_idx", seg.end_idx},
+                {"start_speed", seg.start_speed},
+                {"end_speed", seg.end_speed},
+                {"acceleration_value", seg.acceleration_value},
+                {"distance", seg.distance},
+                {"includes_corner", seg.includes_corner}
+            });
+        }
+
+        j.push_back(loop_json);
+    }
+
+    std::ofstream out(path);
+    if (!out) {
+        throw std::runtime_error("Could not open " + path + " for writing.");
+    }
+
+    out << std::setw(4) << j << std::endl;
+}
+
+
 
