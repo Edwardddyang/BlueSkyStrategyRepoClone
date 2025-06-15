@@ -21,6 +21,8 @@
 #include "utils/Logger.hpp"
 #include "utils/Geography.hpp"
 #include "utils/CustomException.hpp"
+#include <nlohmann/json.hpp>
+
 
 double calculate_segment_distance(const std::vector<Coord>& coords,
                                   const size_t starting_idx,
@@ -563,3 +565,5 @@ RacePlan::RacePlan(PlanData segments, PlanData orig_segments, int num_repetition
     empty = false;
   }
 }
+
+

@@ -17,6 +17,7 @@
 #include "utils/Units.hpp"
 #include "utils/Luts.hpp"
 #include "utils/CustomTime.hpp"
+#include <nlohmann/json.hpp>
 
 double calculate_segment_distance(const std::vector<Coord>& coords,
                                   const size_t starting_idx,
@@ -109,6 +110,7 @@ class RacePlan {
    */
   bool validate_members(const std::vector<Coord>& route_points) const;
 
+ 
   /** @brief Print the route plan to stdout */
   void print_plan() const;
   std::string get_plan_string() const;

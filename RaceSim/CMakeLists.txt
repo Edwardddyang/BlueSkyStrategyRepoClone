@@ -33,6 +33,10 @@ set(YAML_CPP_BUILD_TOOLS OFF CACHE BOOL "Build yaml-cpp tools" FORCE)
 set(YAML_CPP_BUILD_CONTRIB OFF CACHE BOOL "Build yaml-cpp contrib" FORCE)
 add_subdirectory(${EXTERNAL_DIR}/yaml-cpp)
 list(APPEND EXTERNAL_DEPS yaml-cpp)
+
+# nlohmann_json
+include_directories(${CMAKE_SOURCE_DIR}/RaceSim/libs)
+
 # ---------------------------------------------------------
 
 # ---------------- RaceSim dynamic library ----------------

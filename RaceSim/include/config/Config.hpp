@@ -128,6 +128,7 @@
   PARAM(mutation_percentage, double, double, 50)                                            \
   PARAM(mutation_strategy, std::string, std::string, "PreferConstantSpeed")                 \
 
+
 /* Class that holds all information from a .yaml file storing configuration parameters for
  * a race simulation
 */
@@ -155,6 +156,7 @@ class Config {
 
   std::vector<Coord> telem_coords;
   std::vector<Time> telem_times;
+
 
   // Dummy variable to satisfy macro syntax
   int b;
