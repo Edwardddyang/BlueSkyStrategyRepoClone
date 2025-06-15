@@ -18,17 +18,17 @@ class V2Car : public V1Car {
   _1D::SimpsonRule<double> integrator;
 
  public:
-    V2Car();
+  V2Car();
 
-    // Compute energy change when moving between two points in a straight line.
-    // Note that unlike V1Car, acceleration is not always 0
-    // Implementation is based on https://www.overleaf.com/read/xzbrzqtbsrhn#2ac2ad
-    CarUpdate compute_travel_update(Coord coord_one,
-                                    Coord coord_two,
-                                    double init_speed,
-                                    double acceleration,
-                                    Time* time,
-                                    Wind wind,
-                                    Irradiance irr,
-                                    double distance = -1.0) override;
+  // Compute
+  CarUpdate compute_travel_update(Coord coord_one,
+                                  Coord coord_two,
+                                  double init_speed,
+                                  double final_speed,
+                                  double acceleration,
+                                  Time* time,
+                                  Wind wind,
+                                  Irradiance irr,
+                                  double acceleration_distance,
+                                  double constant_distance);
 };

@@ -11,6 +11,7 @@ Class to run the a full scale simulation on a FSGP type route (track race)
 
 #include "route/Route.hpp"
 #include "model/Car.hpp"
+#include "model/V2Car.hpp"
 #include "utils/Units.hpp"
 #include "utils/Luts.hpp"
 #include "sim/WSCSimulator.hpp"
@@ -26,6 +27,9 @@ class FSGPSimulator : public WSCSimulator {
   const Coord charging_coord;          // Charging coordinates of the car
   const Time impounding_start_time;    // Impounding start time in 24 hour local time
   const Time impounding_release_time;  // Impounding release time in 24 hour local time
+
+  // Car Model
+  std::shared_ptr<V2Car> car;
 
  public:
   /* Load all LUTs upon construction */

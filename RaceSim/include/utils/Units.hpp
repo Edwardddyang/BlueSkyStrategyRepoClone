@@ -150,4 +150,5 @@ inline double joules2watts(double joules, double time) { return joules / time; }
 inline double meters2km(double m) {return m/KM_TO_M;}
 inline double km2meters(double km) {return km * KM_TO_M;}
 inline double kwh2joules(double kwh) { return kwh * JOULES_TO_KWH; }
-inline double kwh2watts(double kwh) { return kwh * 1000.0; }
+inline double kwh2wh(double kwh) { return kwh * 1000.0; }
+inline double kw2watts(double kw) { return kw * 1000.0; }

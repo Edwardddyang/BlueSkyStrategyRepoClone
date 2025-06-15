@@ -15,17 +15,6 @@
 #include "config/Config.hpp"
 #include "utils/Defines.hpp"
 
-// Thread function for running a simulation
-void thread_run_sim(std::shared_ptr<Simulator> sim,
-                                std::shared_ptr<Route> route,
-                                std::shared_ptr<ResultsLut> result_lut,
-                                RacePlan* race_plan,
-                                ThreadManager* thread_manager) {
-  thread_manager->acquire();
-  sim->run_sim(route, race_plan, result_lut);
-  thread_manager->release();
-}
-
 RacePlan V1Optimizer::optimize() {
   /* Loop from speeds 1 -> max. speed to get the maximum viable speed */
   const int max_speed = Config::get_instance()->get_max_speed();
@@ -49,10 +38,16 @@ RacePlan V1Optimizer::optimize() {
   std::vector<std::thread> threads;
   result_luts.clear();
   race_plans.clear();
+
   for (int i=min_speed; i <= max_speed; i++) {
     result_luts.emplace_back(std::make_shared<ResultsLut>());
-    race_plans.emplace_back(RacePlan({{{0, route->get_num_points() - 1}}},
-                       {{{static_cast<double>(i), static_cast<double>(i)}}}));
+    std::vector<std::vector<std::pair<double, double>>> segment_speeds = {{{static_cast<double>(i),
+                                                                            static_cast<double>(i)}}};
+    RacePlan::SegmentData single_segment(
+      0, route->get_num_points() - 1, static_cast<double>(i), static_cast<double>(i), 0.0,
+      calculate_segment_distance(route->get_route_points(), 0, route->get_num_points() - 1));
+
+    race_plans.emplace_back(RacePlan({{single_segment}}));
   }
 
   for (int i=0; i < total_num_threads; i++) {

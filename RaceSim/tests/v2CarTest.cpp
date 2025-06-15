@@ -32,7 +32,7 @@ TEST_F(v2CarTest, AccelerationTest) {
   const double distance = 100.0;
 
   const CarUpdate result = TestCar.compute_travel_update(src_coord, dest_coord, init_speed,
-                                                   acceleration, &init_time, wind, irr, distance);
+                                                        acceleration, &init_time, wind, irr, distance);
 
   EXPECT_NEAR(result.bearing, 245.93242811073034, 0.0001);
   EXPECT_NEAR(result.az_el.Az, 240.723463989025, 0.0001);

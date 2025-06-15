@@ -5,6 +5,7 @@
 
 #include "spdlog/spdlog.h"
 #include "sim/SimulatorFactory.hpp"
+#include "model/V2Car.hpp"
 #include "sim/WSCSimulator.hpp"
 #include "sim/FSGPSimulator.hpp"
 
@@ -25,6 +26,10 @@ std::shared_ptr<Simulator> SimulatorFactory::get_simulator(std::string sim_type,
 
   if (sim == SIMULATORS::FSGP) {
     spdlog::info("Using FSGP Simulator.");
+    if (!std::dynamic_pointer_cast<V2Car>(model)) {
+      spdlog::error("FSGP Simulator must use V2Car model");
+      exit(0);
+    }
     return std::make_shared<FSGPSimulator>(model);
   } else if (sim == SIMULATORS::WSC) {
     spdlog::info("Using WSC Simulator.");

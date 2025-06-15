@@ -33,6 +33,8 @@ class Car {
  public:
   Car();
 
+  // Below functions don't have to be implemented, but are the same for both V1Car and V2Car
+
   /** @brief Compute the aerodynamic loss over a time period
    *
    * @param speed: Speed of the car in m/s
@@ -40,7 +42,9 @@ class Car {
    * @param wind: Wind direction [deg cw from north] and wind speed [m/s]
    * @param delta_time_s: Time interval in seconds
    */
-  virtual EnergyChange compute_aero_loss(double speed, double car_bearing, Wind wind, double delta_time_s) = 0;
+  virtual EnergyChange compute_aero_loss(double speed, double car_bearing, Wind wind, double delta_time_s) {
+    return EnergyChange();
+  }
 
   /** @brief Compute the rolling resistance loss over a time period
    *
@@ -48,7 +52,9 @@ class Car {
    * @param delta_time: Time interval in seconds
    * @param cos_theta: cos(elevation angle of the slant)
    */
-  virtual EnergyChange compute_rolling_loss(double speed, double delta_time, double cos_theta) = 0;
+  virtual EnergyChange compute_rolling_loss(double speed, double delta_time, double cos_theta) {
+    return EnergyChange();
+  }
 
   /** @brief Compute the gravitational loss over a time period
    *
@@ -56,13 +62,17 @@ class Car {
    * @param delta_time: Time interval in seconds
    * @param sin_theta: sin(elevation angle of the slant)
    */
-  virtual EnergyChange compute_gravitational_loss(double distance, double delta_time, double sin_theta) = 0;
+  virtual EnergyChange compute_gravitational_loss(double distance, double delta_time, double sin_theta) {
+    return EnergyChange();
+  }
 
   /** @brief Compute the electrical loss over a time period
    *
    * @param delta_time: Time interval in seconds
    */
-  virtual double compute_electric_loss(double delta_time) = 0;
+  virtual double compute_electric_loss(double delta_time) {
+    return -1.0;
+  }
 
   /** @brief Compute the array energy gains
    *
@@ -72,7 +82,9 @@ class Car {
    * @param az: Azimuth angle in degrees from true north
    * @param el: Elevation angle in degrees
    */
-  virtual EnergyChange compute_array_gain(double delta_time, double dni, double dhi, double az, double el) = 0;
+  virtual EnergyChange compute_array_gain(double delta_time, double dni, double dhi, double az, double el) {
+    return EnergyChange();
+  }
 
   /** @brief Compute energy change when moving between two points in a straight line 
    * 
@@ -94,7 +106,9 @@ class Car {
                                           Time* time,
                                           Wind wind,
                                           Irradiance irr,
-                                          double distance = -1.0) = 0;
+                                          double distance = -1.0) {
+    return CarUpdate();
+  }
 
   /** @brief Compute energy change during a static stop
    *
@@ -103,5 +117,7 @@ class Car {
    * @param charge_time: Length of static stop in seconds
    * @param irr: Irradiance of the sun (assumed to be constant over the entire stop)
    */
-  virtual double compute_static_energy(Coord coord, Time* time, double charge_time, Irradiance irr) = 0;
+  virtual double compute_static_energy(Coord coord, Time* time, double charge_time, Irradiance irr) {
+    return -1.0;
+  }
 };

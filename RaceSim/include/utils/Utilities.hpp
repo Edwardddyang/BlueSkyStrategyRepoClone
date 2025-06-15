@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <string>
+#include <sstream>
 #include <unordered_set>
 
 #include "utils/Units.hpp"
@@ -72,3 +73,44 @@ double calc_acceleration(const double init_speed, const double final_speed, cons
  * @param distance Distance to cover
 */
 double calc_final_speed_a(const double init_speed, const double acceleration, const double distance);
+
+/** @brief Calculate distance travelled given initial velocity, final velocity, acceleration
+ * @param init_speed Initial speed in m/s
+ * @param final_speed Final speed in m/s
+ * @param acceleration Acceleration in m/s^2
+ */
+double calc_distance_a(const double init_speed, const double final_speed, const double acceleration);
+
+/** @brief Helper function to segment_route_corners that determines if a range of
+    * speeds is reachable within some maximum distance without violating constraints
+    *
+    * @param initial_speed: Initial speed in m/s
+    * @param acceleration_power: Acceleration power
+    * @param max_acceleration: Maximum accleration
+    * @param max_deceleration: Maximum deceleration
+    * @param preferred_deceleration: Preferred deceleration
+    * @param speed_range: Range of speeds to target
+    * @param max_distance: Distance to cover
+    * @param car_mass: Car mass in kg
+    */
+bool can_reach_speeds(double initial_speed, double acceleration_power, double max_acceleration, double max_deceleration, std::pair<double, double> speed_range, double distance, double car_mass);
+
+/** @brief Construct a string from a vector */
+template<typename T>
+std::string vector_to_string(const std::vector<T>& vec) {
+  const size_t num_indices = vec.size();
+  if (num_indices == 0) {
+    return "";
+  }
+  std::stringstream ss;
+  ss << "[";
+  for (size_t i=0; i < num_indices; i++) {
+    ss << vec[i];
+    if (i == num_indices - 1) {
+      ss << "]";
+    } else {
+      ss << ",";
+    }
+  }
+  return ss.str();
+}

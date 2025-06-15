@@ -43,17 +43,15 @@ This example file is already present in the repository.
 
 ## Building
 
-### Getting a Windows Compiler
+### Getting a Windows Toolchain
 - Download Git (https://git-scm.com/downloads/win) which will also install the git bash terminal
 - Download CMake windows installer (https://cmake.org/download/)
-- Download GNU Make (https://gnuwin32.sourceforge.net/packages/make.htm)
-- Download Msys2 (https://www.msys2.org/)
-- Follow the instructions on the Msys2 home page with the following modifications to the steps:
-  - In step 5, instead of launching the UCRT64 environment which has proven to be buggy, use the MinGW64 environment. You can find this as one of the applications in the downloaded msys2/ folder.
-  - In step 6, run `pacman -S mingw-w64-x86_64-gcc` inside the MinGW64 terminal
-- Add the absolute path to msys2/mingw64/bin to your PATH environment variable
-- Add the absolute path to the installed location of the make.exe executable to PATH
+- Download GNU Make (https://gnuwin32.sourceforge.net/packages/make.htm). You should only need the link under the "Complete package, except sources" bullet point. Make sure the install goes to the C: directory and not to any of the 'Program Files' directories, make runs a script that seems to not like spaces in paths. After the install completes, add the `bin` folder to your PATH
+- Download a MinGW64 toolchain package (https://www.mingw-w64.org/downloads/). I recommend using Msys2 (https://www.msys2.org/)
+  - If you're using Msys2, open the installed MinGW64 terminal and run `pacman -S mingw-w64-x86_64-gcc`
+  - Add the absolute path of msys2/mingw64/bin to PATH
 - Open git bash and ensure that ```make --version``` ```gcc --version``` run without error. If you get a command not found error. Then you most likely did not set your environment variable paths correctly
+- Install Python 3.13.0 (https://www.python.org/downloads/release/python-3130/)
 - Run ```pip install cpplint==2.0.0```
 
 ### Building the executables and libraries

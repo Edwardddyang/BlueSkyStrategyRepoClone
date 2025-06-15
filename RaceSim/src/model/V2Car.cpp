@@ -6,14 +6,17 @@
 #include "model/V2Car.hpp"
 #include "utils/CustomException.hpp"
 
+
 CarUpdate V2Car::compute_travel_update(Coord coord_one,
                                        Coord coord_two,
                                        double init_speed,
+                                       double final_speed,
                                        double acceleration,
                                        Time* time,
                                        Wind wind,
                                        Irradiance irr,
-                                       double distance) {
+                                       double acceleration_distance,
+                                       double constant_distance) {
   /* Get orientation of the car */
   const double bearing = get_bearing(coord_one, coord_two);
   SolarAngle az_el = get_az_el_from_bearing(bearing, coord_one, time);
@@ -22,8 +25,10 @@ CarUpdate V2Car::compute_travel_update(Coord coord_one,
   }
 
   /* Get time and distance travelled */
-  const double delta_distance = distance == -1.0 ? get_distance(coord_one, coord_two) : distance;
-  const double delta_time = calc_time(init_speed, acceleration, delta_distance);
+  const double delta_distance = acceleration_distance + constant_distance;
+  const double acceleration_ending_speed = calc_final_speed_a(init_speed, acceleration, acceleration_distance);
+  const double delta_time = calc_time(init_speed, acceleration, acceleration_distance) +
+                            calc_time(acceleration_ending_speed, 0.0, constant_distance);
   const double delta_altitude = coord_two.alt - coord_one.alt;
   const double sin_angle = delta_altitude / delta_distance;
   const double base_squared = delta_distance * delta_distance - delta_altitude * delta_altitude;
@@ -63,6 +68,10 @@ CarUpdate V2Car::compute_travel_update(Coord coord_one,
     double motor_power = aero_loss.power + rolling_loss.power + gravity_loss.power;
     double motor_loss = aero_loss.energy + rolling_loss.energy + gravity_loss.energy;
 
+    // If the instataneous power draw from the motor is too high, then error out
+    if (motor_power > max_motor_power) {
+      throw InvalidCalculation("Maximum motor power exceeded during constant speed segment");
+    }
     // If the energy draw is negative i.e. resistive forces propel the car forward, assume we don't
     // draw energy from the motor
     if (motor_loss < 0.0) {
@@ -116,9 +125,9 @@ CarUpdate V2Car::compute_travel_update(Coord coord_one,
         acceleration_power_data[i] = acceleration_power;
         gravity_power_data[i] = gravity_loss.power;
         const double instataneous_motor_power = aero_loss.power + rolling_loss.power +
-        acceleration_power + gravity_loss.power;
+                                                acceleration_power + gravity_loss.power;
         if (instataneous_motor_power > max_motor_power) {
-          throw InvalidCalculation("Maximum motor power exceeded");
+          throw InvalidCalculation("Maximum motor power exceeded during acceleration segment");
         }
       }
 
@@ -162,5 +171,5 @@ CarUpdate V2Car::compute_travel_update(Coord coord_one,
 V2Car::V2Car() : V1Car() {tire_inertia = Config::get_instance()->get_tire_inertia();
                           num_tires = Config::get_instance()->get_num_tires();
                           tire_radius = Config::get_instance()->get_tire_radius();
-                          max_braking_force = Config::get_instance()->get_max_deceleration() * mass;
-                          max_motor_power = kwh2watts(Config::get_instance()->get_max_motor_power());}
+                          max_braking_force = std::abs(Config::get_instance()->get_max_deceleration()) * mass;
+                          max_motor_power = kwh2wh(Config::get_instance()->get_max_motor_power());}

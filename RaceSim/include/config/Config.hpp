@@ -35,7 +35,9 @@
   PARAM(cda, double, double, 0.16)                                                          \
   PARAM(max_motor_power, double, double, 5.0)                                               \
   PARAM(max_car_speed, double, double, 104)                                                 \
-  PARAM(max_deceleration, double, double, 0.6152)                                           \
+  PARAM(max_route_speed, double, double, 104)                                               \
+  PARAM(max_acceleration, double, double, 2.0)                                              \
+  PARAM(max_deceleration, double, double, 3.0)                                              \
   PARAM(array_power_max, double, double, 950)                                               \
   PARAM(array_efficiency, double, double, 0.252)                                            \
   PARAM(motor_efficiency, double, double, 0.9)                                              \
@@ -45,6 +47,7 @@
   PARAM(tire_radius, double, double, 0.508)                                                 \
   PARAM(num_tires, int, int, 3)                                                             \
   PARAM(max_num_loops, int, int, 300)                                                       \
+  PARAM(fix_num_loops, bool, bool, true)                                                    \
   PARAM(control_stops, std::unordered_set<size_t>,                                          \
         std::unordered_set<size_t>,                                                         \
         convert_string_to_int_set("2962,5559,9462,11421,14439,16990,20832,23202,25987"))    \
@@ -97,6 +100,29 @@
   PARAM(save_csv, bool, bool, true)                                                         \
   PARAM(simulator, std::string, std::string, "FSGP")                                        \
   PARAM(threads, double, double, 0.5)                                                       \
+  PARAM(acceleration_power_budget, double, double, 0.7)                                     \
+  PARAM(min_acceleration, double, double, 0.1)                                              \
+  PARAM(average_speed, double, double, 45.0)                                                \
+  PARAM(corner_speed_min, double, double, 0.2)                                              \
+  PARAM(corner_speed_max, double, double, 0.9)                                              \
+  PARAM(aggressive_straight_threshold, double, double, 200.0)                               \
+  PARAM(num_repetitions, int, int, 5)                                                       \
+  PARAM(log_optimization, bool, bool, false)                                                \
+  PARAM(print_population, bool, bool, false)                                                \
+  PARAM(fix_seeds, bool, bool, false)                                                       \
+  PARAM(loop_seed, unsigned int, unsigned int, 1)                                           \
+  PARAM(speed_seed, unsigned int, unsigned int, 1)                                          \
+  PARAM(aggressive_seed, unsigned int, unsigned int, 1)                                     \
+  PARAM(acceleration_seed, unsigned int, unsigned int, 1)                                   \
+  PARAM(idx_seed, unsigned int, unsigned int, 1)                                            \
+  PARAM(skip_seed, unsigned int, unsigned int, 1)                                           \
+  PARAM(num_generations, int, int, 100)                                                     \
+  PARAM(population_size, int, int, 1000000)                                                 \
+  PARAM(survival_percentage, double, double, 40)                                            \
+  PARAM(crossover_percentage, double, double, 30)                                           \
+  PARAM(mutation_percentage, double, double, 50)                                            \
+  PARAM(mutation_strategy, std::string, std::string, "PreferConstantSpeed")                 \
+  PARAM(crossover_strategy, std::string, std::string, "LoopCross")                          \
 
 /* Class that holds all information from a .yaml file storing configuration parameters for
  * a race simulation

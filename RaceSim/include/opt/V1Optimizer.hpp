@@ -8,7 +8,6 @@
 #include "opt/Optimizer.hpp"
 #include "route/Route.hpp"
 #include "sim/Simulator.hpp"
-#include "utils/ThreadManager.hpp"
 
 class V1Optimizer : public Optimizer {
  private:

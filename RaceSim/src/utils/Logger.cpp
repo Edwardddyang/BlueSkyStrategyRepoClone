@@ -1,0 +1,41 @@
+#include "utils/Logger.hpp"
+#include <string>
+
+FileLogger& FileLogger::operator<<(const std::string text) {
+  file_stream << text << "\n";
+  file_stream.flush();
+  return *this;
+}
+
+FileLogger& FileLogger::operator<<(const char* txt) {
+  file_stream << txt << "\n";
+  file_stream.flush();
+  return *this;
+}
+
+void FileLogger::operator()(const std::string text, bool add_newline) {
+  if (!log) {
+    return;
+  }
+
+  file_stream << text;
+
+  if (add_newline) {
+    file_stream << "\n";
+  }
+  file_stream.flush();
+}
+
+void FileLogger::operator()(const char* txt, bool add_newline) {
+  if (!log) {
+    return;
+  }
+
+  file_stream << txt;
+
+  if (add_newline) {
+    file_stream << "\n";
+  }
+
+  file_stream.flush();
+}

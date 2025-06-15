@@ -51,6 +51,8 @@ set(OPTIMIZER_SOURCES
     src/optimizer/OptimizerFactory.cpp
     src/optimizer/V1Optimizer.cpp
     src/optimizer/V2Optimizer.cpp
+    src/optimizer/PopulationGenerator.cpp
+    src/optimizer/Mutation.cpp
 )
 set(ROUTE_SOURCES
     src/route/Route.cpp
@@ -66,6 +68,7 @@ set(UTILS_SOURCES
     src/utils/Geography.cpp
     src/utils/Luts.cpp
     src/utils/Utilities.cpp
+    src/utils/Logger.cpp
 )
 set(RACESIM_SOURCES
     ${CONFIG_SOURCES}
@@ -175,15 +178,7 @@ set(RACESIM_TEST_SOURCES ${CMAKE_SOURCE_DIR}/tests/RouteTest.cpp ${CMAKE_SOURCE_
                          ${CMAKE_SOURCE_DIR}/tests/v2CarTest.cpp
                          ${CMAKE_SOURCE_DIR}/tests/LutsTest.cpp
                          ${CMAKE_SOURCE_DIR}/tests/SimTest.cpp)
-add_custom_target(lint ALL
-    COMMAND ${CPPLINT_EXE} --linelength=120 --filter=-build/c++17,-legal/copyright
-            ${RACESIM_SOURCES}
-            ${RACESIM_HEADERS}
-            ${CMAKE_SOURCE_DIR}/src/main.cpp
-            ${RACESIM_TEST_SOURCES} > /dev/null || true
-    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-    COMMENT "Running cpplint"
-)
+
 # ---------------------------------------------------------
 
 # ---------------------- Installation ---------------------
