@@ -72,9 +72,9 @@
   average_speed: 15.0 # Average speed to try and maintain throughout the route. The profile creator
                       # uses this value as the mean of a gaussian distribution to sample for
   fix_loops: true # Fix the number of loops to create. If true, then uses max_num_loops
-  max_num_loops: 60 # Maximum number of loops that can be completed
+  max_num_loops: 15 # Maximum number of loops that can be completed
 
-  log_optimization: false # Log optimization process e.g. race plan creation, mutation, crossover. Should really only be used
+  log_optimization: true # Log optimization process e.g. race plan creation, mutation, crossover. Should really only be used
                          # for population_size = 1
   print_population: false  # Print the average speed of the population each generation
   fix_seeds: false # Fix seeds for route segmentation. If true, use the seeds below
@@ -85,11 +85,11 @@
   idx_seed: 393797199
   skip_seed: 3636178243
   ####### Genetic Algorithm Parameters #######
-  num_generations: 5  # Number of iterations
-  population_size: 10 # Number of race plans to maintain the in population
+  num_generations: 1  # Number of iterations
+  population_size: 2 # Number of race plans to maintain the in population
   survival_percentage: 0  # % of the population to pass onto the next iteration unaltered
-  crossover_percentage: 0  # Top % of the population to use to crossover to create new children
-  mutation_percentage: 100  # % of the population to mutate outside of the ones that are being crossed over
+  crossover_percentage: 100 # Top % of the population to use to crossover to create new children
+  mutation_percentage: 0 # % of the population to mutate outside of the ones that are being crossed over
   # Note that survival_percentage + parents_percentage + mutation_percentage must be 100
 
   # Mutation Strategies:
@@ -100,11 +100,9 @@
   mutation_strategy: Mix
 
   # Crossover Strategy:
-  # LoopCross -> Crossover some loops
+  # "LoopCross" -> Crossover some loops
+  crossover_strategy: LoopCross
 
-  # POSSIBLE MUTATION IDEAS:
-  # PreferConstantSpeed, PreferConstantSpeedAggressive (Avoid deceleration by lowering the constant speed for the corner before a corner with lower max speed),
-  # DecreaseCornerSpeed (Decrease acceleration by lowering cornering speeds)
   threads: 0.5
 
 \Simulation:

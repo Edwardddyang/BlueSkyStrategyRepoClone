@@ -299,11 +299,15 @@ void RacePlanCreator::create_loop_block(RacePlan::LoopData* loop_data,
   RUNTIME_EXCEPTION(route != nullptr, "Route distances LUT must be computed");
   const BasicLut route_distances = route->get_precomputed_distances();
 
-  (*logger)("\n////CREATED LOOP////");
-  (*logger)(RacePlan::get_loop_string(*loop_data));
+  if (logger != nullptr) {
+    (*logger)("\n////CREATED LOOP////");
+    (*logger)(RacePlan::get_loop_string(*loop_data));
+  }
 
   // --------------- Create the first loop of the block ---------------
-  (*logger)("Creating loop 1");
+  if (logger != nullptr) {
+    (*logger)("Creating loop 1");
+  }
   // For loops in a block greater than the first one, they will begin with segments that travel from
   // the last corner of the route to the first corner. Add these segments to the last loop of the previous block.
   // For example, the beginning of a typical loop past the first block looks something like this:
@@ -327,8 +331,10 @@ void RacePlanCreator::create_loop_block(RacePlan::LoopData* loop_data,
   while (!is_first_block && (*loop_data)[0].start_idx < (*loop_data)[0].end_idx) {
     att->all_segments.back().push_back((*loop_data)[0]);
 
-    (*logger)("Moving segment [" + std::to_string((*loop_data)[0].start_idx) + "," +
-           std::to_string((*loop_data)[0].end_idx) + "] to the previous loop");
+    if (logger) {
+      (*logger)("Moving segment [" + std::to_string((*loop_data)[0].start_idx) + "," +
+            std::to_string((*loop_data)[0].end_idx) + "] to the previous loop");
+    }
 
     // Remove the first element of loop vectors - this is why we don't have to keep track of an index variable
     loop_data->erase(loop_data->begin());
@@ -336,8 +342,10 @@ void RacePlanCreator::create_loop_block(RacePlan::LoopData* loop_data,
   if ((*loop_data)[0].end_idx == 0) {
     att->all_segments.back().push_back((*loop_data)[0]);
 
-    (*logger)("Moving segment [" + std::to_string((*loop_data)[0].start_idx) + "," +
-           std::to_string((*loop_data)[0].end_idx) + "] to the previous loop");
+    if (logger) {
+      (*logger)("Moving segment [" + std::to_string((*loop_data)[0].start_idx) + "," +
+            std::to_string((*loop_data)[0].end_idx) + "] to the previous loop");
+    }
 
     loop_data->erase(loop_data->begin());
   }
@@ -418,8 +426,10 @@ void RacePlanCreator::create_loop_block(RacePlan::LoopData* loop_data,
   }
   // Add the first loop
   if (num_loops_in_block > 1) {
-    (*logger)("Loop 1 Modified:");
-    (*logger)(RacePlan::get_loop_string(*loop_data));
+    if (logger != nullptr) {
+      (*logger)("Loop 1 Modified:");
+      (*logger)(RacePlan::get_loop_string(*loop_data));
+    }
     att->add_loop(*loop_data, 0, loop_data->size());
   }
   // --------------------------------------------------------------------
@@ -427,7 +437,9 @@ void RacePlanCreator::create_loop_block(RacePlan::LoopData* loop_data,
   // --------------- Create the loops after the first one ---------------
   // This is only applicable if the number of loops in a block is greater than 1
   if (num_loops_in_block > 1) {
-    (*logger)("Modifying loop construct for the second... loop in the block");
+    if (logger) {
+      (*logger)("Modifying loop construct for the second... loop in the block");
+    }
     // Refer to figure A, we first want to delete the segments that extend up to and including
     // the first corner as they will be replaced by the wrap-around segment
     while ((*loop_data)[0].end_idx <= cornering_segment_bounds[0].second) {
@@ -442,8 +454,10 @@ void RacePlanCreator::create_loop_block(RacePlan::LoopData* loop_data,
     for (size_t i=1; i < num_loops_in_block - 1; i++) {
       att->add_loop(*loop_data, 0, loop_data->size());
     }
-    (*logger)("LOOP X MODIFIED");
-    (*logger)(RacePlan::get_loop_string(*loop_data));
+    if (logger) {
+      (*logger)("LOOP X MODIFIED");
+      (*logger)(RacePlan::get_loop_string(*loop_data));
+    }
   }
 
   // --------------------------------------------------------------------
@@ -465,10 +479,12 @@ void RacePlanCreator::create_loop_block(RacePlan::LoopData* loop_data,
   RUNTIME_EXCEPTION(last_real_corner_ending_idx >= 0, "Failed search for last real corner index");
   if (is_last_block) {
     // Remove all the segments past the last corner and create a constant segment until index 0
-    (*logger)("Last corner ending idx " + std::to_string(last_real_corner_ending_idx));
-    (*logger)("Loop segments size: " + std::to_string(loop_data->size()));
     const size_t num_segments_to_remove = loop_data->size() - last_real_corner_ending_idx;
-    (*logger)("Num segments to remove: " + std::to_string(num_segments_to_remove));
+    if (logger) {
+      (*logger)("Last corner ending idx " + std::to_string(last_real_corner_ending_idx));
+      (*logger)("Loop segments size: " + std::to_string(loop_data->size()));
+      (*logger)("Num segments to remove: " + std::to_string(num_segments_to_remove));
+    }
     loop_data->erase(loop_data->end() - num_segments_to_remove, loop_data->end());
 
     const size_t corner_end_idx = loop_data->back().end_idx;
@@ -481,14 +497,17 @@ void RacePlanCreator::create_loop_block(RacePlan::LoopData* loop_data,
     loop_data->push_back(seg_data);
     att->add_loop(*loop_data, 0, loop_data->size());
   } else {
-
-    (*logger)("Last corner ending index: " + std::to_string(last_real_corner_ending_idx));
+    if (logger) {
+      (*logger)("Last corner ending index: " + std::to_string(last_real_corner_ending_idx));
+    }
     // If this is the last loop of the block, then we stop at the end of the last corner
     // since we want the next loop to decide how to travel from the last corner to the first
     att->add_loop(*loop_data, 0, last_real_corner_ending_idx + 1);
   }
-  (*logger)("LOOP LAST MODIFIED");
-  (*logger)(RacePlan::get_loop_string(att->all_segments.back()));
+  if (logger) {
+    (*logger)("LOOP LAST MODIFIED");
+    (*logger)(RacePlan::get_loop_string(att->all_segments.back()));
+  }
   return;
 }
 
@@ -893,7 +912,7 @@ bool RacePlanCreator::create_segments(size_t corner_idx,
         seg_data = RacePlan::SegmentData(
           last_real_corner_end, acceleration_end_idx, last_real_corner_speed, acceleration_end_speed,
           proposed_acceleration, route_distances.get_value(last_real_corner_end, acceleration_end_idx),
-          route->get_overlapping_corners({last_real_corner_end, acceleration_end_idx})
+          route->get_overlapping_corners({last_real_corner_end, acceleration_end_idx}), corner_idx == num_corners - 1
         );
         loop_data->push_back(seg_data);
 

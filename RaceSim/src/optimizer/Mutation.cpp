@@ -16,13 +16,13 @@ void V2Optimizer::mutate_plan(RacePlan* plan) {
   } else if (mutation_type == "ConstantNoise") {
     constant_noise(plan, &rng_collection);
   } else if (mutation_type == "Mix") {
-    mix(plan, &rng_collection);
+    mix_mutation(plan, &rng_collection);
   }
 
   return;
 }
 
-void V2Optimizer::mix(RacePlan* plan, RacePlanCreator::Gen* rng) {
+void V2Optimizer::mix_mutation(RacePlan* plan, RacePlanCreator::Gen* rng) {
   RUNTIME_EXCEPTION(rng != nullptr, "rng struct for corner noise is null");
   RUNTIME_EXCEPTION(plan != nullptr, "Plan in mix mutation is null");
   std::uniform_int_distribution<int> mutation_dist(0, MUTATION_STRATEGIES.size() - 1);

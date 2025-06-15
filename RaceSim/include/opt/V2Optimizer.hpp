@@ -52,6 +52,9 @@ class V2Optimizer : public Optimizer {
   // Mutation logger
   FileLogger mutation_logger;
 
+  // Crossover logger
+  FileLogger crossover_logger;
+
   // These parameters are required for mutating RacePlans and crossing over parents
   const double max_motor_power;
   const double car_mass;  // kg
@@ -80,8 +83,15 @@ class V2Optimizer : public Optimizer {
   ////////////////////////////////////////////////////////////
   ///////////////////////// Crossover ////////////////////////
   ////////////////////////////////////////////////////////////
+  std::unordered_set<std::string> CROSSOVER_STRATEGIES = {
+    "LoopCross"
+  };
+
   /** @brief Crossover best parents of the population */
   void crossover_population();
+
+  /** @brief Perform crossover by using loops from parents */
+  RacePlan loop_cross(RacePlan* parent_a, RacePlan* parent_b, RacePlanCreator::Gen* gen);
 
   /** @brief Crossover two race plans */
   RacePlan crossover_parents(RacePlan parent_a, RacePlan parent_b);
@@ -138,7 +148,7 @@ class V2Optimizer : public Optimizer {
                            RacePlanCreator::Gen* rng);
 
   /** @brief Mutate each loop using one of the techniques above */
-  void mix(RacePlan* plan, RacePlanCreator::Gen* rng);
+  void mix_mutation(RacePlan* plan, RacePlanCreator::Gen* rng);
 
   /** @brief Attempt to legalize a loop starting from some segment. Modification will be done in place
    *

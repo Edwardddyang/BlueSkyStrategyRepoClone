@@ -49,6 +49,8 @@ class RacePlan {
     double distance;
     // List of corner indices that this segment traverses
     std::vector<size_t> corners;
+    // Whether the segment ends at a corner where the next loop will begin connection segments
+    bool is_connecting_corner;
 
     // A crossover segment is one that crosses the start line (route index 0)
     // start_idx | end_idx
@@ -63,10 +65,11 @@ class RacePlan {
                 double start_speed = 0.0, double end_speed = 0.0,
                 double acceleration_value = 0.0,
                 double distance = -1.0,
-                std::vector<size_t> corners = {}) : start_idx(start_idx),
+                std::vector<size_t> corners = {},
+                bool is_connecting_corner = false) : start_idx(start_idx),
                 end_idx(end_idx), start_speed(start_speed), end_speed(end_speed),
                 acceleration_value(acceleration_value), distance(distance),
-                corners(corners) {
+                corners(corners), is_connecting_corner(is_connecting_corner) {
     }
   };
 

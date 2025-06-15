@@ -482,6 +482,7 @@ bool RacePlan::validate_members(std::shared_ptr<Route> route) const {
   const std::vector<Coord>& route_points = route->get_route_points();
   const std::vector<double> cornering_speed_bounds = route->get_cornering_speed_bounds();
   const std::vector<std::pair<size_t, size_t>> cornering_segment_bounds = route->get_cornering_segment_bounds();
+  const std::unordered_set<size_t> corner_end_indices = route->get_corner_end_indices();
   const size_t num_corners = cornering_segment_bounds.size();
   bool has_corners = num_corners > 0;
 
@@ -511,6 +512,7 @@ bool RacePlan::validate_members(std::shared_ptr<Route> route) const {
                         "Error found in loop {}", loop_idx);
     }
 
+    bool seen_connecting_corner = false;
     for (size_t i=0; i < num_segments; i++) {
       const size_t start_idx = loop_segments[i].start_idx;
       const size_t end_idx = loop_segments[i].end_idx;
@@ -518,6 +520,7 @@ bool RacePlan::validate_members(std::shared_ptr<Route> route) const {
       const double end_speed = loop_segments[i].end_speed;
       const double acceleration = loop_segments[i].acceleration_value;
       const double distance = loop_segments[i].distance;
+      const bool is_connecting_corner = loop_segments[i].is_connecting_corner;
       const std::vector<size_t> corners = loop_segments[i].corners;
 
       const double segment_distance = calculate_segment_distance(route_points, start_idx, end_idx);
@@ -532,6 +535,15 @@ bool RacePlan::validate_members(std::shared_ptr<Route> route) const {
                             "Segment speed exceeds maximum cornering speed");
           RUNTIME_EXCEPTION(max_c_speed > kph2mps(route->get_max_route_speed()) &&
                             acceleration <= 0.0, "Cannot accelerate on a corner. Segment {} of loop {}", i, loop_idx);
+        }
+        // Evaluate wrap-around corner if necessary
+        if (is_connecting_corner) {
+          RUNTIME_EXCEPTION(!seen_connecting_corner, "Cannot have multiple connecting corners in a single loop");
+          RUNTIME_EXCEPTION(corners.size() > 0, "Corners vector cannot be empty for a segment that has the "
+                            "connection corner");
+          RUNTIME_EXCEPTION(corner_end_indices.find(end_idx) != corner_end_indices.end(),
+                            "Connection corner must end with the corner ending");
+          seen_connecting_corner = true;
         }
       }
 
