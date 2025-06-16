@@ -163,6 +163,9 @@ class RacePlan {
   /** @brief Print the route plan to stdout */
   void print_plan() const;
 
+  /** @brief Stores the the plan in a CSV */
+  void write_plan(const std::string& filename) const;
+
   /** @brief Get a single string displaying a race plan loop in a human readable way */
   static std::string get_loop_string(std::vector<std::pair<size_t, size_t>> loop_segments,
                                     std::vector<std::pair<double, double>> loop_segment_speeds,

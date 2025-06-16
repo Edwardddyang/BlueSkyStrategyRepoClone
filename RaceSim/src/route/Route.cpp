@@ -428,6 +428,37 @@ void RacePlan::print_plan() const {
   }
 }
 
+void RacePlan::write_plan(const std::string& filename) const {
+  const size_t num_loops = segments.size();
+  std::ofstream file(filename);
+  if (!file.is_open()) {
+    std::cerr << "Error: Could not open file " << filename << " for writing.\n";
+    return;
+  }
+
+  // CSV header
+  file << "Loop,Segment,Speed,Acceleration,Distance\n";
+
+  for (size_t loop_idx = 0; loop_idx < num_loops; loop_idx++) {
+    std::vector<std::pair<size_t, size_t>> loop_segments = segments[loop_idx];
+    std::vector<std::pair<double, double>> speeds = segment_speeds[loop_idx];
+    std::vector<double> accels = acceleration[loop_idx];
+    std::vector<double> loop_distance = distances.size() > 0 ? distances[loop_idx] : std::vector<double>(0);
+
+    for (size_t seg_idx = 0; seg_idx < loop_segments.size(); seg_idx++) {
+      file << loop_idx << ","
+           << loop_segments[seg_idx].first << " "<< loop_segments[seg_idx].second <<","
+           << speeds[seg_idx].first << " " << speeds[seg_idx].second << ","
+           << accels[seg_idx] << ","
+           << loop_distance[seg_idx] << "\n";
+    }
+  }
+
+  file.close();
+  std::cout << "Race plan written to " << filename << std::endl;
+}
+
+
 bool RacePlan::validate_members(const std::vector<Coord>& route_points) const {
   RUNTIME_EXCEPTION(!empty, "RacePlan is empty");
   RUNTIME_EXCEPTION(segments.size() > 0, "Validate_members() for RacePlan called before segments were set.");

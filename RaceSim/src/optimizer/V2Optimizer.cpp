@@ -73,7 +73,8 @@ RacePlan V2Optimizer::optimize() {
   RacePlan best_race_plan = population[0];
   ResultsLut best_race_result = *result_luts[0];
   size_t best_average_speed = mps2kph(best_race_plan.get_average_speed());
-  // best_race_plan.print_plan();
+  best_race_plan.print_plan();
+  best_race_plan.write_plan("../Acceleration_Results/race_plan.csv");
   if (save_csv) {
     best_race_result.write_logs((results_folder / "Acceleration.csv").string());
   }
