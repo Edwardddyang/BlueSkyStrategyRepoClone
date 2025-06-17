@@ -26,7 +26,7 @@ acceleration = df["Acceleration"].values
 points2 = np.column_stack((loop, segment, speed, acceleration))
 
 # Get to the correct loop
-loop = 0
+loop = 30
 route_idx = 0
 while route_idx < len(points2) and points2[route_idx][0] != loop:
     route_idx += 1
@@ -39,10 +39,16 @@ for i in range(len(points) - 1):
         route_idx += 1
     x = [points[i][0], points[i+1][0]]
     y = [points[i][1], points[i+1][1]]
+    
+    line_color = 'black' 
+    if points2[route_idx][3] < 0.0:
+        line_color = 'red'
+    elif points2[route_idx][3] > 0.0:
+        line_color = 'green'
 
     segments.append(go.Scatter(
         x=x, y=y, mode='lines',
-        line=dict(color='red', width=4),
+        line=dict(color=line_color, width=4),
         hoverinfo='text',
         text=f"""Segment {points2[route_idx][1][0]} to {points2[route_idx][1][1]}
 Speed:{points2[route_idx][2][0]:.2f} to {points2[route_idx][2][1]:.2f} m/s
@@ -52,6 +58,8 @@ Acceleration: {points2[route_idx][3]:.2f} m/s²"""
 # Show figure
 fig = go.Figure(data=segments)
 
+
+    
 fig.update_layout(
     title=f"FSGP Track Route Loop: {loop}",
     xaxis_title="Longitude",
