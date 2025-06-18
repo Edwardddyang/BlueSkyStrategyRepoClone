@@ -78,9 +78,9 @@ int main(int argc, char* argv[]) {
     bool save_csv = Config::get_instance()->get_save_csv();
     std::filesystem::path results_folder;
     if (save_csv) {
-      const std::string strat_root = Config::get_instance()->get_strat_root();
-      results_folder = std::filesystem::path(strat_root) / "TelemetrySimResults";
-      std::filesystem::create_directory(results_folder);
+      const std::string dump_dir = Config::get_instance()->get_dump_dir();
+      results_folder = std::filesystem::path(dump_dir) / "TelemetrySimResults";
+      std::filesystem::create_directories(results_folder);
       result->write_logs((results_folder / "sim.csv").string());
     }
   }

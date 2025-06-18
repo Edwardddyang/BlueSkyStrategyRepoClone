@@ -124,7 +124,7 @@ RacePlan V2Optimizer::optimize() {
   if (save_csv) {
     const std::string strat_root = Config::get_instance()->get_strat_root();
     results_folder = std::filesystem::path(dump_dir) / "Acceleration_Results";
-    std::filesystem::create_directory(results_folder);
+    std::filesystem::create_directories(results_folder);
   }
 
   spdlog::info("Using {} threads", num_threads);

@@ -570,7 +570,7 @@ using json = nlohmann::json;
 
 void RacePlan::export_json() const {
   const std::string& dumpDir = Config::get_instance()->get_dump_dir();
-  std::cout << "RacePlan exported to: " << dumpDir << std::endl;
+  std::cout << "RacePlan dumped to: " << dumpDir << std::endl;
   std::filesystem::create_directories(dumpDir);
   const std::string path = dumpDir + "/best_raceplan.json";
 
