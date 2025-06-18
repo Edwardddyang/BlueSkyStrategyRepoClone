@@ -35,7 +35,8 @@ add_subdirectory(${EXTERNAL_DIR}/yaml-cpp)
 list(APPEND EXTERNAL_DEPS yaml-cpp)
 
 # nlohmann_json
-include_directories(${CMAKE_SOURCE_DIR}/RaceSim/libs)
+add_subdirectory(${EXTERNAL_DIR}/nlohmann)
+list(APPEND EXTERNAL_DEPS json)
 
 # ---------------------------------------------------------
 

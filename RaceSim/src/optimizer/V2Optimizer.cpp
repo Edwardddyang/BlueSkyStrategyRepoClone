@@ -64,6 +64,9 @@ void thread_create_plan(std::shared_ptr<RacePlanCreator> generator,
 // }
 
 RacePlan V2Optimizer::optimize_telem() {
+
+  std::cout << "[DEBUG] V2Optimizer::optimize_telem() CALLED" << std::endl;
+
   // Create results folder
   bool save_csv = Config::get_instance()->get_save_csv();
   std::filesystem::path results_folder;
@@ -104,16 +107,23 @@ RacePlan V2Optimizer::optimize_telem() {
   std::cout << "Best Race Plan Average Speed: " << mps2kph(best_race_plan.get_average_speed()) << "kph" << std::endl;
   std::cout << "Best Race Plan Number of Loops: " << best_race_plan.get_num_loops() << std::endl;
 
+  best_race_plan.export_json();
+
   return best_race_plan;
 }
 
 RacePlan V2Optimizer::optimize() {
+
+  std::cout << "[DEBUG] V2Optimizer::optimize() CALLED" << std::endl;
+  const std::string& dump_dir = Config::get_instance()->get_dump_dir();
+  std::filesystem::create_directories(dump_dir);
+
   // Create results folder
   bool save_csv = Config::get_instance()->get_save_csv();
   std::filesystem::path results_folder;
   if (save_csv) {
     const std::string strat_root = Config::get_instance()->get_strat_root();
-    results_folder = std::filesystem::path(strat_root) / "Acceleration_Results";
+    results_folder = std::filesystem::path(dump_dir) / "Acceleration_Results";
     std::filesystem::create_directory(results_folder);
   }
 
@@ -166,6 +176,8 @@ RacePlan V2Optimizer::optimize() {
     std::cout << "No plan is viable" << std::endl;
     std::cout << "Inviability reason: " << best_race_plan.get_inviability_reason() << std::endl;
   }
+  
+  best_race_plan.export_json();
 
   return best_race_plan;
 }

@@ -93,7 +93,7 @@
   mutation_percentage: 100  # % of the population to mutate outside of the ones that are being crossed over
   # Note that survival_percentage + parents_percentage + mutation_percentage must be 100
   mutation_strategy: ConstantForDeceleration
-  dump_dir: results/dump # Directory for csvs and json files
+  dump_dir: dump # Directory for csvs and json files
 
   # POSSIBLE MUTATION IDEAS:
   # PreferConstantSpeed, PreferConstantSpeedAggressive (Avoid deceleration by lowering the constant speed for the corner before a corner with lower max speed),

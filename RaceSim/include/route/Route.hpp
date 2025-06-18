@@ -17,7 +17,7 @@
 #include "utils/Units.hpp"
 #include "utils/Luts.hpp"
 #include "utils/CustomTime.hpp"
-#include <nlohmann/json.hpp>
+#include "nlohmann/json.hpp"
 
 double calculate_segment_distance(const std::vector<Coord>& coords,
                                   const size_t starting_idx,
