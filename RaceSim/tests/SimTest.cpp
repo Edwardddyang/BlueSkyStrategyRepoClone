@@ -32,6 +32,7 @@ TEST_F(SimTest, Test1) {
 
   /* Create route */
   std::shared_ptr<Route> route = std::make_shared<Route>(Config::get_instance()->get_base_route_path(),
+                                                         false,
                                                          Config::get_instance()->get_init_control_stops());
 
   /* Create simulator */

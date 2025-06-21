@@ -1,5 +1,6 @@
 # For Gen 11.5
 /Version: "FSGP_2025"
+
 /Car: # Car characterizationss
   max_soc: 10.0 # kwh
   max_car_speed: 100 # kph
@@ -23,7 +24,7 @@
 
 \LutPaths:
   # All following luts are relative to gen12_strategy/RaceSim/
-  base_route_path: data/luts/fsgp/static/fsgp_base_route.csv # 3 column csv --> latitude (degrees) | longitude (degrees) | altitude (km)
+  base_route_path: data/luts/fsgp/static/fsgp_base_route.csv # 3 or 5 column csv --> latitude (degrees) | longitude (degrees) | altitude (km) | Time (YYYY-MM-DD HH:MM:SS) | Speed (m/s)
   power_factor_path: data/luts/fsgp/static/powerfactor.csv
   corners_path: data/luts/fsgp/static/fsgp_corners.csv # 3 Column csv -> Corner start index | Corner end index | Max speed (mps)
   roll_res_slope_path: data/luts/fsgp/static/rr2.csv
@@ -74,9 +75,9 @@
   fix_loops: true # Fix the number of loops to create. If true, then uses max_num_loops
   max_num_loops: 15 # Maximum number of loops that can be completed
 
-  log_optimization: true # Log optimization process e.g. race plan creation, mutation, crossover. Should really only be used
+  log_optimization: false # Log optimization process e.g. race plan creation, mutation, crossover. Should really only be used
                          # for population_size = 1
-  print_population: false  # Print the average speed of the population each generation
+  print_population: true  # Print the average speed of the population each generation
   fix_seeds: false # Fix seeds for route segmentation. If true, use the seeds below
   loop_seed: 1523054859
   speed_seed: 3730245349
@@ -85,11 +86,11 @@
   idx_seed: 393797199
   skip_seed: 3636178243
   ####### Genetic Algorithm Parameters #######
-  num_generations: 1  # Number of iterations
-  population_size: 2 # Number of race plans to maintain the in population
+  num_generations: 5  # Number of iterations
+  population_size: 10 # Number of race plans to maintain the in population
   survival_percentage: 0  # % of the population to pass onto the next iteration unaltered
-  crossover_percentage: 100 # Top % of the population to use to crossover to create new children
-  mutation_percentage: 0 # % of the population to mutate outside of the ones that are being crossed over
+  crossover_percentage: 0 # Top % of the population to use to crossover to create new children
+  mutation_percentage: 100 # % of the population to mutate outside of the ones that are being crossed over
   # Note that survival_percentage + parents_percentage + mutation_percentage must be 100
 
   # Mutation Strategies:
@@ -98,6 +99,7 @@
   # "ConstantNoise" -> Add 1m/s or -1m/s to a constant speed segment
   # "Mix" -> Apply a random mutation from the above on each loop
   mutation_strategy: Mix
+  dump_dir: exports # Directory for csvs and json files
 
   # Crossover Strategy:
   # "LoopCross" -> Crossover some loops
@@ -106,5 +108,7 @@
   threads: 0.5
 
 \Simulation:
-  simulator: FSGP # Type of simulator
+  simulator: FSGP # Type of simulator - if "TELEMETRY", no optimizer is used
   save_csv: true # Save simulation results to CSVs
+  
+

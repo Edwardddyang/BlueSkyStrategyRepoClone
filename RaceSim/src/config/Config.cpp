@@ -22,11 +22,11 @@ bool Config::initialized = false;
 Config* Config::get_instance() {
   if (instance_ptr == NULL) {
     RUNTIME_EXCEPTION(!config_file_path.empty(), "No config file path set."
-                                                "Add Config::initialize(file_path, strat_root)"
-                                                "before get_instance(). Exiting");
+                                                " Add Config::initialize(file_path, strat_root)"
+                                                " before get_instance(). Exiting");
     RUNTIME_EXCEPTION(STRAT_ROOT != nullptr, "No STRAT_ROOT variable detected."
-                                            "Add Config::initialize(file_path, strat_root)"
-                                            "before get_instance(). Exiting");
+                                             " Add Config::initialize(file_path, strat_root)"
+                                             " before get_instance(). Exiting");
 
     /* Parse config file */
     std::string full_config_file_path = (std::filesystem::path(STRAT_ROOT) / config_file_path).string();
@@ -42,10 +42,12 @@ Config* Config::get_instance() {
     } catch (const std::exception& e) {
       RUNTIME_EXCEPTION(false, "Config file {} could not be loaded. Exiting", full_config_file_path);
     }
+
     instance_ptr = std::make_unique<Config>(Config());
   }
   return instance_ptr.get();
 }
+
 
 void Config::initialize(std::filesystem::path file_path, char* strat_root_path) {
   RUNTIME_EXCEPTION(!initialized && config_file_path.empty() && !STRAT_ROOT && !instance_ptr,

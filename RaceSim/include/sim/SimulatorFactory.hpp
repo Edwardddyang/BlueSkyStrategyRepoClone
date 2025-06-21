@@ -12,14 +12,17 @@
 enum class SIMULATORS {
   WSC = 0,
   FSGP = 1,
+  TELEMETRY = 2,
 };
 
 class SimulatorFactory {
  private:
-  static std::unordered_map<std::string, SIMULATORS> config_to_simulators;
   static const char DEFAULT_SIMULATOR[];
+  static std::unordered_map<std::string, SIMULATORS> config_to_simulators;
 
  public:
+  static SIMULATORS get_sim_type(const std::string sim_type);
+
   /** @brief Create a simulator of unique_ptr type
    *
    * @param sim_type: The simulator to use

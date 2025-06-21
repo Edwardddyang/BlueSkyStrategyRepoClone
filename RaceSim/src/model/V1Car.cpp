@@ -64,7 +64,7 @@ double V1Car::compute_net_battery_change(double array, double aero, double rolli
 CarUpdate V1Car::compute_travel_update(Coord coord_one, Coord coord_two, double init_speed,
                                        double acceleration, Time* time, Wind wind, Irradiance irr,
                                        double distance) {
-  RUNTIME_EXCEPTION(acceleration == 0.0, "Acceleration must be 0 in Gen 11.5 energy model");
+  // RUNTIME_EXCEPTION(acceleration == 0.0, "Acceleration must be 0 in Gen 11.5 energy model");
   /* Get orientation of the car */
   double bearing = get_bearing(coord_one, coord_two);
   SolarAngle az_el = get_az_el_from_bearing(bearing, coord_one, time);

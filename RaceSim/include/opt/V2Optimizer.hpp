@@ -172,4 +172,5 @@ class V2Optimizer : public Optimizer {
  public:
   V2Optimizer(std::shared_ptr<Simulator> simulator, std::shared_ptr<Route> route);
   RacePlan optimize() override;
+  RacePlan optimize_telem() override;
 };

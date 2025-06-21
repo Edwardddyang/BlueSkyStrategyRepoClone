@@ -16,6 +16,8 @@
 
 #include "utils/Units.hpp"
 #include "utils/Luts.hpp"
+#include "utils/CustomTime.hpp"
+#include "nlohmann/json.hpp"
 
 // Forward declaration
 class Route;
@@ -124,6 +126,9 @@ class RacePlan {
   /** @brief Get a single string displaying a segment in a human readable way */
   static std::string get_segment_string(SegmentData seg);
 
+  /** @brief Export RacePlan to a json file */
+  void export_json() const;
+
  private:
   /* Viability of race plan */
   bool viable = false;
@@ -207,10 +212,15 @@ class Route {
   /* Maximum speed of the route (mps) - comes from regulations */
   double max_route_speed;
 
+  /* ONLY USED FOR TELEMETRY ROUTE */
+  std::vector<Time> timestamps;          // Timestamp assigned to each coordinate
+  std::vector<double> speeds;             // Speed assigned to each coordinate
+
  public:
   /** @brief Load information about the race route
    * 
    * @param route_path: Absolute path to the base route csv
+   * @param telem_flow: For telemetry simulation flow, there are two extra columns - one for time, the other for speed
    * @param init_control_stops: Initialize control stop indices from config file
    * @param cornering_bounds_path: Absolute path to the cornering bounds. If empty, don't load
    * @param precomputed_distances_path: Absolute path to the precomputed distances csv. If empty or precompute_distances
@@ -218,13 +228,17 @@ class Route {
    * @param precompute_distances: Whether to pre-compute distances. If precomputed_distances_path is not empty, it
    * will save the csv to that path
    */
-  Route(const std::filesystem::path route_path, const bool init_control_stops = false,
+  Route(const std::filesystem::path route_path, bool telem_flow = false,
+        const bool init_control_stops = false,
         const std::filesystem::path cornering_bounds_path = std::filesystem::path(),
         const std::filesystem::path precomputed_distances_path = std::filesystem::path(),
         const bool precompute_distances = false);
 
-  /** @brief initial the base route csv */
-  void init_base_route(const std::filesystem::path route_path);
+  /** @brief initiate the base route csv |latitude|longitude|altitude|
+   * @param route_path absolute path to .csv
+   * @param telem_flow if there are two extra columns for time and speed respectively
+  */
+  void init_base_route(const std::filesystem::path route_path, bool telem_flow);
 
   /** @brief Initialize control stops */
   void init_control_stops();
@@ -284,6 +298,12 @@ class Route {
   }
   inline std::vector<double> get_cornering_speed_bounds() const {
     return cornering_speed_bounds;
+  }
+  inline const std::vector<Time> get_timestamps() const {
+    return timestamps;
+  }
+  inline const std::vector<double> get_speeds() const {
+    return speeds;
   }
   inline std::unordered_set<size_t> get_corner_start_indices() const {
     return corner_start_indices;
