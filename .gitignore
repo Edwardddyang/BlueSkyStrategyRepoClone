@@ -20,5 +20,6 @@ RaceSim/*.dll
 install/
 Acceleration_Results/
 TelemetrySimResults/
+exports/
 
 *venv*/

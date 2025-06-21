@@ -94,14 +94,13 @@ class RacePlanCreator {
    * @param seg_data Intermediate segment data for the latest created segment
    * @param loop_data Intermediate data for the last created loop
    * @param attributes All data for the entire race plan to the current point
-   * @param route_distances Lookup table for pre-computed distances of the route
+   * @param route Race route
    * @param logger Logger for the race plan creation
    * @param num_loops_in_block Number of loops in the block
    * @param is_last_block Whether the block to be created is the last block of the entire plan
    * @param is_first_block Whether the block to be created is the first block of the entire plan
   */
   void create_loop_block(RacePlan::LoopData* loop_data,
-                         const BasicLut* route_distances,
                          int num_loops_in_block = 1,
                          bool is_last_block = false,
                          bool is_first_block = false,

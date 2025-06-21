@@ -12,8 +12,8 @@ void WSCSimulator::run_sim(const std::shared_ptr<Route>& route, RacePlan* race_p
   RUNTIME_EXCEPTION(route != nullptr, "Route pointer is null");
   RUNTIME_EXCEPTION(results_lut != nullptr, "Results lut is null");
   RUNTIME_EXCEPTION(race_plan != nullptr, "Race plan is null");
-  RUNTIME_EXCEPTION(race_plan->validate_members(route->get_route_points()), "Race Plan is improperly created");
-  // RUNTIME_EXCEPTION(race_plan->get_segments().size() == 1, "Race Plan should have only one loop for WSC simulator");
+  RUNTIME_EXCEPTION(race_plan->validate_members(route), "Race Plan is improperly created");
+  RUNTIME_EXCEPTION(race_plan->get_segments().size() == 1, "Race Plan should have only one loop for WSC simulator");
   RUNTIME_EXCEPTION(control_stop_charge_time % CHARGING_STEP_SIZE == 0, "Control stop charge time must be divisible by "
                     "charging step size");
   RUNTIME_EXCEPTION(wind_speed_lut != nullptr, "Wind speed lut must be loaded");

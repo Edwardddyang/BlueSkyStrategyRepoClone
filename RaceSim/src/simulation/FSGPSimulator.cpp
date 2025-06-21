@@ -16,9 +16,10 @@ void FSGPSimulator::run_sim(const std::shared_ptr<Route>& route, RacePlan* race_
     std::cout << "Empty race plan, reason: " << race_plan->get_inviability_reason() << std::endl;
     return;
   } else {
-    RUNTIME_EXCEPTION(race_plan->validate_members(route->get_route_points()), "Race Plan is improperly created");
+    RUNTIME_EXCEPTION(race_plan->validate_members(route), "Race Plan is improperly created");
   }
   const BasicLut& route_distances = route->get_precomputed_distances();
+  const std::vector<double> cornering_speed_limits = route->get_cornering_speed_bounds();
   RUNTIME_EXCEPTION(!route_distances.is_empty(), "FSGP Simulator must use pre-computed distances,"
                                                  "but no data was loaded");
   RUNTIME_EXCEPTION(wind_speed_lut != nullptr, "Wind speed lut must be loaded");
@@ -86,7 +87,6 @@ void FSGPSimulator::run_sim(const std::shared_ptr<Route>& route, RacePlan* race_
   for (size_t loop_idx = 0; loop_idx < num_loops; loop_idx++) {
     // Get plan for current loop
     const RacePlan::LoopData loop_segments = segments[loop_idx];
-
     // Get plan for current segment
     const size_t num_segments = loop_segments.size();
 

@@ -399,9 +399,9 @@ std::string RacePlan::get_loop_string(LoopData loop_segments) {
   };
 
   auto print_header = [&]() {
-    output << "+-------+-----------+---------------+-----------------------+---------------+---------\n";
-    output << ";  Idx  ; Segments  ; Speeds (m/s)  ; Acceleration (m/s^2)  ; Distances (m) ; Corner ;\n";
-    output << "+-------+-----------+---------------+-----------------------+---------------+---------\n";
+    output << "+-------+-----------+---------------+-----------------------+---------------+-------------\n";
+    output << ";  Idx  ; Segments  ; Speeds (m/s)  ; Acceleration (m/s^2)  ; Distances (m) ; Corners    ;\n";
+    output << "+-------+-----------+---------------+-----------------------+---------------+-------------\n";
   };
 
   print_header();
@@ -434,10 +434,16 @@ std::string RacePlan::get_loop_string(LoopData loop_segments) {
     output << "|";
 
     // Has Corner
-    print_char_n_times(' ', 2);
-    output << (loop_segments[seg_idx].includes_corner ? "True  |\n" : "False |\n");
+    std::string corner_str = vector_to_string<size_t>(loop_segments[seg_idx].corners);
+
+    if (corner_str.empty()) {
+      print_char_n_times(' ', 11);
+      output << " |\n";
+    } else {
+      output << std::setw(11) << corner_str << " |\n";
+    }
   }
-  print_char_n_times('-', 86);
+  print_char_n_times('-', 90);
   output << "\n";
 
   return output.str();
@@ -449,6 +455,8 @@ std::string RacePlan::get_segment_string(SegmentData seg) {
   ss << "Segment Distance: " << seg.distance << "m\n";
   ss << "Segment Speeds: [" << seg.start_speed << "," << seg.end_speed << "]\n";
   ss << "Acceleration Value: " << seg.acceleration_value << "\n";
+  ss << "Corner Indices: " << vector_to_string<size_t>(seg.corners) << "\n";
+
   return ss.str();
 }
 
@@ -478,14 +486,22 @@ std::string RacePlan::get_orig_plan_string() const {
   return ret;
 }
 
-bool RacePlan::validate_members(const std::vector<Coord>& route_points) const {
+bool RacePlan::validate_members(std::shared_ptr<Route> route) const {
   RUNTIME_EXCEPTION(!empty, "RacePlan is empty");
   RUNTIME_EXCEPTION(segments.size() > 0, "No segments in Race Plan!");
+  RUNTIME_EXCEPTION(route != nullptr, "Route is null");
+  const std::vector<Coord>& route_points = route->get_route_points();
+  const std::vector<double> cornering_speed_bounds = route->get_cornering_speed_bounds();
+  const std::vector<std::pair<size_t, size_t>> cornering_segment_bounds = route->get_cornering_segment_bounds();
+  const std::unordered_set<size_t> corner_end_indices = route->get_corner_end_indices();
+  const size_t num_corners = cornering_segment_bounds.size();
+  bool has_corners = num_corners > 0;
 
   const size_t num_loops = segments.size();
   const double tolerance = 0.0001;  // Tolerance for comparing acceleration values
 
   double last_segment_start_speed, last_segment_end_speed;
+  size_t last_seen_corner = 0;
   for (size_t loop_idx=0; loop_idx < num_loops; loop_idx++) {
     const LoopData loop_segments = segments[loop_idx];
 
@@ -506,37 +522,64 @@ bool RacePlan::validate_members(const std::vector<Coord>& route_points) const {
                         "Last loop's ending speed must be the starting speed of the first segment in the next loop. "
                         "Error found in loop {}", loop_idx);
     }
-    for (size_t i=0; i < num_segments; i++) {
-      const double segment_distance = calculate_segment_distance(route_points, loop_segments[i].start_idx,
-                                                                loop_segments[i].end_idx);
-      RUNTIME_EXCEPTION(std::abs(segment_distance - loop_segments[i].distance) < tolerance,
-                        "Segment distance is not equal");
-      RUNTIME_EXCEPTION(loop_segments[i].start_speed >= 0.0 && loop_segments[i].end_speed >= 0.0,
-                        "Segment speed in segment {} is not positive", i);
 
-      if (i < num_segments-1) {
-        RUNTIME_EXCEPTION(loop_segments[i].start_idx <= loop_segments[i].end_idx,
-                          "Segment start must be <= segment end in loop {} segment {}", loop_idx, i);
-        RUNTIME_EXCEPTION(loop_segments[i].end_idx == loop_segments[i+1].start_idx,
-                          "Segments must be continuous i.e. segment end = next segment start."
-                          " Invalid on segment {}, loop {}. Ending index = {}, Next Starting index = {}",
-                          i, loop_idx, loop_segments[i].end_idx, loop_segments[i+1].start_idx);
-        RUNTIME_EXCEPTION(loop_segments[i].end_speed == loop_segments[i+1].start_speed,
-                          "Ending speed of segment {} must equal starting speed of next segment in loop {}. {} {}", i,
-                          loop_idx, loop_segments[i].end_speed, loop_segments[i+1].start_speed);
+    bool seen_connecting_corner = false;
+    for (size_t i=0; i < num_segments; i++) {
+      const size_t start_idx = loop_segments[i].start_idx;
+      const size_t end_idx = loop_segments[i].end_idx;
+      const double start_speed = loop_segments[i].start_speed;
+      const double end_speed = loop_segments[i].end_speed;
+      const double acceleration = loop_segments[i].acceleration_value;
+      const double distance = loop_segments[i].distance;
+      const bool is_connecting_corner = loop_segments[i].is_connecting_corner;
+      const std::vector<size_t> corners = loop_segments[i].corners;
+
+      const double segment_distance = calculate_segment_distance(route_points, start_idx, end_idx);
+      RUNTIME_EXCEPTION(std::abs(segment_distance - distance) < tolerance, "Segment distance is not equal");
+      RUNTIME_EXCEPTION(start_speed >= 0.0 && end_speed >= 0.0, "Segment speed in segment {} is not positive", i);
+      // If the segment traverses corner(s), check that the speed bounds are not violated
+      if (has_corners) {
+        RUNTIME_EXCEPTION(route->get_overlapping_corners({start_idx, end_idx}) == corners, "Segment is missing corners information");
+        for (const size_t& c : corners) {
+          const double max_c_speed = cornering_speed_bounds[c];
+          RUNTIME_EXCEPTION(max_c_speed >= start_speed && max_c_speed >= end_speed,
+                            "Segment speed exceeds maximum cornering speed");
+          RUNTIME_EXCEPTION(max_c_speed > kph2mps(route->get_max_route_speed()) &&
+                            acceleration <= 0.0, "Cannot accelerate on a corner. Segment {} of loop {}", i, loop_idx);
+        }
+        // Evaluate wrap-around corner if necessary
+        if (is_connecting_corner) {
+          RUNTIME_EXCEPTION(!seen_connecting_corner, "Cannot have multiple connecting corners in a single loop");
+          RUNTIME_EXCEPTION(corners.size() > 0, "Corners vector cannot be empty for a segment that has the "
+                            "connection corner");
+          RUNTIME_EXCEPTION(corner_end_indices.find(end_idx) != corner_end_indices.end(),
+                            "Connection corner must end with the corner ending");
+          seen_connecting_corner = true;
+        }
       }
 
-      if (loop_segments[i].acceleration_value == 0.0) {
-        RUNTIME_EXCEPTION(loop_segments[i].start_speed == loop_segments[i].end_speed,
+      if (i < num_segments-1) {
+        RUNTIME_EXCEPTION(start_idx <= end_idx, "Segment start must be <= segment end in loop {} segment {}",
+                          loop_idx, i);
+        RUNTIME_EXCEPTION(end_idx == loop_segments[i+1].start_idx,
+                          "Segments must be continuous i.e. segment end = next segment start."
+                          " Invalid on segment {}, loop {}. Ending index = {}, Next Starting index = {}",
+                          i, loop_idx, end_idx, loop_segments[i+1].start_idx);
+        RUNTIME_EXCEPTION(end_speed == loop_segments[i+1].start_speed,
+                          "Ending speed of segment {} must equal starting speed of next segment in loop {}. {} {}", i,
+                          loop_idx, end_speed, loop_segments[i+1].start_speed);
+      }
+
+      if (acceleration == 0.0) {
+        RUNTIME_EXCEPTION(start_speed == end_speed,
                           "Speed profile for non-acceleration segment {} must have equal and positive starting "
                           "and ending speeds", i);
       } else {
         // Verify acceleration value
-        const double acceleration_value = loop_segments[i].acceleration_value;
-        const double starting_speed = loop_segments[i].start_speed;
-        const double ending_speed = loop_segments[i].end_speed;
-        const double calculated_acceleration_distance = calc_distance_a(starting_speed, ending_speed,
-                                                                        acceleration_value);
+        RUNTIME_EXCEPTION(start_speed != end_speed, "Acceleration segment must have different start and ending speeds."
+                                                    "Segment {} of loop {}", i, loop_idx);
+        const double calculated_acceleration_distance = calc_distance_a(start_speed, end_speed,
+                                                                        acceleration);
         RUNTIME_EXCEPTION(calculated_acceleration_distance < segment_distance ||
                           std::abs(calculated_acceleration_distance - segment_distance) < tolerance,
                           "Acceleration distance {} is invalid. Must be less than the segment distance {} "
@@ -566,41 +609,55 @@ RacePlan::RacePlan(PlanData segments, PlanData orig_segments, int num_repetition
   }
 }
 
-using json = nlohmann::json;
-
 void RacePlan::export_json() const {
-  const std::string& dumpDir = Config::get_instance()->get_dump_dir();
-  std::cout << "RacePlan dumped to: " << dumpDir << std::endl;
+  using json = nlohmann::json;
+  const std::filesystem::path dumpDir = Config::get_instance()->get_dump_dir();
   std::filesystem::create_directories(dumpDir);
-  const std::string path = dumpDir + "/best_raceplan.json";
+  const std::filesystem::path path = dumpDir / "best_raceplan.json";
 
   json j = json::array();
 
   for (const auto& loop : segments) {
-      json loop_json = json::array();
+    json loop_json = json::array();
 
-      for (const auto& seg : loop) {
-          loop_json.push_back({
-              {"start_idx", seg.start_idx},
-              {"end_idx", seg.end_idx},
-              {"start_speed", seg.start_speed},
-              {"end_speed", seg.end_speed},
-              {"acceleration_value", seg.acceleration_value},
-              {"distance", seg.distance},
-              {"includes_corner", seg.includes_corner}
-          });
-      }
-
-      j.push_back(loop_json);
+    for (const auto& seg : loop) {
+      loop_json.push_back({
+        {"start_idx", seg.start_idx},
+        {"end_idx", seg.end_idx},
+        {"start_speed", seg.start_speed},
+        {"end_speed", seg.end_speed},
+        {"acceleration_value", seg.acceleration_value},
+        {"distance", seg.distance},
+        {"corner_indices", json(seg.corners)}
+      });
+    }
+    j.push_back(loop_json);
   }
 
   std::ofstream out(path);
-  if (!out) {
-      throw std::runtime_error("Could not open " + path + " for writing.");
-  }
+  RUNTIME_EXCEPTION(out, "Could not open {} for writing", path.string());
 
   out << std::setw(4) << j << std::endl;
 }
 
 
 
+std::vector<size_t> Route::get_overlapping_corners(const std::pair<size_t, size_t>& segment) const {
+  std::vector<size_t> ret;
+  size_t counter = 0;
+  for (const auto& corner : cornering_segment_bounds) {
+    if (segment.first < segment.second) {
+      // Normal segment
+      if (segment.first < corner.second && segment.second > corner.first) {
+        ret.push_back(counter);
+      }
+    } else {
+      // Wrap-around segment
+      if (segment.first < corner.second || segment.second > corner.second) {
+        ret.push_back(counter);
+      }
+    }
+    counter++;
+  }
+  return ret;
+}
