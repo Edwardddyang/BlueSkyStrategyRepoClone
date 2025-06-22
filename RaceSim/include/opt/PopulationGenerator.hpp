@@ -41,27 +41,13 @@ class RacePlanCreator {
     std::stack<double> real_corner_speeds;
     // Real corner indices for which segments were created
     std::stack<size_t> real_corner_indices;
-    // Number of segments added for each real corner
-    std::stack<uint64_t> num_segments_added;
     // Speed of the first corner of a generated loop
     std::stack<uint64_t> first_corner_speeds;
-    // Number of segments added to the last loop of the previous loop block
-    // as a result of carrying over the wrap-around segments.
-    std::stack<uint64_t> num_added_wrap_around_segments;
-    // Counter to track the number of segments added for each real corner
-    uint64_t segment_counter;
-
-    void reset_segment_counter() {
-      segment_counter = 0;
-    }
 
     PlanHistory() {
       real_corner_speeds.push(0.0);
       real_corner_indices.push(0);
-      num_segments_added.push(0);
       first_corner_speeds.push(0);
-      num_added_wrap_around_segments.push(0);
-      segment_counter = 0;
     }
 
     PlanHistory(double real_corner_speed, size_t real_corner_idx,
@@ -69,78 +55,8 @@ class RacePlanCreator {
                 uint64_t num_added_segments = 0) {
       real_corner_speeds.push(real_corner_speed);
       real_corner_indices.push(real_corner_idx);
-      num_segments_added.push(num_segments);
       first_corner_speeds.push(first_speed);
-      num_added_wrap_around_segments.push(num_added_segments);
-      segment_counter = 0;
     }
-  };
-
-  // Hold information for a single segment
-  struct SegmentData {
-    std::pair<size_t, size_t> segment;
-    std::pair<double, double> segment_speed;
-    bool acceleration;
-    double acceleration_value;
-    double segment_distance;
-
-    SegmentData(
-      std::pair<size_t, size_t> segment = {0.0, 0.0},
-      std::pair<double, double> segment_speed = {0.0, 0.0},
-      bool acceleration = false,
-      double acceleration_value = 0.0,
-      double segment_distance = 0.0) : segment(segment),
-        segment_speed(segment_speed),
-        acceleration(acceleration),
-        acceleration_value(acceleration_value),
-        segment_distance(segment_distance) {}
-  };
-
-  // Holds the intermediate loop data when creating a race plan
-  struct LoopData {
-    std::vector<std::pair<size_t, size_t>> loop_segments;
-    std::vector<std::pair<double, double>> loop_segment_speeds;
-    std::vector<bool> loop_acceleration_segments;
-    std::vector<double> loop_acceleration_values;
-    std::vector<double> loop_segment_distances;
-    uint64_t segment_counter;
-
-    void clear() {
-      loop_segments.clear();
-      loop_segment_speeds.clear();
-      loop_acceleration_segments.clear();
-      loop_acceleration_values.clear();
-      loop_segment_distances.clear();
-      segment_counter = 0;
-    }
-
-    void reset_segment_counter() {
-      segment_counter = 0;
-    }
-
-    // Delete indices from x to y (inclusive) from all vectors
-    void delete_range(size_t start_idx, size_t end_idx);
-
-    // Insert a segment at some index
-    void insert_segment(size_t idx, SegmentData seg_data);
-
-    void add_segment(SegmentData* seg_data, PlanHistory* history);
-
-    // Slice the loop segments and return a new LoopData object
-    void slice_loop(size_t start_idx, size_t end_idx);
-
-    LoopData(
-      std::vector<std::pair<size_t, size_t>> loop_segments = {},
-      std::vector<std::pair<double, double>> loop_segment_speeds = {},
-      std::vector<bool> loop_acceleration_segments = {},
-      std::vector<double> loop_acceleration_values = {},
-      std::vector<double> loop_segment_distances = {},
-      uint64_t segment_counter = 0) : loop_segments(loop_segments),
-        loop_segment_speeds(loop_segment_speeds),
-        loop_acceleration_segments(loop_acceleration_segments),
-        loop_acceleration_values(loop_acceleration_values),
-        loop_segment_distances(loop_segment_distances),
-        segment_counter(segment_counter) {}
   };
 
   // Holds the RacePlan attributes that will be passed into the return object
@@ -148,41 +64,18 @@ class RacePlanCreator {
     // Data holders for each loop before processing when constructing a loop block. For each loop
     // block, we create one loop and modify the beginning or ending segments in order to glue the
     // loops of the block together. These vectors hold the uniquely created loop for each block
-    std::vector<std::vector<std::pair<size_t, size_t>>> raw_loop_segments;
-    std::vector<std::vector<std::pair<double, double>>> raw_loop_speeds;
-    std::vector<std::vector<bool>> raw_acceleration_segments;
-    std::vector<std::vector<double>> raw_acceleration_values;
-    std::vector<std::vector<double>> raw_loop_distances;
+    RacePlan::PlanData raw_segments;
 
     // RacePlan attributes
-    std::vector<std::vector<std::pair<size_t, size_t>>> all_segments;
-    std::vector<std::vector<std::pair<double, double>>> all_segment_speeds;
-    std::vector<std::vector<bool>> all_acceleration_segments;
-    std::vector<std::vector<double>> all_acceleration_values;
-    std::vector<std::vector<double>> all_segment_distances;
+    RacePlan::PlanData all_segments;
 
-    void add_loop(const LoopData& loop_data, size_t start_idx, size_t end_idx);
+    void add_loop(const RacePlan::LoopData& loop_data, size_t start_idx, size_t end_idx);
 
     PlanAttributes(
-      std::vector<std::vector<std::pair<size_t, size_t>>> raw_loop_segments = {},
-      std::vector<std::vector<std::pair<double, double>>> raw_loop_speeds = {},
-      std::vector<std::vector<bool>> raw_acceleration_segments = {},
-      std::vector<std::vector<double>> raw_acceleration_values = {},
-      std::vector<std::vector<double>> raw_loop_distances = {},
-      std::vector<std::vector<std::pair<size_t, size_t>>> all_segments = {},
-      std::vector<std::vector<std::pair<double, double>>> all_segment_speeds = {},
-      std::vector<std::vector<bool>> all_acceleration_segments = {},
-      std::vector<std::vector<double>> all_acceleration_values = {},
-      std::vector<std::vector<double>> all_segment_distances = {}) : raw_loop_segments(raw_loop_segments),
-        raw_loop_speeds(raw_loop_speeds),
-        raw_acceleration_segments(raw_acceleration_segments),
-        raw_acceleration_values(raw_acceleration_values),
-        raw_loop_distances(raw_loop_distances),
-        all_segments(all_segments),
-        all_segment_speeds(all_segment_speeds),
-        all_acceleration_segments(all_acceleration_segments),
-        all_acceleration_values(all_acceleration_values),
-        all_segment_distances(all_segment_distances) {}
+      RacePlan::PlanData raw_loop_segments = {},
+      RacePlan::PlanData all_segments = {}) :
+        raw_segments(raw_loop_segments),
+        all_segments(all_segments) {}
   };
 
   /** Initialize all parameters */
@@ -201,20 +94,18 @@ class RacePlanCreator {
    * @param seg_data Intermediate segment data for the latest created segment
    * @param loop_data Intermediate data for the last created loop
    * @param attributes All data for the entire race plan to the current point
-   * @param route_distances Lookup table for pre-computed distances of the route
+   * @param route Race route
    * @param logger Logger for the race plan creation
    * @param num_loops_in_block Number of loops in the block
    * @param is_last_block Whether the block to be created is the last block of the entire plan
    * @param is_first_block Whether the block to be created is the first block of the entire plan
   */
-  void create_loop_block(LoopData* loop_data,
-                         PlanAttributes* att,
-                         BasicLut* route_distances,
-                         PlanHistory* history,
-                         FileLogger& logger,  // NOLINT
+  void create_loop_block(RacePlan::LoopData* loop_data,
                          int num_loops_in_block = 1,
                          bool is_last_block = false,
-                         bool is_first_block = false);
+                         bool is_first_block = false,
+                         PlanAttributes* att = nullptr,
+                         FileLogger* logger = nullptr);
 
   // Create only one rng at the beginning of create_plan and pass it to
   // create_segments each corner so that the state is constantly changed
@@ -239,7 +130,7 @@ class RacePlanCreator {
 
   /** @brief Helper to create_plan used to create segments for a single corner */
   bool create_segments(size_t corner_idx,
-                       LoopData* loop_data,
+                       RacePlan::LoopData* loop_data,
                        bool is_first_segment,
                        Gen* rng,
                        PlanHistory* history,
@@ -248,7 +139,8 @@ class RacePlanCreator {
   /** @brief Helper to create_plan used for rolling back a corner after failed segment generation 
    * @return Index of last real corner to which we are rolling back
   */
-  size_t rollback_to_last_real_corner(size_t corner_idx, PlanHistory* history, LoopData* loop_data,
+  size_t rollback_to_last_real_corner(size_t corner_idx, PlanHistory* history,
+                                      RacePlan::LoopData* loop_data,
                                       PlanAttributes* att, FileLogger& logger);  // NOLINT
 
  private:
@@ -261,6 +153,7 @@ class RacePlanCreator {
   BasicLut route_distances;
   double max_route_speed;
   size_t num_points;
+  Gen rng_collection;
 
   // Maximum number of loops to create
   int max_num_loops;

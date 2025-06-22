@@ -27,9 +27,8 @@
   power_factor_path: data/luts/wsc_2023/static/powerfactor.csv
   roll_res_slope_path: data/luts/wsc_2023/static/rr2.csv
   roll_res_yint_path: data/luts/wsc_2023/static/rr1.csv
-  # driving_efficiency: /luts/wsc_2023/static/drivingeff.csv # Unused
-  # regen_efficiency: /luts/wsc_2023/static/regeneff.csv # Unused
-  # battery_efficiency: /luts/wsc_2023/static/batteff.csv # Unused
+  corners_path: "data/luts/fsgp/static/fsgp_corners.csv"
+  route_has_corners: false  # Use corners path
   dni_path: data/luts/wsc_2023/dynamic/dni.csv
   dhi_path: data/luts/wsc_2023/dynamic/dhi.csv
   wind_direction_path: data/luts/wsc_2023/dynamic/wind_direction_10m.csv

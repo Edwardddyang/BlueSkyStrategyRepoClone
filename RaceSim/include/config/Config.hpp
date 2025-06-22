@@ -13,6 +13,9 @@
 #include "utils/Luts.hpp"
 #include "config/ConfigParam.hpp"
 #include "utils/Defines.hpp"
+#include <fstream>
+#include <sstream>
+
 
 /* Define all config parameters
    PARAM(<parameter name as it appears exactly in the .yaml configuration file>,
@@ -55,8 +58,11 @@
   PARAM(control_stop_charge_time, int, int, 30)                                             \
   PARAM(base_route_path, std::filesystem::path, std::filesystem::path,                      \
         std::filesystem::path("data/luts/fsgp/static/fsgp_base_route.csv"))                 \
+  PARAM(telemetry_path, std::filesystem::path, std::filesystem::path,                       \
+        std::filesystem::path("data/luts/telemetry/sim.csv"))                               \
   PARAM(corners_path, std::filesystem::path, std::filesystem::path,                         \
         std::filesystem::path("data/luts/fsgp/static/fsgp_corners.csv"))                    \
+  PARAM(route_has_corners, bool, bool, false)                                               \
   PARAM(power_factor_path, std::filesystem::path, std::filesystem::path,                    \
         std::filesystem::path("data/luts/fsgp/static/powerfactor.csv"))                     \
   PARAM(roll_res_slope_path, std::filesystem::path, std::filesystem::path,                  \
@@ -68,13 +74,14 @@
   PARAM(dhi_path, std::filesystem::path, std::filesystem::path,                             \
         std::filesystem::path("data/luts/fsgp/dynamic/dhi.csv"))                            \
   PARAM(ghi_path, std::filesystem::path, std::filesystem::path,                             \
-        std::filesystem::path("data/luts/fsgp/dynamic/shortwave_radiation.csv"))                            \
+        std::filesystem::path("data/luts/fsgp/dynamic/shortwave_radiation.csv"))            \
   PARAM(wind_direction_path, std::filesystem::path, std::filesystem::path,                  \
         std::filesystem::path("data/luts/fsgp/dynamic/wind_direction_10m.csv"))             \
   PARAM(wind_speed_path, std::filesystem::path, std::filesystem::path,                      \
         std::filesystem::path("data/luts/fsgp/dynamic/wind_speed_10m.csv"))                 \
   PARAM(precomputed_distances_path, std::filesystem::path, std::filesystem::path,           \
         std::filesystem::path("data/luts/fsgp/static/precomputed_distances.csv"))           \
+  PARAM(use_ghi, bool, bool, false)                                                         \
   PARAM(calculate_distances, bool, bool, false)                                             \
   PARAM(day_one_start_time, std::unique_ptr<Time>, Time,                                    \
         std::make_unique<Time>("2024-08-16 10:00:00", 6.0))                                 \
@@ -109,7 +116,8 @@
   PARAM(corner_speed_max, double, double, 0.9)                                              \
   PARAM(aggressive_straight_threshold, double, double, 200.0)                               \
   PARAM(num_repetitions, int, int, 5)                                                       \
-  PARAM(log_segmenting, bool, bool, false)                                                  \
+  PARAM(log_optimization, bool, bool, false)                                                \
+  PARAM(print_population, bool, bool, false)                                                \
   PARAM(fix_seeds, bool, bool, false)                                                       \
   PARAM(loop_seed, unsigned int, unsigned int, 1)                                           \
   PARAM(speed_seed, unsigned int, unsigned int, 1)                                          \
@@ -123,6 +131,9 @@
   PARAM(crossover_percentage, double, double, 30)                                           \
   PARAM(mutation_percentage, double, double, 50)                                            \
   PARAM(mutation_strategy, std::string, std::string, "PreferConstantSpeed")                 \
+  PARAM(dump_dir, std::filesystem::path, std::filesystem::path,                             \
+        std::filesystem::path("exports"))                                                   \
+  PARAM(crossover_strategy, std::string, std::string, "LoopCross")                          \
 
 /* Class that holds all information from a .yaml file storing configuration parameters for
  * a race simulation
@@ -148,6 +159,10 @@ class Config {
   static char* STRAT_ROOT;
 
   static const int MAX_RECURSION_DEPTH = 10;
+
+  std::vector<Coord> telem_coords;
+  std::vector<Time> telem_times;
+
 
   // Dummy variable to satisfy macro syntax
   int b;
@@ -184,11 +199,12 @@ class Config {
 
   /* Getters */
   #define PARAM(name, type, return_type, default_value) \
-    inline return_type get_##name() {return name.get_value();}
+    inline return_type get_##name() { return name.get_value(); }
 
   CONFIG_PARAMETERS
   #undef PARAM
-  static inline std::string get_strat_root() {return STRAT_ROOT;}
+
+  static inline std::string get_strat_root() { return STRAT_ROOT; }
 
   /* No setters since config parameters should never change after initialization */
 };

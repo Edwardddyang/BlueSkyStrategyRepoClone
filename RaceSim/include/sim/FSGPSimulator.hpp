@@ -29,7 +29,10 @@ class FSGPSimulator : public WSCSimulator {
   const Time impounding_release_time;  // Impounding release time in 24 hour local time
 
   // Car Model
-  std::shared_ptr<V2Car> car;
+  std::shared_ptr<V2Car> v2_car;
+
+  // Use GHI lut or Dni, Dhi lut
+  const bool use_ghi;
 
  public:
   /* Load all LUTs upon construction */

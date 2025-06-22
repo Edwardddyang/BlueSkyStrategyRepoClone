@@ -9,7 +9,6 @@
 #include "utils/CustomException.hpp"
 
 EnergyChange V2Car::compute_fsgp_array_gain_ghi(double delta_time, Irradiance irr) {
-  
   const double power = irr.ghi * array_efficiency * array_area;  // Watts
   const double energy = watts2kwh(delta_time, power);  // kwh
   return EnergyChange(power, energy);

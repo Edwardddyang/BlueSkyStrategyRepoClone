@@ -197,10 +197,9 @@ void ForecastLut::load_LUT() {
     date::sys_time<std::chrono::seconds> epoch_time;
     iss >> date::parse("%F %T", epoch_time);
     time_t local_time_t = std::chrono::system_clock::to_time_t(epoch_time);
-    std::cout << "UTC Time: " << local_time_t << std::endl;
     forecast_times.push_back(local_time_t);
-  
-  } 
+  }
+
   int row_counter = 0;
   while (!file.eof()) {
     std::string file_line;

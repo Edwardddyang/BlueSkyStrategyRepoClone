@@ -33,6 +33,11 @@ set(YAML_CPP_BUILD_TOOLS OFF CACHE BOOL "Build yaml-cpp tools" FORCE)
 set(YAML_CPP_BUILD_CONTRIB OFF CACHE BOOL "Build yaml-cpp contrib" FORCE)
 add_subdirectory(${EXTERNAL_DIR}/yaml-cpp)
 list(APPEND EXTERNAL_DEPS yaml-cpp)
+
+# nlohmann_json
+add_subdirectory(${EXTERNAL_DIR}/nlohmann)
+list(APPEND EXTERNAL_DEPS json)
+
 # ---------------------------------------------------------
 
 # ---------------- RaceSim dynamic library ----------------
@@ -62,6 +67,7 @@ set(SIMULATION_SOURCES
     src/simulation/SimulatorFactory.cpp
     src/simulation/WSCSimulator.cpp
     src/simulation/FSGPSimulator.cpp
+    src/simulation/TelemetrySimulator.cpp
 )
 set(UTILS_SOURCES
     src/utils/CustomTime.cpp
@@ -164,29 +170,6 @@ add_test(OptimizerTest OptimizerTest)
 add_custom_target(run_tests ALL
     COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure || true)
 
-# Run linter
-# find_program(CPPLINT_EXE NAMES cpplint REQUIRED)
-# file(GLOB_RECURSE CONFIG_HEADERS "${CMAKE_SOURCE_DIR}/include/config/*.hpp")
-# file(GLOB_RECURSE MODEL_HEADERS "${CMAKE_SOURCE_DIR}/include/model/*.hpp")
-# file(GLOB_RECURSE OPT_HEADERS "${CMAKE_SOURCE_DIR}/include/opt/*.hpp")
-# file(GLOB_RECURSE ROUTE_HEADERS "${CMAKE_SOURCE_DIR}/include/route/*.hpp")
-# file(GLOB_RECURSE SIM_HEADERS "${CMAKE_SOURCE_DIR}/include/sim/*.hpp")
-# file(GLOB_RECURSE UTIL_HEADERS "${CMAKE_SOURCE_DIR}/include/utils/*.hpp")
-# set(RACESIM_HEADERS ${CONFIG_HEADERS} ${MODEL_HEADERS} ${OPT_HEADERS} ${ROUTE_HEADERS} ${SIM_HEADERS} ${UTIL_HEADERS})
-# set(RACESIM_TEST_SOURCES ${CMAKE_SOURCE_DIR}/tests/RouteTest.cpp ${CMAKE_SOURCE_DIR}/tests/v1CarTest.cpp
-#                          ${CMAKE_SOURCE_DIR}/tests/GeographyTest.cpp ${CMAKE_SOURCE_DIR}/tests/TimeTest.cpp
-#                          ${CMAKE_SOURCE_DIR}/tests/v2CarTest.cpp
-#                          ${CMAKE_SOURCE_DIR}/tests/LutsTest.cpp
-#                          ${CMAKE_SOURCE_DIR}/tests/SimTest.cpp)
-# add_custom_target(lint ALL
-#     COMMAND ${CPPLINT_EXE} --linelength=120 --filter=-build/c++17,-legal/copyright,-whitespace/indent_namespace
-#             ${RACESIM_SOURCES}
-#             ${RACESIM_HEADERS}
-#             ${CMAKE_SOURCE_DIR}/src/main.cpp
-#             ${RACESIM_TEST_SOURCES} > /dev/null || true
-#     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-#     COMMENT "Running cpplint"
-# )
 # ---------------------------------------------------------
 
 # ---------------------- Installation ---------------------
