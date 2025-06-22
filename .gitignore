@@ -21,5 +21,6 @@ install/
 Acceleration_Results/
 TelemetrySimResults/
 exports/
+export/
 
 *venv*/

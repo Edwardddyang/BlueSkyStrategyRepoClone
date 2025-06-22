@@ -614,19 +614,28 @@ void RacePlan::export_json() const {
   using json = nlohmann::json;
   const std::filesystem::path dumpDir = Config::get_instance()->get_dump_dir();
   std::filesystem::create_directories(dumpDir);
-  const std::filesystem::path path = dumpDir / "best_raceplan.json";
+  const std::filesystem::path path = dumpDir / "best_race_plan.json";
 
   json j = json::array();
+  // Add metadata
+  j.push_back({
+    {"avg_speed", mps2kph(average_speed)},
+    {"num_repetitions", num_repetitions},
+    {"num_loops", num_loops},
+    {"start_time", start_time.get_local_readable_time()},
+    {"end_time", end_time.get_local_readable_time()}
+  });
 
   for (const auto& loop : segments) {
     json loop_json = json::array();
-
+    // First element is always metadata
+    RUNTIME_EXCEPTION(loop.size() > 0, "Loop must have >= 1 segment");
     for (const auto& seg : loop) {
       loop_json.push_back({
         {"start_idx", seg.start_idx},
         {"end_idx", seg.end_idx},
-        {"start_speed", seg.start_speed},
-        {"end_speed", seg.end_speed},
+        {"start_speed", mps2kph(seg.start_speed)},
+        {"end_speed", mps2kph(seg.end_speed)},
         {"acceleration_value", seg.acceleration_value},
         {"distance", seg.distance},
         {"corner_indices", json(seg.corners)}

@@ -9,7 +9,6 @@ import csv
 import datetime
 from datetime import timedelta
 
-
 import argparse
 
 from typing import Optional

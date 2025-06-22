@@ -58,7 +58,7 @@
 \Telemetry: # Current state of the car
   current_soc: 9.2 # in kWh, should be <= max_soc
   gps_coordinates: 37.0011542,-86.3683294,0.157135 # Lat(degrees),Lon(degrees),Alt(metres)
-  current_date_time: 2025-06-02 00:00:00 # YYYY-MM-DD HH:MM:SS local 24 hour time
+  current_date_time: 2025-06-02 10:00:00 # YYYY-MM-DD HH:MM:SS local 24 hour time
   utc_adjustment: +6.0 # Hour conversion from local time to UTC. This will be applied to all times. 
                        # This parameter MUST be present
 

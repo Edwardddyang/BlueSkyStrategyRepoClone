@@ -18,6 +18,8 @@ void FSGPSimulator::run_sim(const std::shared_ptr<Route>& route, RacePlan* race_
   } else {
     RUNTIME_EXCEPTION(race_plan->validate_members(route), "Race Plan is improperly created");
   }
+  race_plan->set_start_time(this->sim_start_time);
+
   const BasicLut& route_distances = route->get_precomputed_distances();
   const std::vector<double> cornering_speed_limits = route->get_cornering_speed_bounds();
   RUNTIME_EXCEPTION(!route_distances.is_empty(), "FSGP Simulator must use pre-computed distances,"
@@ -271,7 +273,7 @@ void FSGPSimulator::run_sim(const std::shared_ptr<Route>& route, RacePlan* race_
         }
 
         /* Invalid simulation if battery goes below 0 or if the end of the race has been reached */
-        if (battery_energy < 0.0) {
+        if (battery_energy < 0.0 || curr_time > race_end_time) {
           race_plan->set_viability(false);
           race_plan->set_inviability_reason("Out of battery charge");
           return;
@@ -280,6 +282,7 @@ void FSGPSimulator::run_sim(const std::shared_ptr<Route>& route, RacePlan* race_
     }
   }
   race_plan->set_driving_time(driving_time);
+  race_plan->set_end_time(curr_time);
   race_plan->set_accumulated_distance(accumulated_distance);
   race_plan->set_average_speed(accumulated_distance / driving_time);
   race_plan->set_viability(true);
