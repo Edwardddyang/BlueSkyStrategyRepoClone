@@ -26,6 +26,11 @@ void TelemetrySimulator::run_sim(const std::shared_ptr<Route>& route,
     RUNTIME_EXCEPTION(num_points >= 2, "Not enough telemetry points");
     RUNTIME_EXCEPTION(num_points == telem_times.size(), "Timestamps has different number of points compared to route");
     RUNTIME_EXCEPTION(num_points == telem_speeds.size(), "Timestamps has different number of points compared to speeds");
+    RUNTIME_EXCEPTION(wind_speed_lut != nullptr, "Wind speed lut must be loaded");
+    RUNTIME_EXCEPTION(wind_dir_lut != nullptr, "Wind direction lut must be loaded");
+    RUNTIME_EXCEPTION(dni_lut != nullptr, "DNI lut must be loaded");
+    RUNTIME_EXCEPTION(dhi_lut != nullptr, "DHI Lut must be loaded");
+    RUNTIME_EXCEPTION(ghi_lut != nullptr, "GHI Lut must be loaded");
 
     // Reset results lut logs
     results_lut->reset_logs();
@@ -49,6 +54,8 @@ void TelemetrySimulator::run_sim(const std::shared_ptr<Route>& route,
                                                                     curr_time.get_utc_time_point());
     std::pair<size_t, size_t> dhi_cache = dhi_lut->initialize_caches(starting_coord,
                                                                     curr_time.get_utc_time_point());
+    std::pair<size_t, size_t> ghi_cache = ghi_lut->initialize_caches(starting_coord,
+                                                                    curr_time.get_utc_time_point());                                                     
 
 
     /* Get starting position in telemetry data */
@@ -85,8 +92,11 @@ void TelemetrySimulator::run_sim(const std::shared_ptr<Route>& route,
         dhi_lut->update_index_cache(&dhi_cache, coord_one_forecast, curr_time.get_utc_time_point());
         double dhi = dhi_lut->get_value(dhi_cache);
 
+        ghi_lut->update_index_cache(&ghi_cache, coord_one_forecast, curr_time.get_utc_time_point());
+        double ghi = ghi_lut->get_value(ghi_cache);
+
         Wind wind = Wind(wind_dir, wind_speed);
-        Irradiance irr = Irradiance(dni, dhi);
+        Irradiance irr = Irradiance(dni, dhi, ghi);
         SolarAngle sun = SolarAngle();
 
         double segment_distance = get_distance(start, end);
@@ -115,7 +125,7 @@ void TelemetrySimulator::run_sim(const std::shared_ptr<Route>& route,
         }
 
         /* Update the logs */
-        results_lut->update_logs(update, battery_energy, delta_energy, accumulated_distance,
+        results_lut->update_logs(update, irr, battery_energy, delta_energy, accumulated_distance,
                                 end, end_speed, curr_time, acceleration);
     }
 }

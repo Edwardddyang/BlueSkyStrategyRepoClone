@@ -158,6 +158,9 @@ class ResultsLut : public BaseLut<double> {
   std::vector<double> altitude;
   std::vector<double> speed;
   std::vector<double> acceleration;
+  std::vector<double> ghi;
+  std::vector<double> dni;
+  std::vector<double> dhi;
   std::vector<double> array_energy;
   std::vector<double> array_power;
   std::vector<double> motor_power;
@@ -182,7 +185,7 @@ class ResultsLut : public BaseLut<double> {
 
   void reset_logs();
   void write_logs(const std::string lut_path) const;
-  void update_logs(const CarUpdate update, double battery, double d_energy,
+  void update_logs(const CarUpdate update, Irradiance irr, double battery, double d_energy,
                    double distance, Coord next_coord, double curr_speed, Time curr_time,
                    double accel);
 
@@ -197,6 +200,9 @@ class ResultsLut : public BaseLut<double> {
   inline std::vector<double> get_altitude() const { return altitude; }
   inline std::vector<double> get_speed() const { return speed; }
   inline std::vector<double> get_acceleration() const { return acceleration; }
+  inline std::vector<double> get_ghi() const { return ghi; }
+  inline std::vector<double> get_dni() const { return dni; }
+  inline std::vector<double> get_dhi() const { return dhi; }
   inline std::vector<double> get_array_energy() const { return array_energy; }
   inline std::vector<double> get_array_power() const { return array_power; }
   inline std::vector<double> get_motor_power() const { return motor_power; }

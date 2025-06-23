@@ -27,10 +27,13 @@
   base_route_path: data/luts/fsgp/static/fsgp_base_route.csv # 3 or 5 column csv --> latitude (degrees) | longitude (degrees) | altitude (km) | Time (YYYY-MM-DD HH:MM:SS) | Speed (m/s)
   power_factor_path: data/luts/fsgp/static/powerfactor.csv
   corners_path: data/luts/fsgp/static/fsgp_corners.csv # 3 Column csv -> Corner start index | Corner end index | Max speed (mps)
+  route_has_corners: true
   roll_res_slope_path: data/luts/fsgp/static/rr2.csv
   roll_res_yint_path: data/luts/fsgp/static/rr1.csv
   dni_path: data/luts/fsgp/dynamic/dni.csv
   dhi_path: data/luts/fsgp/dynamic/dhi.csv
+  ghi_path: data/luts/fsgp/dynamic/shortwave_radiation.csv
+  use_ghi: true  # If true, use the GHI lut for calculating solar energy. Otherwise, use dni + dhi
   wind_direction_path: data/luts/fsgp/dynamic/wind_direction_10m.csv
   wind_speed_path: data/luts/fsgp/dynamic/wind_speed_10m.csv
   precomputed_distances_path: data/luts/fsgp/static/precomputed_distances.csv # Precomputed distances between each pair of
@@ -42,11 +45,11 @@
 
 \Route: # Route conditions
   init_control_stops: False # Use control stops or not
-  day_one_start_time: 2024-08-16 10:00:00 # Start time of the first day in YYYY-MM-DD HH:MM:SS local 24 hour format
-  day_one_end_time: 2024-08-16 18:00:00 # End time of the first day in YYYY-MM-DD HH:MM:SS local 24 hour format
+  day_one_start_time: 2025-06-02 10:00:00 # Start time of the first day in YYYY-MM-DD HH:MM:SS local 24 hour format
+  day_one_end_time: 2025-06-02 18:00:00 # End time of the first day in YYYY-MM-DD HH:MM:SS local 24 hour format
   day_start_time: 9:00:00 # Start time from second day onwards in HH:MM:SS local 24 hour format
   day_end_time: 17:00:00 # End time from second day onwards in HH:MM:SS local 24 hour format
-  race_end_time: 2024-08-18 17:00:00 # YYYY-MM-DD HH:MM:SS local 24 hour time
+  race_end_time: 2025-06-08 17:00:00 # YYYY-MM-DD HH:MM:SS local 24 hour time
   impounding_release_time: 07:00:00 # HH:MM:SS of the morning battery release time
   impounding_start_time: 20:00:00 # HH:MM:SS of the nightly battery impounding time
   overnight_charging_location: 37.000823,-86.367676,0.157135 # Coordinates of the charging location
@@ -55,7 +58,7 @@
 \Telemetry: # Current state of the car
   current_soc: 9.2 # in kWh, should be <= max_soc
   gps_coordinates: 37.0011542,-86.3683294,0.157135 # Lat(degrees),Lon(degrees),Alt(metres)
-  current_date_time: 2024-08-16 10:00:00 # YYYY-MM-DD HH:MM:SS local 24 hour time
+  current_date_time: 2025-06-02 10:00:00 # YYYY-MM-DD HH:MM:SS local 24 hour time
   utc_adjustment: +6.0 # Hour conversion from local time to UTC. This will be applied to all times. 
                        # This parameter MUST be present
 

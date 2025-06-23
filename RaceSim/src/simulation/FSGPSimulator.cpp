@@ -18,6 +18,8 @@ void FSGPSimulator::run_sim(const std::shared_ptr<Route>& route, RacePlan* race_
   } else {
     RUNTIME_EXCEPTION(race_plan->validate_members(route), "Race Plan is improperly created");
   }
+  race_plan->set_start_time(this->sim_start_time);
+
   const BasicLut& route_distances = route->get_precomputed_distances();
   const std::vector<double> cornering_speed_limits = route->get_cornering_speed_bounds();
   RUNTIME_EXCEPTION(!route_distances.is_empty(), "FSGP Simulator must use pre-computed distances,"
@@ -26,6 +28,7 @@ void FSGPSimulator::run_sim(const std::shared_ptr<Route>& route, RacePlan* race_
   RUNTIME_EXCEPTION(wind_dir_lut != nullptr, "Wind direction lut must be loaded");
   RUNTIME_EXCEPTION(dni_lut != nullptr, "DNI lut must be loaded");
   RUNTIME_EXCEPTION(dhi_lut != nullptr, "DHI Lut must be loaded");
+  RUNTIME_EXCEPTION(ghi_lut != nullptr, "GHI Lut must be loaded");
 
   // Reset results lut logs
   results_lut->reset_logs();
@@ -47,6 +50,9 @@ void FSGPSimulator::run_sim(const std::shared_ptr<Route>& route, RacePlan* race_
                                                                    curr_time.get_utc_time_point());
   std::pair<size_t, size_t> dhi_cache = dhi_lut->initialize_caches(starting_coord,
                                                                    curr_time.get_utc_time_point());
+  std::pair<size_t, size_t> ghi_cache = ghi_lut->initialize_caches(starting_coord,
+                                                                   curr_time.get_utc_time_point());
+                                                                   
 
   /* Get route data */
   const size_t num_points = route->get_num_points();
@@ -92,7 +98,7 @@ void FSGPSimulator::run_sim(const std::shared_ptr<Route>& route, RacePlan* race_
 
     if (loop_idx == 0) {
       // Write starting condition of the car to the result csv
-      results_lut->update_logs(car_update, battery_energy, 0.0, 0.0,
+      results_lut->update_logs(car_update, Irradiance(0,0,0), battery_energy, 0.0, 0.0,
                                route_points[0], 0.0, curr_time, 0.0);
     }
 
@@ -137,7 +143,7 @@ void FSGPSimulator::run_sim(const std::shared_ptr<Route>& route, RacePlan* race_
 
         /* Update forecast lut index caches and get forecast data at the src coordinate */
         ForecastCoord coord_one_forecast(current_coord.lat, current_coord.lon);
-
+        
         wind_speed_lut->update_index_cache(&wind_speed_cache, coord_one_forecast, curr_time.get_utc_time_point());
         double wind_speed = wind_speed_lut->get_value(wind_speed_cache);
 
@@ -150,8 +156,11 @@ void FSGPSimulator::run_sim(const std::shared_ptr<Route>& route, RacePlan* race_
         dhi_lut->update_index_cache(&dhi_cache, coord_one_forecast, curr_time.get_utc_time_point());
         double dhi = dhi_lut->get_value(dhi_cache);
 
+        ghi_lut->update_index_cache(&ghi_cache, coord_one_forecast, curr_time.get_utc_time_point());
+        double ghi = ghi_lut->get_value(ghi_cache);
+
         Wind wind = Wind(wind_dir, wind_speed);
-        Irradiance irr = Irradiance(dni, dhi);
+        Irradiance irr = Irradiance(dni, dhi, ghi);
 
         /** @brief Lambda function for static charging between the start and end time
          * @param start_time: The starting time of the charging period. This will be modified
@@ -169,7 +178,7 @@ void FSGPSimulator::run_sim(const std::shared_ptr<Route>& route, RacePlan* race_
             double step_size = (start_time + static_cast<double>(CHARGING_STEP_SIZE)) >= end_time ?
                                 end_time - start_time : static_cast<double>(CHARGING_STEP_SIZE);
             if (sun.El > 0) {
-              delta_energy += car->compute_static_energy(current_coord, &start_time, step_size, irr);
+              delta_energy += car->compute_static_energy(current_coord, &start_time, step_size, irr, "fsgp");
 
               start_time.update_time_seconds(step_size);
 
@@ -178,6 +187,11 @@ void FSGPSimulator::run_sim(const std::shared_ptr<Route>& route, RacePlan* race_
 
               dhi_lut->update_index_cache(&dhi_cache, coord_one_forecast, start_time.get_utc_time_point());
               irr.dhi = dhi_lut->get_value(dhi_cache);
+
+              ghi_lut->update_index_cache(&ghi_cache, coord_one_forecast, start_time.get_utc_time_point());
+              irr.ghi = ghi_lut->get_value(ghi_cache);
+
+              
             } else {
               start_time.update_time_seconds(step_size);
             }
@@ -213,7 +227,7 @@ void FSGPSimulator::run_sim(const std::shared_ptr<Route>& route, RacePlan* race_
             acceleration_distance = calc_distance_a(curr_speed, ending_speed, acceleration);
             constant_distance = route_distances.get_value(current_segment.start_idx, current_segment.end_idx)
                                 - acceleration_distance;
-            car_update = car->compute_travel_update(route_points[current_segment.start_idx],
+            car_update = v2_car->compute_travel_update(route_points[current_segment.start_idx],
                                                     route_points[current_segment.end_idx],
                                                     curr_speed, ending_speed, acceleration,
                                                     &curr_time, wind, irr, acceleration_distance,
@@ -221,7 +235,7 @@ void FSGPSimulator::run_sim(const std::shared_ptr<Route>& route, RacePlan* race_
           } else {
             acceleration_distance = 0.0;
             constant_distance = route_distances.get_value(coord_one, coord_two);
-            car_update = car->compute_travel_update(current_coord, next_coord, curr_speed, curr_speed,
+            car_update = v2_car->compute_travel_update(current_coord, next_coord, curr_speed, curr_speed,
                                                     acceleration, &curr_time, wind, irr, acceleration_distance,
                                                     constant_distance);
           }
@@ -251,15 +265,15 @@ void FSGPSimulator::run_sim(const std::shared_ptr<Route>& route, RacePlan* race_
 
         /* Update the logs */
         if (!is_accelerating) {
-          results_lut->update_logs(car_update, battery_energy, delta_energy, accumulated_distance,
+          results_lut->update_logs(car_update, irr, battery_energy, delta_energy, accumulated_distance,
                                   next_coord, curr_speed, curr_time, acceleration);
         } else {
-          results_lut->update_logs(car_update, battery_energy, delta_energy, accumulated_distance,
+          results_lut->update_logs(car_update, irr, battery_energy, delta_energy, accumulated_distance,
                                   route_points[current_segment.end_idx], curr_speed, curr_time, acceleration);
         }
 
         /* Invalid simulation if battery goes below 0 or if the end of the race has been reached */
-        if (battery_energy < 0.0) {
+        if (battery_energy < 0.0 || curr_time > race_end_time) {
           race_plan->set_viability(false);
           race_plan->set_inviability_reason("Out of battery charge");
           return;
@@ -268,6 +282,7 @@ void FSGPSimulator::run_sim(const std::shared_ptr<Route>& route, RacePlan* race_
     }
   }
   race_plan->set_driving_time(driving_time);
+  race_plan->set_end_time(curr_time);
   race_plan->set_accumulated_distance(accumulated_distance);
   race_plan->set_average_speed(accumulated_distance / driving_time);
   race_plan->set_viability(true);
@@ -277,5 +292,5 @@ FSGPSimulator::FSGPSimulator(std::shared_ptr<Car> model) :
   charging_coord(Config::get_instance()->get_overnight_charging_location()),
   impounding_start_time(Config::get_instance()->get_impounding_start_time()),
   impounding_release_time(Config::get_instance()->get_impounding_release_time()),
-  car(std::dynamic_pointer_cast<V2Car>(model)),
+  v2_car(std::dynamic_pointer_cast<V2Car>(model)),
   WSCSimulator(model) {}

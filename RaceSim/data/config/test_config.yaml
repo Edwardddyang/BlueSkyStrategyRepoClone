@@ -24,6 +24,7 @@
   power_factor_path: data/luts/TestData/power_factor.csv
   roll_res_slope_path: data/luts/TestData/rr2.csv
   roll_res_yint_path: data/luts/TestData/rr1.csv
+  route_has_corners: false
   # driving_efficiency: /luts/wsc_2023/static/drivingeff.csv # Unused
   # regen_efficiency: /luts/wsc_2023/static/regeneff.csv # Unused
   # battery_efficiency: /luts/wsc_2023/static/batteff.csv # Unused

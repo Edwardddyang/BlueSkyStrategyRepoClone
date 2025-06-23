@@ -94,6 +94,8 @@ class RacePlan {
   inline double get_score() const {return score;}
   inline int get_num_loops() const {return num_loops;}
   inline int get_num_blocks() const {return num_blocks;}
+  inline Time get_start_time() const {return start_time;}
+  inline Time get_end_time() const {return end_time;}
   inline bool is_viable() const {return viable;}
   inline bool is_empty() const {return empty;}
 
@@ -107,6 +109,8 @@ class RacePlan {
   inline void set_driving_time(double time) {driving_time = time;}
   inline void set_average_speed(double speed) {average_speed = speed;}
   inline void set_score(double new_score) {score = new_score;}
+  inline void set_start_time(Time new_time) {start_time = new_time;}
+  inline void set_end_time(Time new_time) {end_time = new_time;}
 
   /** @brief Validate members of a race plan. Should be called before run_sim()
    *
@@ -138,6 +142,10 @@ class RacePlan {
 
   /* Total driving time in seconds */
   double driving_time;
+
+  /* Start/end time of the race plan */
+  Time start_time;
+  Time end_time;
 
   /* Total distance travelled in m */
   double accumulated_distance;
@@ -186,6 +194,7 @@ class Route {
   double route_length;
 
   /* Cornering segments */
+  bool route_has_corners;
   std::vector<std::pair<size_t, size_t>> cornering_segment_bounds;
   std::unordered_set<size_t> corner_start_indices;
   std::unordered_set<size_t> corner_end_indices;

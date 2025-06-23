@@ -29,6 +29,8 @@ class Car {
   double max_soc;
   double tire_pressure;
   double array_efficiency;
+  // Use GHI lut or Dni, Dhi lut
+  bool use_ghi;
 
  public:
   Car();
@@ -82,7 +84,7 @@ class Car {
    * @param az: Azimuth angle in degrees from true north
    * @param el: Elevation angle in degrees
    */
-  virtual EnergyChange compute_array_gain(double delta_time, double dni, double dhi, double az, double el) {
+  virtual EnergyChange compute_array_gain(double delta_time, Irradiance irr, double az, double el) {
     return EnergyChange();
   }
 
@@ -117,7 +119,7 @@ class Car {
    * @param charge_time: Length of static stop in seconds
    * @param irr: Irradiance of the sun (assumed to be constant over the entire stop)
    */
-  virtual double compute_static_energy(Coord coord, Time* time, double charge_time, Irradiance irr) {
+  virtual double compute_static_energy(Coord coord, Time* time, double charge_time, Irradiance irr, std::string sim_type) {
     return -1.0;
   }
 };

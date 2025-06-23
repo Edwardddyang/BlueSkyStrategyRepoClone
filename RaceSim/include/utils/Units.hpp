@@ -82,9 +82,10 @@ struct TireCoeff {
 struct Irradiance {
   double dni;
   double dhi;
+  double ghi;
 
-  Irradiance(double _dni, double _dhi) : dni(_dni), dhi(_dhi) {}
-  Irradiance() : dni(0), dhi(0) {}
+  Irradiance(double _dni, double _dhi, double _ghi) : dni(_dni), dhi(_dhi), ghi(_ghi) {}
+  Irradiance() : dni(0), dhi(0), ghi(0) {}
 };
 
 /* Each energy loss/gain (e.g. rolling resistance, aerodynamic, gravity) is characterized by both its

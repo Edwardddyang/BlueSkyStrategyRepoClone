@@ -5,6 +5,7 @@ Model of the car implemented for gen 11.5
 
 #include "model/Car.hpp"
 #include "utils/Units.hpp"
+#include <string>
 
 class V1Car : public Car {
  protected:
@@ -31,7 +32,8 @@ class V1Car : public Car {
     double compute_electric_loss(double delta_time) override;
 
     /* Compute the array energy gains */
-    EnergyChange compute_array_gain(double delta_time, double dni, double dhi, double az, double el) override;
+    EnergyChange compute_array_gain(double delta_time, Irradiance irr, double az, double el) override;
+
 
     // Compute energy change when moving between two points in a straight line.
     // Acceleration must be 0 in this energy model
@@ -45,5 +47,5 @@ class V1Car : public Car {
                                     double distance = -1.0) override;
 
     /* Compute energy change during a static stop */
-    double compute_static_energy(Coord coord, Time* time, double charge_time, Irradiance irr) override;
+    double compute_static_energy(Coord coord, Time* time, double charge_time, Irradiance irr, std::string sim_type) override;
 };

@@ -4,6 +4,7 @@ Model of the car implemented for gen 11.5
 
 #include <math.h>
 #include <cmath>
+#include <string>
 
 #include "model/V1Car.hpp"
 #include "utils/Geography.hpp"
@@ -43,9 +44,9 @@ double V1Car::compute_electric_loss(double delta_time) {
   return joules2kwh(delta_time * passive_electric_loss);
 }
 
-EnergyChange V1Car::compute_array_gain(double delta_time, double dni, double dhi, double az, double el) {
+EnergyChange V1Car::compute_array_gain(double delta_time, Irradiance irr, double az, double el) {
   const double power_factor = power_factors.get_value(round(el), round(az));  // Unitless
-  const double power = (power_factor * dni) + (dhi * array_efficiency * array_area);  // Watts
+  const double power = (power_factor * irr.dni) + (irr.dhi * array_efficiency * array_area);  // Watts
   const double energy = watts2kwh(delta_time, power);  // kwh
   return EnergyChange(power, energy);
 }
@@ -105,7 +106,7 @@ CarUpdate V1Car::compute_travel_update(Coord coord_one, Coord coord_two, double 
   }
   double motor_power = aero_loss.power + rolling_loss.power + gravity_loss.power;
 
-  EnergyChange array_gain = compute_array_gain(delta_time, irr.dni, irr.dhi, az_el.Az, az_el.El);
+  EnergyChange array_gain = compute_array_gain(delta_time, irr, az_el.Az, az_el.El);
   double delta_battery = compute_net_battery_change(array_gain.energy, aero_loss.energy, rolling_loss.energy,
                                                     gravity_loss.energy, electric_loss, motor_loss);
 
@@ -115,9 +116,9 @@ CarUpdate V1Car::compute_travel_update(Coord coord_one, Coord coord_two, double 
                   delta_distance, delta_time);
 }
 
-double V1Car::compute_static_energy(Coord coord, Time* time, double charge_time, Irradiance irr) {
+double V1Car::compute_static_energy(Coord coord, Time* time, double charge_time, Irradiance irr, std::string sim_type) {
   RUNTIME_EXCEPTION(time != nullptr, "Time is null");
-
+ 
   /* Get orientation of the car */
   SolarAngle sun = SolarAngle();
   get_az_el(time->get_utc_time_point(), coord.lat, coord.lon, coord.alt, &sun.Az, &sun.El);
@@ -126,7 +127,7 @@ double V1Car::compute_static_energy(Coord coord, Time* time, double charge_time,
   }
 
   double electric_loss = compute_electric_loss(charge_time);
-  EnergyChange array_gain = compute_array_gain(charge_time, irr.dni, irr.dhi, sun.Az, sun.El);
+  EnergyChange array_gain = compute_array_gain(charge_time, irr, sun.Az, sun.El);
 
   double delta_battery = array_gain.energy > electric_loss ? battery_efficiency * (array_gain.energy - electric_loss) :
                          (1 / battery_efficiency) * (array_gain.energy - electric_loss);

@@ -7,10 +7,12 @@
 #include <filesystem>
 #include <utility>
 #include <vector>
+#include <ctime>
 
 #include "spdlog/spdlog.h"
 #include "utils/Luts.hpp"
 #include "utils/Defines.hpp"
+#include "utils/Utilities.hpp"
 
 template <typename T>
 BaseLut<T>::BaseLut(const std::filesystem::path path) {
@@ -161,34 +163,40 @@ void ForecastLut::load_LUT() {
   std::string time;
   std::getline(times_stream, time, ',');
   std::getline(times_stream, time, ',');
-
+  
   /* Create an array of the time keys */
   while (!times_stream.eof()) {
     std::getline(times_stream, time, ',');
+
     RUNTIME_EXCEPTION(isDouble(time), "Time {} is not a number in ForecastLUT {}", time, lut_path.string());
-    uint64_t temp_time = std::stoull(time);
-    int seconds = temp_time % 100;
-    temp_time /= 100;
-    int minutes = temp_time % 100;
-    temp_time /= 100;
-    int hours = temp_time % 100;
-    temp_time /= 100;
-    int days = temp_time % 100;
-    temp_time /= 100;
-    int month = (temp_time % 100);
-    temp_time /= 100;
-    int year = temp_time;
+    if(!isFormattedISO8601(time)) {
+      uint64_t temp_time = std::stoull(time);
+      int seconds = temp_time % 100;
+      temp_time /= 100;
+      int minutes = temp_time % 100;
+      temp_time /= 100;
+      int hours = temp_time % 100;
+      temp_time /= 100;
+      int days = temp_time % 100;
+      temp_time /= 100;
+      int month = (temp_time % 100);
+      temp_time /= 100;
+      int year = temp_time;
 
-    /* Construct YYYY-MM-DD HH:MM:SS string */
-    std::string forecast_time = "20" + std::to_string(year) + "-" + std::to_string(month) + "-"
-      + std::to_string(days) + " " + std::to_string(hours) + ":" + std::to_string(minutes) + ":"
-      + std::to_string(seconds);
+      /* Construct YYYY-MM-DD HH:MM:SS string */
+      time = "20" + std::to_string(year) + "-" + std::to_string(month) + "-"
+        + std::to_string(days) + " " + std::to_string(hours) + ":" + std::to_string(minutes) + ":"
+        + std::to_string(seconds);
+    } else {
+      std::replace(time.begin(), time.end(), 'T', ' ');
+    }
 
-    std::istringstream iss(forecast_time);
+
+    /* Time is of the format YYYY-MM-DD HH:MM:SS */
+    std::istringstream iss(time);
     date::sys_time<std::chrono::seconds> epoch_time;
     iss >> date::parse("%F %T", epoch_time);
     time_t local_time_t = std::chrono::system_clock::to_time_t(epoch_time);
-
     forecast_times.push_back(local_time_t);
   }
 
@@ -296,6 +304,7 @@ std::pair<size_t, size_t> ForecastLut::initialize_caches(ForecastCoord coord, ti
 double ForecastLut::get_value(size_t row_idx, size_t col_idx) {
   RUNTIME_EXCEPTION(0 <= row_idx && row_idx < num_rows && col_idx < num_cols && col_idx >= 0,
                     "Invalid access in ForecastLut {}", lut_path.string());
+
   return values[row_idx][col_idx];
 }
 
@@ -433,6 +442,18 @@ void ResultsLut::load_LUT() {
 
     std::getline(file_linestream, cell, ',');
     RUNTIME_EXCEPTION(isDouble(cell), "Value {} is not a number in Results csv {}", cell, lut_path.string());
+    ghi.emplace_back(std::stod(cell));
+
+    std::getline(file_linestream, cell, ',');
+    RUNTIME_EXCEPTION(isDouble(cell), "Value {} is not a number in Results csv {}", cell, lut_path.string());
+    dni.emplace_back(std::stod(cell));
+
+    std::getline(file_linestream, cell, ',');
+    RUNTIME_EXCEPTION(isDouble(cell), "Value {} is not a number in Results csv {}", cell, lut_path.string());
+    dhi.emplace_back(std::stod(cell));
+
+    std::getline(file_linestream, cell, ',');
+    RUNTIME_EXCEPTION(isDouble(cell), "Value {} is not a number in Results csv {}", cell, lut_path.string());
     array_power.emplace_back(std::stod(cell));
 
     std::getline(file_linestream, cell, ',');
@@ -500,6 +521,7 @@ void ResultsLut::reset_logs() {
   longitude.clear();
   altitude.clear();
   speed.clear();
+  ghi.clear();
   array_energy.clear();
   array_power.clear();
   motor_power.clear();
@@ -531,6 +553,9 @@ void ResultsLut::write_logs(const std::string lut_path) const {
               << "Altitude(m),"
               << "Speed(m/s),"
               << "Acceleration(m/s^2),"
+              << "GHI(W/m^2),"
+              << "DNI(W/m^2),"
+              << "DHI(W/m^2)"
               << "Array Power(W),"
               << "Array Energy(kWh),"
               << "Motor Power(W),"
@@ -559,6 +584,9 @@ void ResultsLut::write_logs(const std::string lut_path) const {
       output_csv << std::to_string(altitude[i]) + ",";
       output_csv << std::to_string(speed[i]) + ",";
       output_csv << std::to_string(acceleration[i]) + ",";
+      output_csv << std::to_string(ghi[i]) + ",";
+      output_csv << std::to_string(dni[i]) + ",";
+      output_csv << std::to_string(dhi[i]) + ",";
       output_csv << std::to_string(array_power[i]) + ",";
       output_csv << std::to_string(array_energy[i]) + ",";
       output_csv << std::to_string(motor_power[i]) + ",";
@@ -576,7 +604,7 @@ void ResultsLut::write_logs(const std::string lut_path) const {
   }
 }
 
-void ResultsLut::update_logs(const CarUpdate update, double battery, double d_energy,
+void ResultsLut::update_logs(const CarUpdate update, Irradiance irr, double battery, double d_energy,
                              double distance, Coord next_coord, double curr_speed, Time curr_time,
                              double accel) {
   battery_energy.push_back(battery);
@@ -584,6 +612,9 @@ void ResultsLut::update_logs(const CarUpdate update, double battery, double d_en
   accumulated_distance.push_back(distance);
   azimuth.push_back(update.az_el.Az);
   elevation.push_back(update.az_el.El);
+  ghi.push_back(irr.ghi);
+  dni.push_back(irr.dni);
+  dhi.push_back(irr.dhi);
   bearing.push_back(update.bearing);
   latitude.push_back(next_coord.lat);
   longitude.push_back(next_coord.lon);

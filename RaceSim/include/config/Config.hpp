@@ -62,6 +62,7 @@
         std::filesystem::path("data/luts/telemetry/sim.csv"))                               \
   PARAM(corners_path, std::filesystem::path, std::filesystem::path,                         \
         std::filesystem::path("data/luts/fsgp/static/fsgp_corners.csv"))                    \
+  PARAM(route_has_corners, bool, bool, false)                                               \
   PARAM(power_factor_path, std::filesystem::path, std::filesystem::path,                    \
         std::filesystem::path("data/luts/fsgp/static/powerfactor.csv"))                     \
   PARAM(roll_res_slope_path, std::filesystem::path, std::filesystem::path,                  \
@@ -72,12 +73,15 @@
         std::filesystem::path("data/luts/fsgp/dynamic/dni.csv"))                            \
   PARAM(dhi_path, std::filesystem::path, std::filesystem::path,                             \
         std::filesystem::path("data/luts/fsgp/dynamic/dhi.csv"))                            \
+  PARAM(ghi_path, std::filesystem::path, std::filesystem::path,                             \
+        std::filesystem::path("data/luts/fsgp/dynamic/shortwave_radiation.csv"))            \
   PARAM(wind_direction_path, std::filesystem::path, std::filesystem::path,                  \
         std::filesystem::path("data/luts/fsgp/dynamic/wind_direction_10m.csv"))             \
   PARAM(wind_speed_path, std::filesystem::path, std::filesystem::path,                      \
         std::filesystem::path("data/luts/fsgp/dynamic/wind_speed_10m.csv"))                 \
   PARAM(precomputed_distances_path, std::filesystem::path, std::filesystem::path,           \
         std::filesystem::path("data/luts/fsgp/static/precomputed_distances.csv"))           \
+  PARAM(use_ghi, bool, bool, false)                                                         \
   PARAM(calculate_distances, bool, bool, false)                                             \
   PARAM(day_one_start_time, std::unique_ptr<Time>, Time,                                    \
         std::make_unique<Time>("2024-08-16 10:00:00", 6.0))                                 \

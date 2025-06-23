@@ -98,7 +98,6 @@ RacePlan V2Optimizer::optimize() {
     std::cout << "No plan is viable" << std::endl;
     std::cout << "Inviability reason: " << best_race_plan.get_inviability_reason() << std::endl;
   }
-  
   best_race_plan.export_json();
 
   return best_race_plan;

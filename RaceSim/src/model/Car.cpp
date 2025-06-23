@@ -16,4 +16,5 @@ Car::Car() :
   array_area(Config::get_instance()->get_array_area()),
   max_soc(Config::get_instance()->get_max_soc()),
   tire_pressure(Config::get_instance()->get_tire_pressure()),
-  array_efficiency(Config::get_instance()->get_array_efficiency()) {}
+  array_efficiency(Config::get_instance()->get_array_efficiency()),
+  use_ghi(Config::get_instance()->get_use_ghi()) {}

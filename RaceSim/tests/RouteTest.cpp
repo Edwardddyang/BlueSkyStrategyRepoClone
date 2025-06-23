@@ -22,6 +22,8 @@ class RouteTest : public ::testing::Test {
     RUNTIME_EXCEPTION(strat_root != nullptr, "No STRAT_ROOT environment variable detected."
                                             "Set it to the full path to gen12_strategy/RaceSim.");
     strat_root_path = std::filesystem::path(strat_root);
+    Config::initialize("data/config/test_config.yaml", strat_root);
+    strat_root_path = std::filesystem::path(strat_root);
   }
 };
 std::filesystem::path RouteTest::strat_root_path;
