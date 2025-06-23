@@ -446,6 +446,14 @@ void ResultsLut::load_LUT() {
 
     std::getline(file_linestream, cell, ',');
     RUNTIME_EXCEPTION(isDouble(cell), "Value {} is not a number in Results csv {}", cell, lut_path.string());
+    dni.emplace_back(std::stod(cell));
+
+    std::getline(file_linestream, cell, ',');
+    RUNTIME_EXCEPTION(isDouble(cell), "Value {} is not a number in Results csv {}", cell, lut_path.string());
+    dhi.emplace_back(std::stod(cell));
+
+    std::getline(file_linestream, cell, ',');
+    RUNTIME_EXCEPTION(isDouble(cell), "Value {} is not a number in Results csv {}", cell, lut_path.string());
     array_power.emplace_back(std::stod(cell));
 
     std::getline(file_linestream, cell, ',');
@@ -546,6 +554,8 @@ void ResultsLut::write_logs(const std::string lut_path) const {
               << "Speed(m/s),"
               << "Acceleration(m/s^2),"
               << "GHI(W/m^2),"
+              << "DNI(W/m^2),"
+              << "DHI(W/m^2)"
               << "Array Power(W),"
               << "Array Energy(kWh),"
               << "Motor Power(W),"
@@ -575,6 +585,8 @@ void ResultsLut::write_logs(const std::string lut_path) const {
       output_csv << std::to_string(speed[i]) + ",";
       output_csv << std::to_string(acceleration[i]) + ",";
       output_csv << std::to_string(ghi[i]) + ",";
+      output_csv << std::to_string(dni[i]) + ",";
+      output_csv << std::to_string(dhi[i]) + ",";
       output_csv << std::to_string(array_power[i]) + ",";
       output_csv << std::to_string(array_energy[i]) + ",";
       output_csv << std::to_string(motor_power[i]) + ",";
@@ -601,6 +613,8 @@ void ResultsLut::update_logs(const CarUpdate update, Irradiance irr, double batt
   azimuth.push_back(update.az_el.Az);
   elevation.push_back(update.az_el.El);
   ghi.push_back(irr.ghi);
+  dni.push_back(irr.dni);
+  dhi.push_back(irr.dhi);
   bearing.push_back(update.bearing);
   latitude.push_back(next_coord.lat);
   longitude.push_back(next_coord.lon);

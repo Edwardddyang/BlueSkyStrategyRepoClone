@@ -31,9 +31,6 @@ class FSGPSimulator : public WSCSimulator {
   // Car Model
   std::shared_ptr<V2Car> v2_car;
 
-  // Use GHI lut or Dni, Dhi lut
-  const bool use_ghi;
-
  public:
   /* Load all LUTs upon construction */
   explicit FSGPSimulator(std::shared_ptr<Car> model);

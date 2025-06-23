@@ -29,6 +29,8 @@ class Car {
   double max_soc;
   double tire_pressure;
   double array_efficiency;
+  // Use GHI lut or Dni, Dhi lut
+  bool use_ghi;
 
  public:
   Car();

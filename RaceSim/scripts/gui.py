@@ -1,5 +1,5 @@
 from dash import Dash, html, dcc, Output, Input, callback, no_update
-from typing import List, Tuple, Any
+from typing import List, Tuple, Any, Dict
 import pandas as pd
 import plotly.graph_objects as go
 import json
@@ -130,6 +130,10 @@ class App:
                 if len(self._race_plan) <= 1:
                     invalid_race_plan_message = self._INVALID_PLAN_MSG + \
                                 "Race Plan JSON should have at least two elements - [metadata, loops...]"
+                    return no_update, no_update, invalid_race_plan_message, self._DISPLAY_STYLE
+                if not isinstance(self._race_plan[0], dict):
+                    invalid_race_plan_message = self._INVALID_PLAN_MSG + \
+                                "Race Plan JSON first element should be a dictionary with metadata"
                     return no_update, no_update, invalid_race_plan_message, self._DISPLAY_STYLE
             except Exception as e:
                 error_msg = "ERROR: Could not parse race plan .json file " + e.msg

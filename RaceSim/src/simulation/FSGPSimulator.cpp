@@ -293,5 +293,4 @@ FSGPSimulator::FSGPSimulator(std::shared_ptr<Car> model) :
   impounding_start_time(Config::get_instance()->get_impounding_start_time()),
   impounding_release_time(Config::get_instance()->get_impounding_release_time()),
   v2_car(std::dynamic_pointer_cast<V2Car>(model)),
-  use_ghi(Config::get_instance()->get_use_ghi()),
   WSCSimulator(model) {}

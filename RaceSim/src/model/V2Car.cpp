@@ -49,8 +49,13 @@ CarUpdate V2Car::compute_travel_update(Coord coord_one,
   EnergyChange aero_loss;
   EnergyChange rolling_loss;
   EnergyChange gravity_loss;
+  EnergyChange array_gain;
   const double electric_loss = compute_electric_loss(delta_time);
-  const EnergyChange array_gain = compute_fsgp_array_gain_ghi(delta_time, irr);
+  if (use_ghi) {
+    array_gain = compute_fsgp_array_gain_ghi(delta_time, irr);
+  } else {
+    array_gain = compute_array_gain(delta_time, irr, az_el.Az, az_el.El);
+  }
 
   if (acceleration < 0.0) {
     // When decelerating, we must ensure that the maximum braking force is not exceeded
