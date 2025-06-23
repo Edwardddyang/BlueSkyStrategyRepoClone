@@ -18,9 +18,18 @@ void WSCSimulator::run_sim(const std::shared_ptr<Route>& route, RacePlan* race_p
                     "charging step size");
   RUNTIME_EXCEPTION(wind_speed_lut != nullptr, "Wind speed lut must be loaded");
   RUNTIME_EXCEPTION(wind_dir_lut != nullptr, "Wind direction lut must be loaded");
-  RUNTIME_EXCEPTION(dni_lut != nullptr, "DNI lut must be loaded");
-  RUNTIME_EXCEPTION(dhi_lut != nullptr, "DHI Lut must be loaded");
-  RUNTIME_EXCEPTION(ghi_lut != nullptr, "GHI Lut must be loaded");
+
+  std::pair<size_t, size_t> dni_cache, dhi_cache, ghi_cache;
+  Irradiance irr;
+  if (use_ghi) {
+    RUNTIME_EXCEPTION(ghi_lut != nullptr, "GHI Lut must be loaded");
+    ghi_cache = ghi_lut->initialize_caches(this->sim_start_coord, this->sim_start_time.get_utc_time_point());
+  } else {
+    RUNTIME_EXCEPTION(dni_lut != nullptr, "DNI lut must be loaded");
+    RUNTIME_EXCEPTION(dhi_lut != nullptr, "DHI Lut must be loaded");
+    dni_cache = dni_lut->initialize_caches(this->sim_start_coord, this->sim_start_time.get_utc_time_point());
+    dhi_cache = dhi_lut->initialize_caches(this->sim_start_coord, this->sim_start_time.get_utc_time_point());
+  }
 
   // Reset results lut logs
   results_lut->reset_logs();
@@ -35,12 +44,6 @@ void WSCSimulator::run_sim(const std::shared_ptr<Route>& route, RacePlan* race_p
                                                                                  curr_time.get_utc_time_point());
   std::pair<size_t, size_t> wind_dir_cache = wind_dir_lut->initialize_caches(starting_coord,
                                                                              curr_time.get_utc_time_point());
-  std::pair<size_t, size_t> dni_cache = dni_lut->initialize_caches(starting_coord,
-                                                                   curr_time.get_utc_time_point());
-  std::pair<size_t, size_t> dhi_cache = dhi_lut->initialize_caches(starting_coord,
-                                                                   curr_time.get_utc_time_point());
-  std::pair<size_t, size_t> ghi_cache = ghi_lut->initialize_caches(starting_coord,
-                                                                   curr_time.get_utc_time_point());
   double delta_energy;
   double curr_speed;
   bool is_accelerating;
@@ -83,6 +86,23 @@ void WSCSimulator::run_sim(const std::shared_ptr<Route>& route, RacePlan* race_p
   RacePlan::SegmentData current_segment = segments[segment_counter];
   curr_speed = kph2mps(current_segment.start_speed);
 
+  /** Update the irradiance variable - passed in by reference */
+  auto update_irradiance = [&](const ForecastCoord& coord, const Time& curr_time, Irradiance& irr) {
+    double dni = 0.0;
+    double dhi = 0.0;
+    double ghi = 0.0;
+    if (use_ghi) {
+      ghi_lut->update_index_cache(&ghi_cache, coord, curr_time.get_utc_time_point());
+      irr.ghi = ghi_lut->get_value(ghi_cache);
+    } else {
+      dni_lut->update_index_cache(&dni_cache, coord, curr_time.get_utc_time_point());
+      irr.dni = dni_lut->get_value(dni_cache);
+
+      dhi_lut->update_index_cache(&dhi_cache, coord, curr_time.get_utc_time_point());
+      irr.dhi = dhi_lut->get_value(dhi_cache);
+    }
+  };
+
   for (size_t idx=starting_route_index; idx < num_points-1; idx++) {
     const Coord& current_coord = route_points[idx];
     const Coord& next_coord = route_points[idx+1];
@@ -103,17 +123,8 @@ void WSCSimulator::run_sim(const std::shared_ptr<Route>& route, RacePlan* race_p
     wind_dir_lut->update_index_cache(&wind_dir_cache, coord_one_forecast, curr_time.get_utc_time_point());
     double wind_dir = wind_dir_lut->get_value(wind_dir_cache);
 
-    dni_lut->update_index_cache(&dni_cache, coord_one_forecast, curr_time.get_utc_time_point());
-    double dni = dni_lut->get_value(dni_cache);
-
-    dhi_lut->update_index_cache(&dhi_cache, coord_one_forecast, curr_time.get_utc_time_point());
-    double dhi = dhi_lut->get_value(dhi_cache);
-
-    ghi_lut->update_index_cache(&ghi_cache, coord_one_forecast, curr_time.get_utc_time_point());
-    double ghi = ghi_lut->get_value(ghi_cache);
-
+    update_irradiance(coord_one_forecast, curr_time, irr);
     Wind wind = Wind(wind_dir, wind_speed);
-    Irradiance irr = Irradiance(dni, dhi, ghi);
     SolarAngle sun = SolarAngle();
 
     // Control stop
@@ -133,14 +144,7 @@ void WSCSimulator::run_sim(const std::shared_ptr<Route>& route, RacePlan* race_p
         delta_energy += car->compute_static_energy(current_coord, &curr_time, step_size, irr, "wsc");
         curr_time.update_time_seconds(step_size);
 
-        dni_lut->update_index_cache(&dni_cache, coord_one_forecast, curr_time.get_utc_time_point());
-        irr.dni = dni_lut->get_value(dni_cache);
-
-        dhi_lut->update_index_cache(&dhi_cache, coord_one_forecast, curr_time.get_utc_time_point());
-        irr.dhi = dhi_lut->get_value(dhi_cache);
-
-        ghi_lut->update_index_cache(&ghi_cache, coord_one_forecast, curr_time.get_utc_time_point());
-        irr.ghi = ghi_lut->get_value(ghi_cache);
+        update_irradiance(coord_one_forecast, curr_time, irr);
 
         time_charging = time_charging + step_size;
       }
@@ -161,15 +165,7 @@ void WSCSimulator::run_sim(const std::shared_ptr<Route>& route, RacePlan* race_p
           delta_energy += car->compute_static_energy(current_coord, &curr_time, step_size, irr, "wsc");
           curr_time.update_time_seconds(step_size);
 
-          dni_lut->update_index_cache(&dni_cache, coord_one_forecast, curr_time.get_utc_time_point());
-          irr.dni = dni_lut->get_value(dni_cache);
-
-          dhi_lut->update_index_cache(&dhi_cache, coord_one_forecast, curr_time.get_utc_time_point());
-          irr.dhi = dhi_lut->get_value(dhi_cache);
-
-          ghi_lut->update_index_cache(&ghi_cache, coord_one_forecast, curr_time.get_utc_time_point());
-          irr.ghi = ghi_lut->get_value(ghi_cache);
-
+          update_irradiance(coord_one_forecast, curr_time, irr);
         } else {
           curr_time.update_time_seconds(step_size);
         }
@@ -190,15 +186,7 @@ void WSCSimulator::run_sim(const std::shared_ptr<Route>& route, RacePlan* race_p
                               static_cast<double>(CHARGING_STEP_SIZE);
       delta_energy += car->compute_static_energy(current_coord, &curr_time, step_size, irr, "wsc");
       curr_time.update_time_seconds(step_size);
-
-      dni_lut->update_index_cache(&dni_cache, coord_one_forecast, curr_time.get_utc_time_point());
-      irr.dni = dni_lut->get_value(dni_cache);
-
-      dhi_lut->update_index_cache(&dhi_cache, coord_one_forecast, curr_time.get_utc_time_point());
-      irr.dhi = dhi_lut->get_value(dhi_cache);
-
-      ghi_lut->update_index_cache(&ghi_cache, coord_one_forecast, curr_time.get_utc_time_point());
-      irr.ghi = ghi_lut->get_value(ghi_cache);
+      update_irradiance(coord_one_forecast, curr_time, irr);
 
       time_charging += step_size;
     }

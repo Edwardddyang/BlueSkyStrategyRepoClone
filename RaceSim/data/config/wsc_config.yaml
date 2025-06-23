@@ -31,6 +31,7 @@
   route_has_corners: false  # Use corners path
   dni_path: data/luts/wsc_2023/dynamic/dni.csv
   dhi_path: data/luts/wsc_2023/dynamic/dhi.csv
+  use_ghi: false
   wind_direction_path: data/luts/wsc_2023/dynamic/wind_direction_10m.csv
   wind_speed_path: data/luts/wsc_2023/dynamic/wind_speed_10m.csv
 

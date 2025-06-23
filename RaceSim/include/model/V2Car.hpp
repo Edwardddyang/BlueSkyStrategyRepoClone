@@ -20,7 +20,6 @@ class V2Car : public V1Car {
  public:
   V2Car();
 
-  EnergyChange compute_fsgp_array_gain_ghi(double delta_time, Irradiance irr);
   // Compute
   CarUpdate compute_travel_update(Coord coord_one,
                                   Coord coord_two,

@@ -45,10 +45,16 @@ double V1Car::compute_electric_loss(double delta_time) {
 }
 
 EnergyChange V1Car::compute_array_gain(double delta_time, Irradiance irr, double az, double el) {
-  const double power_factor = power_factors.get_value(round(el), round(az));  // Unitless
-  const double power = (power_factor * irr.dni) + (irr.dhi * array_efficiency * array_area);  // Watts
-  const double energy = watts2kwh(delta_time, power);  // kwh
-  return EnergyChange(power, energy);
+  if (use_ghi) {
+    const double power = irr.ghi * array_efficiency * array_area;  // Watts
+    const double energy = watts2kwh(delta_time, power);  // kwh
+    return EnergyChange(power, energy);
+  } else {
+    const double power_factor = power_factors.get_value(round(el), round(az));  // Unitless
+    const double power = (power_factor * irr.dni) + (irr.dhi * array_efficiency * array_area);  // Watts
+    const double energy = watts2kwh(delta_time, power);  // kwh
+    return EnergyChange(power, energy);
+  }
 }
 
 double V1Car::compute_net_battery_change(double array, double aero, double rolling,
