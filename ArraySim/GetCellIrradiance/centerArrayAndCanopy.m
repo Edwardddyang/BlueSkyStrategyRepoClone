@@ -16,7 +16,7 @@ function [oCells, ogCells, v_C] = centerArrayAndCanopy(orderedCellV, canopy, ori
     % v_C:     Same as canopy with shifting. "none" if no canopy simulation
 
     % Collect all points from the array and canopy
-    if (canopy ~= "none")
+    if (isempty(canopy) ~= 0)
         allArrayAndCanopyPoints = cat(1, canopy, orderedCellV{:});
     else
         allArrayAndCanopyPoints = vertcat(orderedCellV{:});
@@ -26,7 +26,7 @@ function [oCells, ogCells, v_C] = centerArrayAndCanopy(orderedCellV, canopy, ori
     centroid = mean(allArrayAndCanopyPoints);
 
     % Center the canopy
-    if (canopy ~= "none")
+    if (isempty(canopy) ~= 0)
         canopy = bsxfun(@minus, canopy, centroid);
     end
 
