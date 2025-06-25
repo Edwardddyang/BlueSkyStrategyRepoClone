@@ -8,8 +8,7 @@ function [totPow] = totPower(cellIrr, cells2Substrings, substrings2Strings, numC
     num_strings = numel(substrings2Strings);
     % WARNING: YOU MUST CHANGE THE NAMES OF THE SIMULINK FILES TO RUN. THEY MUST BE IN THE ORDER OF STRINGS
     SIMULINK_FILE_NAMES = ["Aurora_String1_Diode.slx",...
-                           "ThreeWheel_4_String2_Diode.slx",...
-                           "ThreeWheel_4_String3_Diode.slx"];
+                           "Aurora_String2_Diode.slx"];
 
     % WARNING: YOU MUST ALSO MANUALLY DEFINE THE INPUT VARIABLES TO THE SIMULINK FILES SINCE SIMULINK IS LIKE THAT.
     % DO THAT HERE. !!!!!!
