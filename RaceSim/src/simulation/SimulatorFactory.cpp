@@ -7,11 +7,13 @@
 #include "sim/SimulatorFactory.hpp"
 #include "model/V2Car.hpp"
 #include "sim/FSGPSimulator.hpp"
+#include "sim/ASCSimulator.hpp"
 #include "sim/TelemetrySimulator.hpp"
 
 std::unordered_map<std::string, SIMULATORS> SimulatorFactory::config_to_simulators = {
   {"FSGP", SIMULATORS::FSGP},
   {"WSC", SIMULATORS::WSC},
+  {"ASC", SIMULATORS::ASC},
   {"TELEMETRY", SIMULATORS::TELEMETRY},
 };
 const char SimulatorFactory::DEFAULT_SIMULATOR[] = "FSGP";
@@ -34,6 +36,7 @@ std::shared_ptr<Simulator> SimulatorFactory::get_simulator(std::string sim_type,
     sim = config_to_simulators[std::string(DEFAULT_SIMULATOR)]; /* Default to FSGP */
   }
 
+  // replace with switch case?
   if (sim == SIMULATORS::FSGP) {
     spdlog::info("Using FSGP Simulator.");
     if (!std::dynamic_pointer_cast<V2Car>(model)) {
@@ -44,6 +47,9 @@ std::shared_ptr<Simulator> SimulatorFactory::get_simulator(std::string sim_type,
   } else if (sim == SIMULATORS::WSC) {
     spdlog::info("Using WSC Simulator.");
     return std::make_shared<WSCSimulator>(model);
+  } else if (sim == SIMULATORS::ASC) {
+    spdlog::info("Using ASC Simulator.");
+    return std::make_shared<ASCSimulator>(model);
   } else if (sim == SIMULATORS::TELEMETRY) {
     spdlog::info("Using Telemetry Simulator.");
     if (!std::dynamic_pointer_cast<V2Car>(model)) {

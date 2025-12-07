@@ -18,9 +18,12 @@
 #include "utils/Luts.hpp"
 #include "utils/CustomTime.hpp"
 #include "nlohmann/json.hpp"
+#include <filesystem>
+
 
 // Forward declaration
 class Route;
+class FSGPRoute;
 
 double calculate_segment_distance(const std::vector<Coord>& coords,
                                   const size_t starting_idx,
@@ -118,6 +121,7 @@ class RacePlan {
    * @return True if race plan is valid
    */
   bool validate_members(std::shared_ptr<Route> route) const;
+  bool validate_members(std::shared_ptr<FSGPRoute> route) const;
 
   /** @brief Print the route plan to stdout */
   void print_plan() const;
@@ -180,7 +184,7 @@ class RacePlan {
 
 /** A class to hold all points and control stop locations in a race route */
 class Route {
- private:
+ protected:
   /* Indices of all control stops */
   std::unordered_set<size_t> control_stops;
 
@@ -193,25 +197,6 @@ class Route {
   /* Total length of the route */
   double route_length;
 
-  /* Cornering segments */
-  bool route_has_corners;
-  std::vector<std::pair<size_t, size_t>> cornering_segment_bounds;
-  std::unordered_set<size_t> corner_start_indices;
-  std::unordered_set<size_t> corner_end_indices;
-
-  /* Straight segments - straight_segment_bounds[i] denotes the straight segment between
-     corner index i - 1 and corner index i */
-  std::vector<std::pair<size_t, size_t>> straight_segment_bounds;
-
-  /* Map of corner ending indices to index in straight_segment_bounds - used for mutation optimizer */
-  std::unordered_map<size_t, size_t> corner_end_to_corner_idx;
-
-  /* Map of corner starting indices to index in straight_segment_bounds - used for mutation optimizer*/
-  std::unordered_map<size_t, size_t> corner_start_to_corner_idx;
-
-  /* Maximum speed of cornering segments */
-  std::vector<double> cornering_speed_bounds;
-
   /* Lookup table for all distances between any two points. Should be num_points x num_points*/
   BasicLut route_distances;
 
@@ -221,6 +206,7 @@ class Route {
   /* Maximum speed of the route (mps) - comes from regulations */
   double max_route_speed;
 
+  // new subclass for telemetry?
   /* ONLY USED FOR TELEMETRY ROUTE */
   std::vector<Time> timestamps;          // Timestamp assigned to each coordinate
   std::vector<double> speeds;             // Speed assigned to each coordinate
@@ -231,7 +217,6 @@ class Route {
    * @param route_path: Absolute path to the base route csv
    * @param telem_flow: For telemetry simulation flow, there are two extra columns - one for time, the other for speed
    * @param init_control_stops: Initialize control stop indices from config file
-   * @param cornering_bounds_path: Absolute path to the cornering bounds. If empty, don't load
    * @param precomputed_distances_path: Absolute path to the precomputed distances csv. If empty or precompute_distances
    * is true, don't load
    * @param precompute_distances: Whether to pre-compute distances. If precomputed_distances_path is not empty, it
@@ -239,7 +224,6 @@ class Route {
    */
   Route(const std::filesystem::path route_path, bool telem_flow = false,
         const bool init_control_stops = false,
-        const std::filesystem::path cornering_bounds_path = std::filesystem::path(),
         const std::filesystem::path precomputed_distances_path = std::filesystem::path(),
         const bool precompute_distances = false);
 
@@ -252,19 +236,8 @@ class Route {
   /** @brief Initialize control stops */
   void init_control_stops();
 
-  /** @brief Read a csv of corner index bounds with columns |starting index|ending index|max speed(mps)|
-   * Note: This function also fills the corner_end_to_corner_idx map and the corner_start_to_corner_idx_map
-   * @param cornering_bounds_path: Path to the csv file
-   * @param max_car_speed: Maximum car speed to limit cornering speeds. Defaults to infinity
-  */
-  void init_cornering_bounds(const std::filesystem::path cornering_bounds_path,
-                             double max_car_speed = std::numeric_limits<double>::infinity());
-
   /** @brief Read a num_points x num_points csv of pre-computed distances */
   void init_precomputed_distances(const std::filesystem::path precomputed_distances_path);
-
-  /** @brief Find the longest straight in the route */
-  void init_longest_straight();
 
   /** @brief Pre-compute distances between every possible pair of indices inside the route
    * 
@@ -296,6 +269,64 @@ class Route {
   inline double get_route_length() const {return route_length;}
   inline const BasicLut& get_precomputed_distances() {return route_distances;}
   inline const double get_max_route_speed() {return max_route_speed;}
+
+  inline const std::vector<Time> get_timestamps() const {
+    return timestamps;
+  }
+  inline const std::vector<double> get_speeds() const {
+    return speeds;
+  }
+
+  /** @brief Calculate the distance from starting_idx to ending_idx inclusive in meters */
+  double calc_segment_distance(const size_t starting_idx,
+                               const size_t ending_idx);
+
+};
+
+/** A class to hold all points and control stop locations in a race route */
+class FSGPRoute : public Route{
+ protected:
+  /* Cornering segments */
+  bool route_has_corners;
+  std::vector<std::pair<size_t, size_t>> cornering_segment_bounds;
+  std::unordered_set<size_t> corner_start_indices;
+  std::unordered_set<size_t> corner_end_indices;
+
+  /* Map of corner ending indices to index in straight_segment_bounds - used for mutation optimizer */
+  std::unordered_map<size_t, size_t> corner_end_to_corner_idx;
+
+  /* Map of corner starting indices to index in straight_segment_bounds - used for mutation optimizer*/
+  std::unordered_map<size_t, size_t> corner_start_to_corner_idx;
+
+  /* Maximum speed of cornering segments */
+  std::vector<double> cornering_speed_bounds;
+
+ public:
+  /** @brief Load information about the race route
+   *
+   * @param route_path: Absolute path to the base route csv
+   * @param telem_flow: For telemetry simulation flow, there are two extra columns - one for time, the other for speed
+   * @param init_control_stops: Initialize control stop indices from config file
+   * @param cornering_bounds_path: Absolute path to the cornering bounds. If empty, don't load
+   * @param precomputed_distances_path: Absolute path to the precomputed distances csv. If empty or precompute_distances
+   * is true, don't load
+   * @param precompute_distances: Whether to pre-compute distances. If precomputed_distances_path is not empty, it
+   * will save the csv to that path
+   */
+  FSGPRoute(const std::filesystem::path route_path, bool telem_flow = false,
+        const bool init_control_stops = false,
+        const std::filesystem::path cornering_bounds_path = std::filesystem::path(),
+        const std::filesystem::path precomputed_distances_path = std::filesystem::path(),
+        const bool precompute_distances = false);
+
+  /** @brief Read a csv of corner index bounds with columns |starting index|ending index|max speed(mps)|
+   * Note: This function also fills the corner_end_to_corner_idx map and the corner_start_to_corner_idx_map
+   * @param cornering_bounds_path: Path to the csv file
+   * @param max_car_speed: Maximum car speed to limit cornering speeds. Defaults to infinity
+  */
+  void init_cornering_bounds(const std::filesystem::path cornering_bounds_path,
+                             double max_car_speed = std::numeric_limits<double>::infinity());
+
   inline std::unordered_map<size_t, size_t> get_corner_end_map() const {
     return corner_end_to_corner_idx;
   }
@@ -308,12 +339,6 @@ class Route {
   inline std::vector<double> get_cornering_speed_bounds() const {
     return cornering_speed_bounds;
   }
-  inline const std::vector<Time> get_timestamps() const {
-    return timestamps;
-  }
-  inline const std::vector<double> get_speeds() const {
-    return speeds;
-  }
   inline std::unordered_set<size_t> get_corner_start_indices() const {
     return corner_start_indices;
   }
@@ -321,7 +346,10 @@ class Route {
     return corner_end_indices;
   }
 
-  /** @brief Return the corner index that a route index is closest to 
+  /** @brief Find the longest straight in the route */
+  void init_longest_straight();
+
+  /** @brief Return the corner index that a route index is closest to
    *
    * Examples: Consider cornering_segment_bounds = [{0,5}, {16, 20}, {31,47}]
    * If route index is 2, return 0
@@ -331,16 +359,33 @@ class Route {
    * If route index is 200, return 2
   */
   size_t get_closest_corner_idx(size_t route_index) const;
-
-  /** @brief Calculate the distance from starting_idx to ending_idx inclusive in meters */
-  double calc_segment_distance(const size_t starting_idx,
-                               const size_t ending_idx);
-
-  /** @brief Given a segment, check which corner indices it overlaps
-   *
-   * A segment x = {start, end} overlaps another y = {start, end}
-   * if x.start < y.end AND x.end > y.start
-   *
-   */
   std::vector<size_t> get_overlapping_corners(const std::pair<size_t, size_t>& segment) const;
+};
+
+/**
+* AscRoute
+*/
+
+class ASCRoute : public Route {
+private:
+  // maps starting coord on base route to loop coords
+  std::unordered_map<Coord, std::vector<Coord>, Coord> loops;
+
+  // find the closest base route coordinate to the loop start point
+  Coord find_base_route_start(Coord& loop_start_coord);
+public:
+  ASCRoute(const std::filesystem::path route_path,
+           bool telem_flow = false,
+           bool init_control_stops = false,
+           const std::filesystem::path loop_config_dir = std::filesystem::path(),
+           const std::filesystem::path precomputed_distances_path = std::filesystem::path(),
+           bool precompute_distances = false);
+
+  ASCRoute() = default;
+
+  // Instantiate checkpoints and loop definitions
+  void init_loops(const std::filesystem::path loop_config_dir);
+  void add_loop(const std::filesystem::path loop_file_path);
+  bool is_loop_start(const Coord& route_coord);
+  std::vector<Coord>* get_loop_points(const Coord& route_coord);
 };

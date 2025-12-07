@@ -16,25 +16,25 @@ std::unordered_map<std::string, Algos> OptimizerFactory::config_to_optimizer = {
 };
 const char OptimizerFactory::DEFAULT_OPTIMIZER[] = "Constant";
 
-std::shared_ptr<Optimizer> OptimizerFactory::get_optimizer(std::string opt_type,
-                                                           std::shared_ptr<Route> route,
-                                                           std::shared_ptr<Simulator> simulator) {
-  Algos opt;
-  if (config_to_optimizer.find(opt_type) != config_to_optimizer.end()) {
-    opt = config_to_optimizer[opt_type];
-  } else {
-    opt = config_to_optimizer[std::string(DEFAULT_OPTIMIZER)]; /* Default to constant speed */
-  }
-
-  if (opt == Algos::CONSTANT) {
-    spdlog::info("Using constant speed optimizer.");
-    return std::make_shared<V1Optimizer>(simulator, route);
-  } else if (opt == Algos::ACCELERATION) {
-    spdlog::info("Using accleration optimizer.");
-    return std::make_shared<V2Optimizer>(simulator, route);
-  } else {
-    RUNTIME_EXCEPTION(false, "No valid optimizer requested. Check the DEFAULT_OPTIMIZER variable");
-  }
-
-  return nullptr;
-}
+// std::shared_ptr<Optimizer> OptimizerFactory::get_optimizer(std::string opt_type,
+//                                                            std::shared_ptr<Route> route,
+//                                                            std::shared_ptr<Simulator> simulator) {
+//   Algos opt;
+//   if (config_to_optimizer.find(opt_type) != config_to_optimizer.end()) {
+//     opt = config_to_optimizer[opt_type];
+//   } else {
+//     opt = config_to_optimizer[std::string(DEFAULT_OPTIMIZER)]; /* Default to constant speed */
+//   }
+//
+//   if (opt == Algos::CONSTANT) {
+//     spdlog::info("Using constant speed optimizer.");
+//     return std::make_shared<V1Optimizer>(simulator, route);
+//   } else if (opt == Algos::ACCELERATION) {
+//     spdlog::info("Using accleration optimizer.");
+//     return std::make_shared<V2Optimizer>(simulator, route);
+//   } else {
+//     RUNTIME_EXCEPTION(false, "No valid optimizer requested. Check the DEFAULT_OPTIMIZER variable");
+//   }
+//
+//   return nullptr;
+// }

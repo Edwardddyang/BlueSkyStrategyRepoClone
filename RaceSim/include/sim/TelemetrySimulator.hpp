@@ -20,6 +20,8 @@ Class to run a simulation on telemetry data
 /** @brief Simulator to simulate the path taken by telemetry data through a csv loaded as
  * |Latitude|Longitude|Time|
 */
+
+// WSCSim or base sim?
 class TelemetrySimulator : public WSCSimulator {
  private:
   // Car Model
@@ -30,10 +32,11 @@ class TelemetrySimulator : public WSCSimulator {
   explicit TelemetrySimulator(std::shared_ptr<Car> model);
 
   /** @brief Unused function from base class */
-  void run_sim(const std::shared_ptr<Route>& route, RacePlan* race_plan,
-               std::shared_ptr<ResultsLut> result_lut) override;
+  // void run_sim(const std::shared_ptr<Route>& route, RacePlan* race_plan,
+               // std::shared_ptr<ResultsLut> result_lut) override;
 
   /** @brief Run the car through all points on the route */
-  void run_sim(const std::shared_ptr<Route>& route,
+ // run_sim implementation?
+ void run_sim(const std::shared_ptr<Route>& route,
                               std::shared_ptr<ResultsLut> results_lut);
 };

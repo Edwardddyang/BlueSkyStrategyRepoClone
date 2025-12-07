@@ -56,19 +56,12 @@ double calculate_segment_distance(const std::vector<Coord>& coords,
 
 Route::Route(const std::filesystem::path route_path,
             bool telem_flow, const bool init_control_stops,
-            const std::filesystem::path cornering_bounds_path,
             const std::filesystem::path precomputed_distances_path,
             const bool precompute_distances) {
-  route_has_corners = Config::get_instance()->get_route_has_corners();
   init_base_route(route_path, telem_flow);
 
   if (init_control_stops) {
     this->init_control_stops();
-  }
-
-  if (route_has_corners) {
-    this->max_route_speed = kph2mps(Config::get_instance()->get_max_route_speed());
-    this->init_cornering_bounds(cornering_bounds_path, kph2mps(Config::get_instance()->get_max_car_speed()));
   }
 
   if (!precomputed_distances_path.empty() && !precompute_distances) {
@@ -233,7 +226,20 @@ void Route::init_control_stops() {
   control_stops = Config::get_instance()->get_control_stops();
 }
 
-void Route::init_cornering_bounds(const std::filesystem::path cornering_bounds_path,
+FSGPRoute::FSGPRoute(const std::filesystem::path route_path,
+            bool telem_flow, const bool init_control_stops,
+            const std::filesystem::path cornering_bounds_path,
+            const std::filesystem::path precomputed_distances_path,
+            const bool precompute_distances): Route(route_path, telem_flow, init_control_stops, precomputed_distances_path) {
+  route_has_corners = Config::get_instance()->get_route_has_corners();
+
+  if (route_has_corners) {
+    this->max_route_speed = kph2mps(Config::get_instance()->get_max_route_speed());
+    this->init_cornering_bounds(cornering_bounds_path, kph2mps(Config::get_instance()->get_max_car_speed()));
+  }
+}
+
+void FSGPRoute::init_cornering_bounds(const std::filesystem::path cornering_bounds_path,
                                   double max_car_speed) {
   cornering_segment_bounds.resize(0);
   std::fstream csv(cornering_bounds_path);
@@ -278,7 +284,7 @@ void Route::init_cornering_bounds(const std::filesystem::path cornering_bounds_p
 }
 
 
-size_t Route::get_closest_corner_idx(size_t route_index) const {
+size_t FSGPRoute::get_closest_corner_idx(size_t route_index) const {
   RUNTIME_EXCEPTION(route_index >= 0 && route_index < num_points, "Route index is out of bounds");
   RUNTIME_EXCEPTION(cornering_segment_bounds.size() > 0, "Cornering bounds is empty");
   if (cornering_segment_bounds.size() == 1) {
@@ -334,9 +340,101 @@ double Route::get_segment_length(const size_t start_idx, const size_t end_idx) c
   return accumulated_distance;
 }
 
-void Route::init_longest_straight() {
+ASCRoute::ASCRoute(const std::filesystem::path route_path,
+           bool telem_flow,
+           bool init_control_stops,
+           const std::filesystem::path loop_config_dir,
+           const std::filesystem::path precomputed_distances_path,
+           bool precompute_distances) : Route(route_path, telem_flow, init_control_stops, precomputed_distances_path) {
+  init_loops(loop_config_dir);
+}
+
+void ASCRoute::init_loops(const std::filesystem::path loop_config_dir) {
+  if (!std::filesystem::exists(loop_config_dir)) {
+    throw std::runtime_error("Directory does not exist: " + loop_config_dir.string());
+  }
+
+  if (!std::filesystem::is_directory(loop_config_dir)) {
+    throw std::runtime_error("Path exists but is not a directory: " + loop_config_dir.string());
+  }
+
+  // Iterate through CSV files
+  for (const auto& entry : std::filesystem::directory_iterator(loop_config_dir)) {
+    if (entry.is_regular_file() && entry.path().extension() == ".csv") {
+      add_loop(entry);
+    }
+  }
+}
+
+Coord ASCRoute::find_base_route_start(Coord &loop_start_coord) {
+  if (route_points.empty()) {
+    throw std::runtime_error("Vector of coordinates is empty");
+  }
+
+  const Coord* closest = nullptr;
+  double bestDist = std::numeric_limits<double>::max();
+
+  for (const auto& point : route_points) {
+    double distance = get_distance(loop_start_coord, point);     // or Euclidean
+    if (distance < bestDist) {
+      bestDist = distance;
+      closest = &point;
+    }
+  }
+
+  return *closest;
+}
+
+bool ASCRoute::is_loop_start(const Coord& route_coord) {
+  return loops.find(route_coord) != loops.end();
+}
+
+std::vector<Coord>* ASCRoute::get_loop_points(const Coord& route_coord) {
+  if (!is_loop_start(route_coord)) return nullptr;
+  return &loops[route_coord];
+}
+
+void ASCRoute::add_loop(const std::filesystem::path loop_file_path) {
+  std::fstream loop_route(loop_file_path);
+  RUNTIME_EXCEPTION(loop_route.is_open(), "Loop route file not found {}", loop_file_path.string());
+
+  Coord base_route_coord;
+  std::vector<Coord> loop_points;
+  std::string line;
+  bool is_first = true;
+
+  while (std::getline(loop_route, line)) {
+    std::stringstream linestream(line);
+    std::string latitude, longitude, alt, timestamp, speed;
+    Coord coord{};
+    std::getline(linestream, latitude, ',');
+    RUNTIME_EXCEPTION(isDouble(latitude), "Latitude {} in route file is not a number", latitude, loop_file_path.string());
+    coord.lat = std::stod(latitude);
+
+    std::getline(linestream, longitude, ',');
+    RUNTIME_EXCEPTION(isDouble(longitude), "Longitude {} in route file is not a number", longitude, loop_file_path.string());
+    coord.lon = std::stod(longitude);
+
+    std::getline(linestream, alt, ',');
+    RUNTIME_EXCEPTION(isDouble(alt), "Altitude {} in route file is not a number", alt, loop_file_path.string());
+    coord.alt = std::stod(alt);
+
+    loop_points.emplace_back(coord);
+
+    if (is_first) {
+      base_route_coord = find_base_route_start(coord);
+    }
+  }
+
+  loops[base_route_coord] = loop_points;
+  loop_route.close();
+
+  spdlog::info("Loaded loop route {} with {} coordinates", loop_file_path.string(), std::to_string(loop_points.size()));
+}
+
+void FSGPRoute::init_longest_straight() {
+  double longest_straight = 0.0;
   const size_t num_corners = cornering_segment_bounds.size();
-  longest_straight = 0.0;
   for (size_t i=0; i < num_corners; i++) {
     double straight_distance;
     const std::pair<size_t, size_t> current_corner = cornering_segment_bounds[i];
@@ -487,7 +585,92 @@ std::string RacePlan::get_orig_plan_string() const {
   return ret;
 }
 
+// separate validation methods for WSC and FSGP, removed corners for base route class
 bool RacePlan::validate_members(std::shared_ptr<Route> route) const {
+  RUNTIME_EXCEPTION(!empty, "RacePlan is empty");
+  RUNTIME_EXCEPTION(segments.size() > 0, "No segments in Race Plan!");
+  RUNTIME_EXCEPTION(route != nullptr, "Route is null");
+  const std::vector<Coord>& route_points = route->get_route_points();
+
+  const size_t num_loops = segments.size();
+  const double tolerance = 0.0001;  // Tolerance for comparing acceleration values
+
+  double last_segment_start_speed, last_segment_end_speed;
+  size_t last_seen_corner = 0;
+  for (size_t loop_idx=0; loop_idx < num_loops; loop_idx++) {
+    const LoopData loop_segments = segments[loop_idx];
+
+    const size_t num_segments = loop_segments.size();
+    // Don't have this check in case we are starting at a different start point. More relevant to WSC than
+    // FSGP
+    // RUNTIME_EXCEPTION(loop_segments[0].first == 0, "Segments must start at index 0");
+
+    if (num_loops > 1) {
+      RUNTIME_EXCEPTION(loop_segments[num_segments-1].end_idx == 0,
+        "Last segment's ending point must be 0 i.e. wrap-around. Loop {}", loop_idx);
+    } else {
+      RUNTIME_EXCEPTION(loop_segments[num_segments-1].end_idx == route_points.size() - 1, "Non-loop race plan "
+      "must have ending point equal to the last point of the route");
+    }
+    if (loop_idx > 0) {
+      RUNTIME_EXCEPTION(loop_segments[0].start_speed == last_segment_end_speed,
+                        "Last loop's ending speed must be the starting speed of the first segment in the next loop. "
+                        "Error found in loop {}", loop_idx);
+    }
+
+    bool seen_connecting_corner = false;
+    for (size_t i=0; i < num_segments; i++) {
+      const size_t start_idx = loop_segments[i].start_idx;
+      const size_t end_idx = loop_segments[i].end_idx;
+      const double start_speed = loop_segments[i].start_speed;
+      const double end_speed = loop_segments[i].end_speed;
+      const double acceleration = loop_segments[i].acceleration_value;
+      const double distance = loop_segments[i].distance;
+      const std::vector<size_t> corners = loop_segments[i].corners;
+
+      const double segment_distance = calculate_segment_distance(route_points, start_idx, end_idx);
+      RUNTIME_EXCEPTION(std::abs(segment_distance - distance) < tolerance, "Segment distance is not equal");
+      RUNTIME_EXCEPTION(start_speed >= 0.0 && end_speed >= 0.0, "Segment speed in segment {} is not positive", i);
+
+      if (i < num_segments-1) {
+        RUNTIME_EXCEPTION(start_idx <= end_idx, "Segment start must be <= segment end in loop {} segment {}",
+                          loop_idx, i);
+        RUNTIME_EXCEPTION(end_idx == loop_segments[i+1].start_idx,
+                          "Segments must be continuous i.e. segment end = next segment start."
+                          " Invalid on segment {}, loop {}. Ending index = {}, Next Starting index = {}",
+                          i, loop_idx, end_idx, loop_segments[i+1].start_idx);
+        RUNTIME_EXCEPTION(end_speed == loop_segments[i+1].start_speed,
+                          "Ending speed of segment {} must equal starting speed of next segment in loop {}. {} {}", i,
+                          loop_idx, end_speed, loop_segments[i+1].start_speed);
+      }
+
+      if (acceleration == 0.0) {
+        RUNTIME_EXCEPTION(start_speed == end_speed,
+                          "Speed profile for non-acceleration segment {} must have equal and positive starting "
+                          "and ending speeds", i);
+      } else {
+        // Verify acceleration value
+        RUNTIME_EXCEPTION(start_speed != end_speed, "Acceleration segment must have different start and ending speeds."
+                                                    "Segment {} of loop {}", i, loop_idx);
+        const double calculated_acceleration_distance = calc_distance_a(start_speed, end_speed,
+                                                                        acceleration);
+        RUNTIME_EXCEPTION(calculated_acceleration_distance < segment_distance ||
+                          std::abs(calculated_acceleration_distance - segment_distance) < tolerance,
+                          "Acceleration distance {} is invalid. Must be less than the segment distance {} "
+                          "for loop {} segment {}", calculated_acceleration_distance, segment_distance,
+                          loop_idx, i);
+      }
+    }
+
+    last_segment_start_speed = loop_segments[num_segments-1].start_speed;
+    last_segment_end_speed = loop_segments[num_segments-1].end_speed;
+  }
+
+  return true;
+}
+
+
+bool RacePlan::validate_members(std::shared_ptr<FSGPRoute> route) const {
   RUNTIME_EXCEPTION(!empty, "RacePlan is empty");
   RUNTIME_EXCEPTION(segments.size() > 0, "No segments in Race Plan!");
   RUNTIME_EXCEPTION(route != nullptr, "Route is null");
@@ -650,9 +833,7 @@ void RacePlan::export_json() const {
   out << std::setw(4) << j << std::endl;
 }
 
-
-
-std::vector<size_t> Route::get_overlapping_corners(const std::pair<size_t, size_t>& segment) const {
+std::vector<size_t> FSGPRoute::get_overlapping_corners(const std::pair<size_t, size_t>& segment) const {
   std::vector<size_t> ret;
   size_t counter = 0;
   for (const auto& corner : cornering_segment_bounds) {

@@ -66,6 +66,7 @@ set(SIMULATION_SOURCES
     src/simulation/Simulator.cpp
     src/simulation/SimulatorFactory.cpp
     src/simulation/WSCSimulator.cpp
+    src/simulation/ASCSimulator.cpp
     src/simulation/FSGPSimulator.cpp
     src/simulation/TelemetrySimulator.cpp
 )

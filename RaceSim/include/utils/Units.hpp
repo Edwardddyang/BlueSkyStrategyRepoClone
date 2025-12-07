@@ -13,6 +13,7 @@ Definitions and functions for scientific units, custom objects, conversion funct
 #include <chrono>
 
 #include "date/date.h"
+#include <boost/functional/hash.hpp>
 
 // Forward declarations
 struct ForecastCoord;
@@ -53,6 +54,20 @@ struct Coord {
 
   /* Conversion operator from type ForecastCoord to Coord by clearing the altitude value */
   explicit Coord(const struct ForecastCoord& fc) : lat(fc.lat), lon(fc.lon), alt(0.0) {}
+
+  bool operator==(const Coord& other) const {
+    return lon == other.lon &&
+           lat == other.lat &&
+           alt == other.alt;
+  }
+
+  size_t operator()(const Coord& c) const noexcept {
+    size_t seed = 0;
+    boost::hash_combine(seed, c.lon);
+    boost::hash_combine(seed, c.lat);
+    boost::hash_combine(seed, c.alt);
+    return seed;
+  }
 };
 
 struct Wind {

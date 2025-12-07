@@ -7,7 +7,7 @@
 #include "sim/FSGPSimulator.hpp"
 #include "utils/CustomException.hpp"
 
-void FSGPSimulator::run_sim(const std::shared_ptr<Route>& route, RacePlan* race_plan,
+void FSGPSimulator::run_sim_impl(std::shared_ptr<FSGPRoute> route, RacePlan* race_plan,
                             std::shared_ptr<ResultsLut> results_lut) {
   RUNTIME_EXCEPTION(route != nullptr, "Route pointer is null");
   RUNTIME_EXCEPTION(results_lut != nullptr, "Results lut is null");
@@ -162,7 +162,7 @@ void FSGPSimulator::run_sim(const std::shared_ptr<Route>& route, RacePlan* race_
 
         /* Update forecast lut index caches and get forecast data at the src coordinate */
         ForecastCoord coord_one_forecast(current_coord.lat, current_coord.lon);
-        
+
         wind_speed_lut->update_index_cache(&wind_speed_cache, coord_one_forecast, curr_time.get_utc_time_point());
         double wind_speed = wind_speed_lut->get_value(wind_speed_cache);
 
@@ -293,4 +293,13 @@ FSGPSimulator::FSGPSimulator(std::shared_ptr<Car> model) :
   impounding_start_time(Config::get_instance()->get_impounding_start_time()),
   impounding_release_time(Config::get_instance()->get_impounding_release_time()),
   v2_car(std::dynamic_pointer_cast<V2Car>(model)),
-  WSCSimulator(model) {}
+  sim_start_time(Config::get_instance()->get_current_date_time()),
+  sim_start_soc(Config::get_instance()->get_current_soc()),
+  day_one_start_time(Config::get_instance()->get_day_one_start_time()),
+  day_one_end_time(Config::get_instance()->get_day_one_end_time()),
+  day_start_time(Config::get_instance()->get_day_start_time()),
+  day_end_time(Config::get_instance()->get_day_end_time()),
+  race_end_time(Config::get_instance()->get_race_end_time()),
+  sim_start_coord(Config::get_instance()->get_gps_coordinates()),
+  max_soc(Config::get_instance()->get_max_soc()),
+  SimulatorBaseCrtp<FSGPSimulator, FSGPRoute>(model) {}

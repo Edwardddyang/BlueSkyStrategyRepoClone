@@ -487,7 +487,7 @@ void V2Optimizer::simulate_population() {
 }
 
 
-V2Optimizer::V2Optimizer(std::shared_ptr<Simulator> simulator, std::shared_ptr<Route> route)
+V2Optimizer::V2Optimizer(std::shared_ptr<Simulator> simulator, std::shared_ptr<FSGPRoute> route)
     : Optimizer(simulator, route), num_threads(std::max(1u, static_cast<unsigned int>(
       std::thread::hardware_concurrency() * Config::get_instance()->get_threads()))),
       population_size(Config::get_instance()->get_population_size()),

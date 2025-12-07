@@ -15,10 +15,10 @@ void thread_run_sim(std::shared_ptr<Simulator> sim,
   thread_manager->release();
 }
 
-Optimizer::Optimizer(std::shared_ptr<Simulator> sim, std::shared_ptr<Route> path) {
-  RUNTIME_EXCEPTION(sim != nullptr, "Simulator is null");
-  RUNTIME_EXCEPTION(path != nullptr, "Route is null");
-
-  simulator = sim;
-  route = path;
-}
+// Optimizer::Optimizer(std::shared_ptr<Simulator> sim, std::shared_ptr<Route> path) {
+//   RUNTIME_EXCEPTION(sim != nullptr, "Simulator is null");
+//   RUNTIME_EXCEPTION(path != nullptr, "Route is null");
+//
+//   simulator = sim;
+//   route = path;
+// }

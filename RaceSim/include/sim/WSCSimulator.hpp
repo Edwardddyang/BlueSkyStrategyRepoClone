@@ -16,10 +16,9 @@ Class to run the a full scale simulation on a WSC type route
 #include "utils/Luts.hpp"
 #include "config/Config.hpp"
 
-class WSCSimulator : public Simulator {
+class WSCSimulator : public SimulatorBaseCrtp<WSCSimulator, Route> {
  protected:
-  /* Step size in seconds when charging */
-  const int CHARGING_STEP_SIZE = 30;
+
 
   /* Information about the event */
   const int control_stop_charge_time;  // Stop time at a control stop in seconds
@@ -43,6 +42,5 @@ class WSCSimulator : public Simulator {
   * @param race_plan: The race plan to use
   * @param result_lut: ResultsLut object for writing simulation result
   */
-  void run_sim(const std::shared_ptr<Route>& route, RacePlan* race_plan,
-               std::shared_ptr<ResultsLut> result_lut) override;
+  void run_sim_impl(std::shared_ptr<Route> route, RacePlan* race_plan, std::shared_ptr<ResultsLut> result_lut);
 };

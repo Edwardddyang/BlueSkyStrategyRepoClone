@@ -10,7 +10,7 @@
 #include "sim/Simulator.hpp"
 #include "opt/PopulationGenerator.hpp"
 
-class V2Optimizer : public Optimizer {
+class V2Optimizer : public Optimizer<FSGPRoute> {
  private:
   // Race plan population and their results
   std::vector<RacePlan> population;
@@ -170,6 +170,6 @@ class V2Optimizer : public Optimizer {
                      FileLogger* logger = nullptr);
 
  public:
-  V2Optimizer(std::shared_ptr<Simulator> simulator, std::shared_ptr<Route> route);
+  V2Optimizer(std::shared_ptr<Simulator> simulator, std::shared_ptr<FSGPRoute> route);
   RacePlan optimize() override;
 };

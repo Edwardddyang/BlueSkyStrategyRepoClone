@@ -7,11 +7,11 @@
 #include "sim/TelemetrySimulator.hpp"
 #include "utils/CustomException.hpp"
 
-void TelemetrySimulator::run_sim(const std::shared_ptr<Route>& route, RacePlan* race_plan,
-                                 std::shared_ptr<ResultsLut> result_lut) {
-    RUNTIME_EXCEPTION(false, "TelemetrySimulator should never invoke the base run_sim() function");
-    return;
-}
+// void TelemetrySimulator::run_sim(const std::shared_ptr<Route>& route, RacePlan* race_plan,
+                                 // std::shared_ptr<ResultsLut> result_lut) {
+    // RUNTIME_EXCEPTION(false, "TelemetrySimulator should never invoke the base run_sim() function");
+    // return;
+// }
 
 void TelemetrySimulator::run_sim(const std::shared_ptr<Route>& route,
                                  std::shared_ptr<ResultsLut> results_lut){

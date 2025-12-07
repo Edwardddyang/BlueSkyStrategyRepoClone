@@ -15,33 +15,50 @@ Class to run the a full scale simulation on a designated route
 #include "utils/Luts.hpp"
 #include "config/Config.hpp"
 
+// Simulator interface
 // All (derived) class members should be initialized exactly ONCE when the object is constructed.
 // Afterwards, they should only be read. This is to ensure that the Simulator object can be
 // shared between threads. Do not track the internal state of the simulation e.g. soc, speed
 // using class members. I'll find you.
 class Simulator {
- protected:
-  /* Weather forecasting LUTs */
-  std::unique_ptr<ForecastLut> wind_speed_lut;
-  std::unique_ptr<ForecastLut> wind_dir_lut;
-  std::unique_ptr<ForecastLut> dni_lut;
-  std::unique_ptr<ForecastLut> dhi_lut;
-  std::unique_ptr<ForecastLut> ghi_lut;
-  bool use_ghi;  // Use GHI or DNI, DHI
+protected:
+	/* Step size in seconds when charging */
+	const int CHARGING_STEP_SIZE = 30;
 
-  /* Route to simulate on and the model to use */
-  std::shared_ptr<Car> car;
+	/* Weather forecasting LUTs */
+	std::unique_ptr<ForecastLut> wind_speed_lut;
+	std::unique_ptr<ForecastLut> wind_dir_lut;
+	std::unique_ptr<ForecastLut> dni_lut;
+	std::unique_ptr<ForecastLut> dhi_lut;
+	std::unique_ptr<ForecastLut> ghi_lut;
+	bool use_ghi; // Use GHI or DNI, DHI
 
- public:
-  /* Load all LUTs upon construction */
-  explicit Simulator(std::shared_ptr<Car> model);
+	/* Route to simulate on and the model to use */
+	std::shared_ptr<Car> car;
 
-  /** @brief Run a full simulation with a car object and a route
-  *
-  * @param route: The Route to simulate on
-  * @param race_plan: The race plan to use
-  * @param result_lut: ResultsLut object for storing results
-  */
-  virtual void run_sim(const std::shared_ptr<Route>& route, RacePlan* race_plan,
-                       std::shared_ptr<ResultsLut> result_lut) = 0;
+public:
+	/* Load all LUTs upon construction */
+	explicit Simulator(std::shared_ptr<Car> model);
+
+	/** @brief Run a full simulation with a car object and a route
+	*
+	* @param route: The Route to simulate on
+	* @param race_plan: The race plan to use
+	* @param result_lut: ResultsLut object for storing results
+	*/
+	virtual void run_sim(const std::shared_ptr<Route> &route, RacePlan *race_plan,
+	                     std::shared_ptr<ResultsLut> result_lut) = 0;
+};
+
+// CRTP base class
+template<typename DerivedSim, typename RouteType>
+class SimulatorBaseCrtp : public Simulator {
+public:
+	explicit SimulatorBaseCrtp(std::shared_ptr<Car> model) : Simulator(model) {};
+
+	void run_sim(const std::shared_ptr<Route> &route, RacePlan *race_plan,
+	             std::shared_ptr<ResultsLut> result_lut) final {
+		auto race_route = std::static_pointer_cast<RouteType>(route);
+		static_cast<DerivedSim *>(this)->run_sim_impl(race_route, race_plan, result_lut);
+	}
 };

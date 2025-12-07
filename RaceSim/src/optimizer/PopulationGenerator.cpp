@@ -26,7 +26,7 @@ static T bounded_gaussian(std::normal_distribution<> dist, std::mt19937& gen,  /
   return static_cast<T>(value);
 }
 
-RacePlanCreator::RacePlanCreator(std::shared_ptr<Route> route,
+RacePlanCreator::RacePlanCreator(std::shared_ptr<FSGPRoute> route,
                                 unsigned speed_seed,
                                 unsigned loop_seed,
                                 unsigned aggressive_seed,

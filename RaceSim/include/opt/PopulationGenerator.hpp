@@ -79,7 +79,7 @@ class RacePlanCreator {
   };
 
   /** Initialize all parameters */
-  RacePlanCreator(std::shared_ptr<Route> route,
+  RacePlanCreator(std::shared_ptr<FSGPRoute> route,
                   unsigned speed_seed = 1,
                   unsigned loop_seed = 1,
                   unsigned aggressive_seed = 1,
@@ -145,7 +145,7 @@ class RacePlanCreator {
 
  private:
   // Route for which to create a Race Plan
-  const std::shared_ptr<Route> route;
+  const std::shared_ptr<FSGPRoute> route;
   // Attributes about the route
   std::vector<Coord> route_points;
   std::vector<std::pair<size_t, size_t>> cornering_segment_bounds;

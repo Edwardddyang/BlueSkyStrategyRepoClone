@@ -9,7 +9,7 @@
 #include "route/Route.hpp"
 #include "sim/Simulator.hpp"
 
-class V1Optimizer : public Optimizer {
+class V1Optimizer : public Optimizer<Route> {
  private:
   const unsigned int num_threads;
 

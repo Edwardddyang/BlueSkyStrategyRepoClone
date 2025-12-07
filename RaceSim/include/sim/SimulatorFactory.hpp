@@ -13,6 +13,7 @@ enum class SIMULATORS {
   WSC = 0,
   FSGP = 1,
   TELEMETRY = 2,
+  ASC = 3,
 };
 
 class SimulatorFactory {

@@ -1,22 +1,27 @@
+//
+// ASC Simulator
+//
+
 #include <memory>
 #include <vector>
 #include <unordered_set>
 #include <limits>
 #include <utility>
 
-#include "sim/WSCSimulator.hpp"
+#include "sim/ASCSimulator.hpp"
 #include "config/Config.hpp"
 
-void WSCSimulator::run_sim_impl(std::shared_ptr<Route> route, RacePlan* race_plan,
+void ASCSimulator::run_sim_impl(std::shared_ptr<ASCRoute> route, RacePlan* race_plan,
                            std::shared_ptr<ResultsLut> results_lut) {
   RUNTIME_EXCEPTION(route != nullptr, "Route pointer is null");
   RUNTIME_EXCEPTION(results_lut != nullptr, "Results lut is null");
   RUNTIME_EXCEPTION(race_plan != nullptr, "Race plan is null");
   RUNTIME_EXCEPTION(race_plan->validate_members(route), "Race Plan is improperly created");
   RUNTIME_EXCEPTION(race_plan->get_segments().size() == 1, "Race Plan should have only one loop for WSC simulator");
-  RUNTIME_EXCEPTION(control_stop_charge_time % CHARGING_STEP_SIZE == 0, "Control stop charge time must be divisible by "
+  RUNTIME_EXCEPTION(checkpoint_hold_time % CHARGING_STEP_SIZE == 0, "Checkpoint hold time must be divisible by "
                     "charging step size");
   RUNTIME_EXCEPTION(wind_speed_lut != nullptr, "Wind speed lut must be loaded");
+
   RUNTIME_EXCEPTION(wind_dir_lut != nullptr, "Wind direction lut must be loaded");
 
   std::pair<size_t, size_t> dni_cache, dhi_cache, ghi_cache;
@@ -68,17 +73,10 @@ void WSCSimulator::run_sim_impl(std::shared_ptr<Route> route, RacePlan* race_pla
   }
   spdlog::debug("Starting SOC: {}", max_soc);
 
-  bool is_first_day = curr_time >= day_one_start_time && curr_time < day_one_end_time;
-  // Keep track of the end of day time
   Time current_day_end(curr_time);
   Time next_day_start(curr_time);
-  if (is_first_day) {
-    current_day_end.copy_hh_mm_ss(day_one_end_time);
-  } else {
-    current_day_end.copy_hh_mm_ss(day_end_time);
-  }
+  current_day_end.copy_hh_mm_ss(day_end_time);
   next_day_start.copy_hh_mm_ss(day_start_time);
-  // Advance the timestamp by 24 hours => 24 * 3600 seconds / hour = 86400 seconds
   next_day_start.update_time_seconds(SECONDS_IN_DAY);
 
   Time race_start_time(curr_time);  // Save starting time to calculate total elapsed time
@@ -106,6 +104,12 @@ void WSCSimulator::run_sim_impl(std::shared_ptr<Route> route, RacePlan* race_pla
   for (size_t idx=starting_route_index; idx < num_points-1; idx++) {
     const Coord& current_coord = route_points[idx];
     const Coord& next_coord = route_points[idx+1];
+
+    if (route->is_loop_start(current_coord)) {
+      auto loop_points = route->get_loop_points(current_coord);
+      // todo: process loop in simulation
+    }
+
     delta_energy = 0.0;
     // Update route segment
     if (idx > current_segment.end_idx) {
@@ -136,7 +140,7 @@ void WSCSimulator::run_sim_impl(std::shared_ptr<Route> route, RacePlan* race_pla
       // We first charge stage 1
       const double time_until_eod = current_day_end - curr_time;
       double time_charging = 0.0;
-      while (curr_time < current_day_end && time_charging < control_stop_charge_time) {
+      while (curr_time < current_day_end && time_charging < checkpoint_hold_time) {
         get_az_el(curr_time.get_utc_time_point(), current_coord.lat, current_coord.lon,
                   current_coord.alt, &sun.Az, &sun.El);
         double step_size = (curr_time + static_cast<double>(CHARGING_STEP_SIZE)) >= current_day_end ?
@@ -149,7 +153,7 @@ void WSCSimulator::run_sim_impl(std::shared_ptr<Route> route, RacePlan* race_pla
         time_charging = time_charging + step_size;
       }
 
-      overflowed_control_stop_time = control_stop_charge_time - time_charging;
+      // overflowed_control_stop_time = control_stop_charge_time - time_charging;
     }
 
     /* Overnight stop */
@@ -225,15 +229,13 @@ void WSCSimulator::run_sim_impl(std::shared_ptr<Route> route, RacePlan* race_pla
   race_plan->set_time_taken(curr_time.get_local_time_point() - race_start_time.get_local_time_point());
 }
 
-WSCSimulator::WSCSimulator(std::shared_ptr<Car> model) :
-  control_stop_charge_time(mins2secs(Config::get_instance()->get_control_stop_charge_time())),
+ASCSimulator::ASCSimulator(std::shared_ptr<Car> model) :
   sim_start_time(Config::get_instance()->get_current_date_time()),
   sim_start_soc(Config::get_instance()->get_current_soc()),
-  day_one_start_time(Config::get_instance()->get_day_one_start_time()),
-  day_one_end_time(Config::get_instance()->get_day_one_end_time()),
   day_start_time(Config::get_instance()->get_day_start_time()),
   day_end_time(Config::get_instance()->get_day_end_time()),
   race_end_time(Config::get_instance()->get_race_end_time()),
   sim_start_coord(Config::get_instance()->get_gps_coordinates()),
   max_soc(Config::get_instance()->get_max_soc()),
-  SimulatorBaseCrtp<WSCSimulator, Route>(model) {}
+  checkpoint_hold_time(Config::get_instance()->get_control_stop_charge_time()), // add var to config?
+  SimulatorBaseCrtp<ASCSimulator, ASCRoute>(model) {}

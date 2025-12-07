@@ -19,13 +19,14 @@ void thread_run_sim(std::shared_ptr<Simulator> sim,
                     RacePlan* race_plan,
                     ThreadManager* thread_manager);
 
+template<class RouteType>
 class Optimizer {
  protected:
   /* Assess viability of proposed speed profiles */
   std::shared_ptr<Simulator> simulator;
 
   /* Route to optimize on */
-  std::shared_ptr<Route> route;
+  std::shared_ptr<RouteType> route;
 
   /* Output speed profile */
   std::vector<double> speed_profile_kph;
