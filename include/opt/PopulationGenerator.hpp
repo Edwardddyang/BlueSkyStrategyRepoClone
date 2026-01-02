@@ -9,11 +9,12 @@
 #include <random>
 
 #include "route/Route.hpp"
-#include "utils/CustomTime.hpp"
-#include "utils/Logger.hpp"
-#include "utils/Luts.hpp"
+#include "route/RacePlan.hpp"
+#include "SimUtils/Types.hpp"
+#include "SimUtils/Logger.hpp"
+#include "SimUtils/Luts.hpp"
 
-// Class for creating RacePlan objects in the initial population. RacePlan creation as done according to the process
+// Class for creating FSGPRacePlan objects in the initial population. FSGPRacePlan creation as done according to the process
 // described in. This class also provides functions for creating race plans on existing loops used for mutation
 // in the genetic optimizer
 // https://www.notion.so/blueskysolar/Race-Strategy-and-Testing-Process-1da8d1f46c3680a79056edf3c9fecd1b?pvs=4
@@ -59,21 +60,21 @@ class RacePlanCreator {
     }
   };
 
-  // Holds the RacePlan attributes that will be passed into the return object
+  // Holds the FSGPRacePlan attributes that will be passed into the return object
   struct PlanAttributes {
     // Data holders for each loop before processing when constructing a loop block. For each loop
     // block, we create one loop and modify the beginning or ending segments in order to glue the
     // loops of the block together. These vectors hold the uniquely created loop for each block
-    RacePlan::PlanData raw_segments;
+    FSGPRacePlan::PlanData raw_segments;
 
-    // RacePlan attributes
-    RacePlan::PlanData all_segments;
+    // FSGPRacePlan attributes
+    FSGPRacePlan::PlanData all_segments;
 
-    void add_loop(const RacePlan::LoopData& loop_data, size_t start_idx, size_t end_idx);
+    void add_loop(const FSGPRacePlan::LoopData& loop_data, size_t start_idx, size_t end_idx);
 
     PlanAttributes(
-      RacePlan::PlanData raw_loop_segments = {},
-      RacePlan::PlanData all_segments = {}) :
+      FSGPRacePlan::PlanData raw_loop_segments = {},
+      FSGPRacePlan::PlanData all_segments = {}) :
         raw_segments(raw_loop_segments),
         all_segments(all_segments) {}
   };
@@ -88,7 +89,7 @@ class RacePlanCreator {
                   unsigned skip_seed = 1);
 
   /** @brief Create a single race plan */
-  RacePlan create_plan();
+  FSGPRacePlan create_plan();
 
   /** @brief Helper to create_plan used to create a single loop block
    * @param seg_data Intermediate segment data for the latest created segment
@@ -100,7 +101,7 @@ class RacePlanCreator {
    * @param is_last_block Whether the block to be created is the last block of the entire plan
    * @param is_first_block Whether the block to be created is the first block of the entire plan
   */
-  void create_loop_block(RacePlan::LoopData* loop_data,
+  void create_loop_block(FSGPRacePlan::LoopData* loop_data,
                          int num_loops_in_block = 1,
                          bool is_last_block = false,
                          bool is_first_block = false,
@@ -130,7 +131,7 @@ class RacePlanCreator {
 
   /** @brief Helper to create_plan used to create segments for a single corner */
   bool create_segments(size_t corner_idx,
-                       RacePlan::LoopData* loop_data,
+                       FSGPRacePlan::LoopData* loop_data,
                        bool is_first_segment,
                        Gen* rng,
                        PlanHistory* history,
@@ -140,7 +141,7 @@ class RacePlanCreator {
    * @return Index of last real corner to which we are rolling back
   */
   size_t rollback_to_last_real_corner(size_t corner_idx, PlanHistory* history,
-                                      RacePlan::LoopData* loop_data,
+                                      FSGPRacePlan::LoopData* loop_data,
                                       PlanAttributes* att, FileLogger& logger);  // NOLINT
 
  private:

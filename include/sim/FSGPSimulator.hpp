@@ -48,5 +48,5 @@ class FSGPSimulator : public Simulator<FSGPSimulator, FSGPRacePlan, FSGPRoute> {
   * @param result_lut: ResultsLut object for writing simulation result
   */
   void run_sim_impl(const FSGPRoute& route, FSGPRacePlan* race_plan,
-                    Luts::DataSet* result_lut);
+                    Luts::DataSet* result_lut) const;
 };

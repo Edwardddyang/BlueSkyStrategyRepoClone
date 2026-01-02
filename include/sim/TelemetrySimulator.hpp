@@ -11,32 +11,36 @@ Class to run a simulation on telemetry data
 
 #include "route/Route.hpp"
 #include "model/Car.hpp"
-#include "model/V2Car.hpp"
-#include "utils/Units.hpp"
-#include "utils/Luts.hpp"
-#include "sim/WSCSimulator.hpp"
+#include "SimUtils/Constants.hpp"
+#include "SimUtils/Types.hpp"
+#include "SimUtils/Luts.hpp"
+#include "sim/Simulator.hpp"
 #include "config/Config.hpp"
 
 /** @brief Simulator to simulate the path taken by telemetry data through a csv loaded as
- * |Latitude|Longitude|Time|
+ * |Latitude|Longitude|Altitude|Time|Speed
 */
 
-// WSCSim or base sim?
-class TelemetrySimulator : public WSCSimulator {
+class TelemetrySimulator {
  private:
   // Car Model
-  std::shared_ptr<V2Car> car;
+  Car car;
+
+  const double sim_start_soc;                 // Starting soc for the simulation in kWh
+  const double max_soc;                       // Maximum soc of the car in kWh
+
+	/* Weather forecasting LUTs */
+	const ForecastMatrix wind_speed_lut;
+	const ForecastMatrix wind_dir_lut;
+	const ForecastMatrix dni_lut;
+	const ForecastMatrix dhi_lut;
 
  public:
   /* Load all LUTs upon construction */
-  explicit TelemetrySimulator(std::shared_ptr<Car> model);
-
-  /** @brief Unused function from base class */
-  // void run_sim(const std::shared_ptr<Route>& route, RacePlan* race_plan,
-               // std::shared_ptr<ResultsLut> result_lut) override;
+  explicit TelemetrySimulator(Car model);
 
   /** @brief Run the car through all points on the route */
  // run_sim implementation?
- void run_sim(const std::shared_ptr<Route>& route,
-                              std::shared_ptr<ResultsLut> results_lut);
+ void run_sim(const TelemRoute& route,
+              Luts::DataSet* results_lut);
 };

@@ -13,28 +13,28 @@
 #include <queue>
 
 #include "spdlog/spdlog.h"
-#include "opt/V2Optimizer.hpp"
+#include "opt/FSGPOptimizer.hpp"
 #include "route/Route.hpp"
 #include "config/Config.hpp"
-#include "utils/Defines.hpp"
-#include "utils/Units.hpp"
+#include "SimUtils/Defines.hpp"
+#include "SimUtils/Constants.hpp"
 #include "opt/PopulationGenerator.hpp"
 
 // Sort function
-bool comp_race_plan(const RacePlan& a, const RacePlan& b) {
+bool comp_race_plan(const FSGPRacePlan& a, const FSGPRacePlan& b) {
   return a.get_score() > b.get_score();
 }
 
 // Thread function for creating a race plan
 void thread_create_plan(std::shared_ptr<RacePlanCreator> generator,
-                        RacePlan* space,
+                        FSGPRacePlan* space,
                         ThreadManager* thread_manager) {
   thread_manager->acquire();
   *space = generator->create_plan();
   thread_manager->release();
 }
 
-RacePlan V2Optimizer::optimize() {
+FSGPRacePlan V2Optimizer::optimize() {
   const std::filesystem::path dump_dir = Config::get_instance().get_dump_dir();
   std::filesystem::create_directories(dump_dir);
 
@@ -80,7 +80,7 @@ RacePlan V2Optimizer::optimize() {
   }
 
   // Process results
-  RacePlan best_race_plan = population[0];
+  FSGPRacePlan best_race_plan = population[0];
   ResultsLut best_race_plan_result = *result_luts[0];
   size_t best_average_speed = mps2kph(best_race_plan.get_average_speed());
   if (save_csv) {
@@ -142,15 +142,15 @@ void V2Optimizer::crossover_population() {
       continue;
     }
     num_crossovers = num_crossovers + 1;
-    RacePlan parent_a = population[parent_a_idx];
-    RacePlan parent_b = population[parent_b_idx];
+    FSGPRacePlan parent_a = population[parent_a_idx];
+    FSGPRacePlan parent_b = population[parent_b_idx];
 
-    RacePlan child_plan = crossover_parents(parent_a, parent_b);
+    FSGPRacePlan child_plan = crossover_parents(parent_a, parent_b);
     population.push_back(child_plan);
   }
 }
 
-RacePlan V2Optimizer::crossover_parents(RacePlan parent_a, RacePlan parent_b){
+FSGPRacePlan V2Optimizer::crossover_parents(FSGPRacePlan parent_a, FSGPRacePlan parent_b){
   RUNTIME_EXCEPTION(!parent_a.is_empty() && !parent_b.is_empty(), "Parents of crossover cannot be empty");
   const std::string crossover_type = Config::get_instance().get_crossover_strategy();
   RUNTIME_EXCEPTION(CROSSOVER_STRATEGIES.find(crossover_type) != CROSSOVER_STRATEGIES.end(),
@@ -162,19 +162,19 @@ RacePlan V2Optimizer::crossover_parents(RacePlan parent_a, RacePlan parent_b){
   return parent_a;
 }
 
-// RacePlan V2Optimizer::splice_loop(RacePlan* parent_a, RacePlan* parent_b, RacePlanCreator::Gen* rng) {
+// FSGPRacePlan V2Optimizer::splice_loop(FSGPRacePlan* parent_a, FSGPRacePlan* parent_b, FSGPRacePlanCreator::Gen* rng) {
 //   RUNTIME_EXCEPTION(parent_a != nullptr, "No parent a loop");
 //   RUNTIME_EXCEPTION(parent_b != nullptr, "No parent b loop");
 //   RUNTIME_EXCEPTION(rng != nullptr, "rng struct is null for splice_loop");
-//   const RacePlan::PlanData a_orig_segments = parent_a->get_orig_segments();
-//   const RacePlan::PlanData b_orig_segments = parent_b->get_orig_segments();
+//   const FSGPRacePlan::PlanData a_orig_segments = parent_a->get_orig_segments();
+//   const FSGPRacePlan::PlanData b_orig_segments = parent_b->get_orig_segments();
 //   RUNTIME_EXCEPTION(parent_a->get_num_loops() == parent_b->get_num_loops(),
 //                     "Parent a and b must have the same number of loops to use LoopCross crossover strategy");
 //   RUNTIME_EXCEPTION(a_orig_segments.size() == b_orig_segments.size(),
 //                     "Both parents must have the same number of original segments");
 //   std::uniform_int_distribution<int> parent_dist(0, 1);
-//   RacePlan::PlanData new_raw_plan;
-//   RacePlanCreator::PlanAttributes att;
+//   FSGPRacePlan::PlanData new_raw_plan;
+//   FSGPRacePlanCreator::PlanAttributes att;
 //   const std::unordered_map<size_t, size_t> corner_end_to_corner_idx = this->route->get_corner_end_map();
 
 //   const size_t num_blocks = a_orig_segments.size();
@@ -233,18 +233,18 @@ RacePlan V2Optimizer::crossover_parents(RacePlan parent_a, RacePlan parent_b){
 // }
 
 
-RacePlan V2Optimizer::loop_cross(RacePlan* parent_a, RacePlan* parent_b, RacePlanCreator::Gen* rng) {
+FSGPRacePlan V2Optimizer::loop_cross(FSGPRacePlan* parent_a, FSGPRacePlan* parent_b, RacePlanCreator::Gen* rng) {
   RUNTIME_EXCEPTION(parent_a != nullptr && !parent_a->is_empty(), "Parent a cannot be null and must not be empty");
   RUNTIME_EXCEPTION(parent_b != nullptr && !parent_b->is_empty(), "Parent b cannot be null and must not be empty");
   RUNTIME_EXCEPTION(rng != nullptr, "rng struct is null for loop_cross");
-  const RacePlan::PlanData a_orig_segments = parent_a->get_orig_segments();
-  const RacePlan::PlanData b_orig_segments = parent_b->get_orig_segments();
+  const FSGPRacePlan::PlanData a_orig_segments = parent_a->get_orig_segments();
+  const FSGPRacePlan::PlanData b_orig_segments = parent_b->get_orig_segments();
   RUNTIME_EXCEPTION(parent_a->get_num_loops() == parent_b->get_num_loops(),
                     "Parent a and b must have the same number of loops to use LoopCross crossover strategy");
   RUNTIME_EXCEPTION(a_orig_segments.size() == b_orig_segments.size(),
                     "Both parents must have the same number of original segments");
   std::uniform_int_distribution<int> parent_dist(0, 1);
-  RacePlan::PlanData new_raw_plan;
+  FSGPRacePlan::PlanData new_raw_plan;
   RacePlanCreator::PlanAttributes att;
 
   const size_t num_blocks = a_orig_segments.size();
@@ -257,11 +257,11 @@ RacePlan V2Optimizer::loop_cross(RacePlan* parent_a, RacePlan* parent_b, RacePla
   // The speed at the last real corner from the previous loop (connection segments start here)
   double prev_parent_last_speed;
   // Next loop of the selected parent
-  RacePlan::LoopData next_loop_of_prev_parent;
+  FSGPRacePlan::LoopData next_loop_of_prev_parent;
   for (size_t block_idx = 0; block_idx < num_blocks; block_idx++) {
     const int parent_idx = parent_dist(rng->idx_rng);
     double orig_speed;
-    RacePlan::LoopData prev_loop = next_loop_of_prev_parent;
+    FSGPRacePlan::LoopData prev_loop = next_loop_of_prev_parent;
 
     if (parent_idx == 0) {  // Take loop from parent A
       crossover_logger("Picked parent A for block " + std::to_string(block_idx));
@@ -304,7 +304,7 @@ RacePlan V2Optimizer::loop_cross(RacePlan* parent_a, RacePlan* parent_b, RacePla
 
     // Assign the speed of the connection corner
     if (block_idx != num_blocks - 1) {
-      const RacePlan::LoopData plan = parent_idx == 0 ? a_orig_segments[block_idx+1] :
+      const FSGPRacePlan::LoopData plan = parent_idx == 0 ? a_orig_segments[block_idx+1] :
                                       b_orig_segments[block_idx+1];
       const size_t last_corner_end_route_idx = plan[0].start_idx;
       const size_t num_segments = new_raw_plan[block_idx].size();
@@ -315,7 +315,7 @@ RacePlan V2Optimizer::loop_cross(RacePlan* parent_a, RacePlan* parent_b, RacePla
       }
     }
   }
-  RacePlan new_plan(att.all_segments, att.raw_segments, this->num_loops_in_block);
+  FSGPRacePlan new_plan(att.all_segments, att.raw_segments, this->num_loops_in_block);
   return new_plan;
 }
 
@@ -406,8 +406,8 @@ void V2Optimizer::create_initial_population() {
 
   threads.clear();
   threads.resize(population_size);
-  generator = std::make_shared<RacePlanCreator>(route, speed_seed, loop_seed, aggressive_seed,
-                                                idx_seed, acceleration_seed, skip_seed);
+  generator = RacePlanCreator(route, speed_seed, loop_seed, aggressive_seed,
+                              idx_seed, acceleration_seed, skip_seed);
 
   auto start = std::chrono::high_resolution_clock::now();
   if (population_size > 1) {

@@ -11,17 +11,13 @@
 #include <vector>
 
 #include "config/Config.hpp"
-#include "model/CarFactory.hpp"
-#include "opt/OptimizerFactory.hpp"
-#include "opt/V2Optimizer.hpp"
+#include "model/Car.hpp"
 #include "route/Route.hpp"
+#include "route/RacePlan.hpp"
 #include "sim/FSGPSimulator.hpp"
-#include "sim/Simulator.hpp"
-#include "sim/SimulatorFactory.hpp"
-#include "sim/TelemetrySimulator.hpp"
 #include "spdlog/spdlog.h"
-#include "utils/Defines.hpp"
-#include "utils/Luts.hpp"
+#include "SimUtils/Defines.hpp"
+#include "SimUtils/Luts.hpp"
 
 int main(int argc, char *argv[]) {
   spdlog::set_level(spdlog::level::debug);
@@ -34,11 +30,11 @@ int main(int argc, char *argv[]) {
                     "Set it to the full path to gen12_strategy/RaceSim.");
 
   std::filesystem::path config_file_path(argv[1]);
-  Config::initialize(config_file_path, strat_root);
+  Config::get_instance().load(config_file_path, strat_root);
 
-  /* Create a model of the car */
-  std::shared_ptr<Car> car =
-      CarFactory::get_car(Config::get_instance().get_model());
+  // Create car, simulator, route objects
+  Car car;
+  FSGPSimulator simulator;
 
   const SIMULATORS sim_type =
       SimulatorFactory::get_sim_type(Config::get_instance().get_simulator());

@@ -9,7 +9,7 @@
 #include "config/Config.hpp"
 
 void WSCSimulator::run_sim_impl(const WSCRoute& route, WSCRacePlan* race_plan,
-                                Luts::DataSet* results_lut) {
+                                Luts::DataSet* results_lut) const {
   RUNTIME_EXCEPTION(results_lut != nullptr, "Results lut is null");
   RUNTIME_EXCEPTION(race_plan != nullptr, "Race plan is null");
   RUNTIME_EXCEPTION(race_plan->validate_members(route), "Race Plan is improperly created");

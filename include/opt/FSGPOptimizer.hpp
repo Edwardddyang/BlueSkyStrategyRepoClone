@@ -10,15 +10,15 @@
 #include "sim/Simulator.hpp"
 #include "opt/PopulationGenerator.hpp"
 
-class FSGPOptimizer : public Optimizer<FSGPRoute> {
+class FSGPOptimizer : public Optimizer<FSGPOptimizer, FSGPRoute, FSPRacePlan, FSGPSimulator> {
  private:
   // Race plan population and their results
-  std::vector<RacePlan> population;
-  std::vector<RacePlan> new_population;
-  std::vector<std::shared_ptr<ResultsLut>> result_luts;
+  std::vector<FSGPRacePlan> population;
+  std::vector<FSGPRacePlan> new_population;
+  std::vector<Luts::DataSet> result_luts;
 
   // Initial population generator
-  std::shared_ptr<RacePlanCreator> generator;
+  RacePlanCreator generator;
   // rng variables
   unsigned int idx_seed;
   unsigned int speed_seed;
@@ -61,11 +61,9 @@ class FSGPOptimizer : public Optimizer<FSGPRoute> {
   const double acceleration_power_budget;  // Units of Watts, must be < max_motor_power
   const double max_acceleration;
   const double max_deceleration;
-  BasicLut route_distances;
+  PointsLut route_distances;
 
   // Thread management
-  ThreadManager thread_manager;
-  const unsigned int num_threads;
   std::vector<std::thread> threads;
 
   /** @brief Create initial population */
@@ -124,27 +122,27 @@ class FSGPOptimizer : public Optimizer<FSGPRoute> {
   // Note: All functions operate on the "raw" loops prior to glueing
 
   /** @brief Replace deceleration segment with constant speed in a specific loop */
-  void constant_for_deceleration(RacePlan* plan, RacePlanCreator::Gen* rng);
+  void constant_for_deceleration(FSGPRacePlan* plan, RacePlanCreator::Gen* rng);
   /** @brief Mutate a loop of the plan using the method described above
    * @note new_raw_plan is modified in place 
   */
-  void constant_for_deceleration_loop(RacePlan::PlanData* new_raw_plan,
+  void constant_for_deceleration_loop(FSGPRacePlan::PlanData* new_raw_plan,
                                       size_t loop_idx,
                                       RacePlanCreator::Gen* rng);
 
   /** @brief Add either +1 or -1 m/s to the end of an acceleration/deceleration segment */
-  void acceleration_noise(RacePlan* plan, RacePlanCreator::Gen* rng);
+  void acceleration_noise(FSGPRacePlan* plan, RacePlanCreator::Gen* rng);
   /** @brief Mutate a loop of the plan using the method described above
    * @note new_raw_plan is modified in place
    */
-  void acceleration_noise_loop(RacePlan::PlanData* new_raw_plan, size_t loop_idx, RacePlanCreator::Gen* rng);
+  void acceleration_noise_loop(FSGPRacePlan::PlanData* new_raw_plan, size_t loop_idx, RacePlanCreator::Gen* rng);
 
   /** @brief Add either +1 or -1 m/s to a constant speed */
-  void constant_noise(RacePlan* plan, RacePlanCreator::Gen* rng);
+  void constant_noise(FSGPRacePlan* plan, RacePlanCreator::Gen* rng);
   /** @brief Mutate a loop of the plan using the method described above
    * @note new_raw_plan is modified in place
    */
-  void constant_noise_loop(RacePlan::PlanData* new_raw_plan, size_t loop_idx,
+  void constant_noise_loop(FSGPRacePlan::PlanData* new_raw_plan, size_t loop_idx,
                            RacePlanCreator::Gen* rng);
 
   /** @brief Mutate each loop using one of the techniques above */
@@ -164,12 +162,12 @@ class FSGPOptimizer : public Optimizer<FSGPRoute> {
    *
    * @return True if legalization was successful, false if unsuccessful
   */
-  bool legalize_loop(RacePlan::PlanData* plan,
+  bool legalize_loop(FSGPRacePlan::PlanData* plan,
                      size_t loop_idx,
                      size_t seg_idx,
                      FileLogger* logger = nullptr);
 
  public:
-  V2Optimizer(std::shared_ptr<Simulator> simulator, std::shared_ptr<FSGPRoute> route);
-  RacePlan optimize() override;
+  FSGPOptimizer(Simulator simulator, FSGPRoute route);
+  FSGPRacePlan optimize() override;
 };

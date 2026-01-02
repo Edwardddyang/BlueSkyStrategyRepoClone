@@ -23,14 +23,12 @@ set(MODEL_SOURCES
 set(CONFIG_SOURCES
     src/config/Config.cpp
 )
-# set(OPTIMIZER_SOURCES
-#     src/optimizer/Optimizer.cpp
-#     src/optimizer/OptimizerFactory.cpp
-#     src/optimizer/V1Optimizer.cpp
-#     src/optimizer/V2Optimizer.cpp
-#     src/optimizer/PopulationGenerator.cpp
-#     src/optimizer/Mutation.cpp
-# )
+set(OPTIMIZER_SOURCES
+    src/optimizer/WSCOptimizer.cpp
+    # src/optimizer/FSGPOptimizer.cpp
+    # src/optimizer/PopulationGenerator.cpp
+    # src/optimizer/Mutation.cpp
+)
 set(ROUTE_SOURCES
     src/route/Route.cpp
     src/route/RacePlan.cpp
@@ -39,6 +37,7 @@ set(SIMULATION_SOURCES
     src/simulation/WSCSimulator.cpp
     src/simulation/ASCSimulator.cpp
     src/simulation/FSGPSimulator.cpp
+    src/simulation/TelemetrySimulator.cpp
 )
 set(RACESIM_SOURCES
     ${CONFIG_SOURCES}
@@ -69,70 +68,5 @@ set_target_properties(RaceSim PROPERTIES
 # add_executable(opt ${CMAKE_SOURCE_DIR}/src/main.cpp)
 # target_link_libraries(opt PRIVATE RaceSim) 
 # target_compile_features(opt PRIVATE cxx_std_20)
-# # ---------------------------------------------------------
-
-# # ----------------------- Unit Tests ----------------------
-# enable_testing()
-
-# # Geography functions
-# add_executable(GeographyTest ${CMAKE_SOURCE_DIR}/tests/GeographyTest.cpp)
-# target_link_libraries(GeographyTest gtest gtest_main RaceSim ${EXTERNAL_DEPS})
-# add_test(GeographyTest GeographyTest)
-
-# # Custom time class
-# add_executable(TimeTest ${CMAKE_SOURCE_DIR}/tests/TimeTest.cpp)
-# target_link_libraries(TimeTest gtest gtest_main RaceSim ${EXTERNAL_DEPS})
-# add_test(TimeTest TimeTest)
-
-# # Lookup Tables
-# add_executable(LutsTest ${CMAKE_SOURCE_DIR}/tests/LutsTest.cpp)
-# target_link_libraries(LutsTest gtest gtest_main RaceSim ${EXTERNAL_DEPS})
-# add_test(LutsTest LutsTest)
-
-# # Gen 11.5 Car Model
-# add_executable(v1CarTest ${CMAKE_SOURCE_DIR}/tests/v1CarTest.cpp)
-# target_link_libraries(v1CarTest gtest gtest_main RaceSim ${EXTERNAL_DEPS})
-# add_test(v1CarTest v1CarTest)
-
-# # Gen 12 Car Model
-# # add_executable(v2CarTest ${CMAKE_SOURCE_DIR}/tests/v2CarTest.cpp)
-# # target_link_libraries(v2CarTest gtest gtest_main RaceSim ${EXTERNAL_DEPS})
-# # add_test(v2CarTest v2CarTest)
-
-# # Route
-# add_executable(RouteTest ${CMAKE_SOURCE_DIR}/tests/RouteTest.cpp)
-# target_link_libraries(RouteTest gtest gtest_main RaceSim ${EXTERNAL_DEPS})
-# add_test(RouteTest RouteTest)
-
-# # Simulator
-# add_executable(SimTest ${CMAKE_SOURCE_DIR}/tests/SimTest.cpp)
-# target_link_libraries(SimTest gtest gtest_main RaceSim ${EXTERNAL_DEPS})
-# add_test(SimTest SimTest)
-
-# # Optimizer
-# add_executable(OptimizerTest ${CMAKE_SOURCE_DIR}/tests/OptimizerTest.cpp)
-# target_link_libraries(OptimizerTest gtest gtest_main RaceSim ${EXTERNAL_DEPS})
-# add_test(OptimizerTest OptimizerTest)
-
-# # Run tests
-# add_custom_target(run_tests ALL
-#     COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure || true)
 
 # ---------------------------------------------------------
-
-# ---------------------- Installation ---------------------
-# install(TARGETS RaceSim
-#         RUNTIME DESTINATION ${CMAKE_SOURCE_DIR}/install/lib
-#         LIBRARY DESTINATION ${CMAKE_SOURCE_DIR}/install/lib)
-# install(TARGETS opt
-#         RUNTIME DESTINATION ${CMAKE_SOURCE_DIR}/install/bin)
-# install(TARGETS GeographyTest TimeTest LutsTest v1CarTest RouteTest SimTest OptimizerTest # v2CarTest
-#         RUNTIME DESTINATION ${CMAKE_SOURCE_DIR}/install/tests/)
-# # ---------------------------------------------------------
-
-# # # -------------------- Clean install --------------------
-# add_custom_target(clean_install
-#     COMMAND ${CMAKE_COMMAND} -E rm -rf ${INSTALL_DIR}
-#     COMMENT "Cleaning the install directory"
-# )
-# # --------------------------------------------------------

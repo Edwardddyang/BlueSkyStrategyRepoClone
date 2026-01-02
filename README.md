@@ -1,5 +1,5 @@
 # Race Simulation 
-This framework intends to provide a variety of optimization algorithms and car models in order to identify the best speed profile for the solar car
+This repository provides optimizers and simulators for the Formula Sun Grand Prix (FSGP), American Solar Challenge (ASC), and World Solar Challenge (WSC)
 
 # To Use
 
@@ -110,8 +110,7 @@ When naming variables representing a scientific unit, please include the units i
 
 # TODOs
 - FSGPSimulator doesn't start at the beginning of the loop after an overnight stop
-- ASCSimulator
-- Optimizer
 - Unit Tests
-- Fix resultslut
-- Telemetry Flow
+- Incorporate ResultsLuts
+- Add Telemetry Simulator
+- Fix FSGP Optimizer

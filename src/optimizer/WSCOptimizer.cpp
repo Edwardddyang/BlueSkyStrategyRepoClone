@@ -13,16 +13,10 @@
 #include "config/Config.hpp"
 #include "SimUtils/Defines.hpp"
 
-void WSCOptimizer::run_sim_thread_func(Luts::DataSet* result_lut, WSCRacePlan* race_plan) {
-  thread_limiter.acquire();
-  simulator->run_sim(route, race_plan, result_lut);
-  thread_limiter.release();
-}
-
 WSCRacePlan WSCOptimizer::optimize_impl() {
   /* Loop from speeds 1 -> max. speed to get the maximum viable speed */
-  const int max_speed = Config::get_instance().get_max_speed();
-  const int min_speed = Config::get_instance().get_min_speed();
+  const int max_speed = static_cast<int>(Config::get_instance().get_max_speed());
+  const int min_speed = static_cast<int>(Config::get_instance().get_min_speed());
   RUNTIME_EXCEPTION(max_speed >= min_speed, "Maximum speed must be >= Minimum speed");
 
   // Create results folder
@@ -34,8 +28,6 @@ WSCRacePlan WSCOptimizer::optimize_impl() {
     std::filesystem::create_directory(results_folder);
   }
 
-  spdlog::info("Using {} threads for simulation", num_threads);
-
   // Create threads
   const int total_num_threads = max_speed - min_speed + 1; 
   std::vector<std::thread> threads(total_num_threads);
@@ -45,7 +37,7 @@ WSCRacePlan WSCOptimizer::optimize_impl() {
 
   // Create all result luts and race plans
   for (int i=min_speed; i <= max_speed; i++) {
-    result_luts.emplace_back(Luts::DataSet());
+    result_luts.emplace_back();
     const BaseSegment segment(
       0, route.get_num_points() - 1, static_cast<double>(i), static_cast<double>(i),
       0.0, route.get_route_length()
@@ -56,7 +48,7 @@ WSCRacePlan WSCOptimizer::optimize_impl() {
 
   // Spin up all threads
   for (int i=0; i < total_num_threads; i++) {
-    threads.emplace_back(&this->run_sim_thread_func, this, &result_luts[i], &race_plans[i]);
+    threads.emplace_back(&WSCOptimizer::run_sim_thread_func, this, &result_luts[i], &race_plans[i]);
   }
 
   for (int i=0; i < total_num_threads; i++) {
@@ -84,6 +76,4 @@ WSCRacePlan WSCOptimizer::optimize_impl() {
 }
 
 WSCOptimizer::WSCOptimizer(WSCSimulator simulator, WSCRoute route) :
-                           Optimizer(simulator, route), thread_limiter(std::max(1u, static_cast<unsigned int>(
-                            std::thread::hardware_concurrency() * Config::get_instance().get_threads()
-                           ))) {}
+                           Optimizer(simulator, route) {}

@@ -67,7 +67,7 @@ class Simulator {
 	*/
 	void run_sim(const Route& route,
                RacePlan* race_plan,
-	             Luts::DataSet& result_lut) const {
+	             Luts::DataSet* result_lut) const {
     static_cast<const Derived*>(this)->run_sim_impl(route, race_plan, result_lut);
   }
 };

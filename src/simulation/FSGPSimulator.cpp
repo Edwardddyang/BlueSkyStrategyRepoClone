@@ -8,7 +8,7 @@
 #include "SimUtils/CustomException.hpp"
 
 void FSGPSimulator::run_sim_impl(const FSGPRoute& route, FSGPRacePlan* race_plan,
-                                 Luts::DataSet* results_lut) {
+                                 Luts::DataSet* results_lut) const {
   RUNTIME_EXCEPTION(results_lut != nullptr, "Results lut is null");
   RUNTIME_EXCEPTION(race_plan != nullptr, "Race plan is null");
   RUNTIME_EXCEPTION(race_plan->validate_members(route), "Race Plan is improperly created");

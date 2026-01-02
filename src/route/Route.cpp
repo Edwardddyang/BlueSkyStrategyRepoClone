@@ -99,7 +99,7 @@ WSCRoute::WSCRoute(std::filesystem::path route_path) {
 
   while (std::getline(base_route, line)) {
     std::stringstream linestream(line);
-    std::string latitude, longitude, alt, timestamp, speed;
+    std::string latitude, longitude, alt;
     std::optional<double> parsed_value;
 
     util::type::Coord coord{};
@@ -209,7 +209,7 @@ FSGPRoute::FSGPRoute(std::filesystem::path route_path,
 
   while (std::getline(base_route, line)) {
     std::stringstream linestream(line);
-    std::string latitude, longitude, alt, timestamp, speed;
+    std::string latitude, longitude, alt;
     std::optional<double> parsed_value;
 
     util::type::Coord coord{};
@@ -539,4 +539,65 @@ void ASCRoute::add_loop(std::filesystem::path loop_file_path) {
   loop_route.close();
 
   spdlog::info("Loaded loop route {} with {} coordinates", loop_file_path.string(), std::to_string(loop_points.size()));
+}
+
+TelemRoute::TelemRoute(std::filesystem::path route_path) {
+  // Read route csv file
+  std::fstream base_route(route_path);
+  RUNTIME_EXCEPTION(base_route.is_open(), "Base route file {} not found",
+                    route_path.string());
+
+  this->route_length = 0.0;
+  util::type::Coord last_coord;
+
+  bool first_coord = true;
+  std::string line;
+
+  while (std::getline(base_route, line)) {
+    std::stringstream linestream(line);
+    std::string latitude, longitude, alt, timestamp, speed;
+    std::optional<double> parsed_double_value;
+
+    util::type::Coord coord{};
+    std::getline(linestream, latitude, ',');
+    parsed_double_value = util::detail::convert_num<double>(latitude);
+    RUNTIME_EXCEPTION(parsed_double_value.has_value(),
+                      "{} could not be converted to a latitude number",
+                      latitude);
+    coord.lat = *parsed_double_value;
+
+    std::getline(linestream, longitude, ',');
+    parsed_double_value = util::detail::convert_num<double>(longitude);
+    RUNTIME_EXCEPTION(parsed_double_value.has_value(),
+                      "{} could not be converted to a longitude number",
+                      longitude);
+    coord.lon = *parsed_double_value;
+
+    std::getline(linestream, alt, ',');
+    parsed_double_value = util::detail::convert_num<double>(alt);
+    RUNTIME_EXCEPTION(parsed_double_value.has_value(),
+                      "{} could not be converted to a latitude number",
+                      alt);
+    coord.alt = *parsed_double_value;
+
+    route_points.emplace_back(coord);
+
+    std::getline(linestream, timestamp, ',');
+    timestamps.emplace_back(timestamp);
+
+    std::getline(linestream, speed, ',');
+    parsed_double_value = util::detail::convert_num<double>(speed);
+    RUNTIME_EXCEPTION(parsed_double_value.has_value(),
+                      "{} could not be converted to a longitude number",
+                      speed);
+    speeds.emplace_back(*parsed_double_value);
+
+    if (!first_coord) {
+      this->route_length += util::geo::get_distance(last_coord, coord);
+    } else {
+      first_coord = false;
+    }
+
+    last_coord = coord;
+  }
 }

@@ -232,6 +232,34 @@ public:
   CoordVec* get_loop_points(util::type::Coord route_coord) const;
 };
 
+/* Representation of a car route recorded using telemetry data */
+class TelemRoute {
+ private:
+  // Points of the route
+  CoordVec route_points;
+
+  // Timestamps
+  std::vector<util::type::Time> timestamps;
+
+  // Speeds
+  std::vector<double> speeds;
+
+  // Total length of the route in m
+  double route_length;
+
+  public:
+   /** @brief Load coordinates from a CSV file with layout |latitude|longitude|altitude|timestamp|speed */
+   TelemRoute(std::filesystem::path route_path);
+   TelemRoute() = default;
+
+   /* Getters */
+   inline const CoordVec& get_route_points() const {return route_points;}
+   inline const std::vector<util::type::Time>& get_timestamps() const {return timestamps;}
+   inline const std::vector<double>& get_speeds() const {return speeds;}
+   inline double get_route_length() const {return route_length;}
+   inline size_t get_num_points() const {return route_points.size();}
+};
+
 template <typename T>
 concept RouteType = std::is_same_v<ASCRoute, T> ||
                     std::is_same_v<WSCRoute, T> ||

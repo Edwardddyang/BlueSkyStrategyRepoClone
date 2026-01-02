@@ -42,5 +42,5 @@ class WSCSimulator : public Simulator<WSCSimulator, WSCRacePlan, WSCRoute> {
   * @param result_lut: ResultsLut object for writing simulation result
   */
   void run_sim_impl(const WSCRoute& route, WSCRacePlan* race_plan,
-                    Luts::DataSet* result_lut);
+                    Luts::DataSet* result_lut) const;
 };
