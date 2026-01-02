@@ -2,16 +2,10 @@
 .vscode
 .history/*
 .idea/
+CMakeUserPresets.json
 
 # Cmake
 build
-
-# ArraySim
-*.stl
-*.scdocx
-slprj/
-.slxc
-assimp/
 
 # RaceSim
 Results
