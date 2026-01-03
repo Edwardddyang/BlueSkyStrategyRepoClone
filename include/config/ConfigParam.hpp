@@ -48,19 +48,19 @@ class ConfigParam {
     }
   }
   ConfigParam<T>(std::string param_name, T default_value,
-                 std::unordered_map<std::string, YAML::Node> key_values,
+                 const std::unordered_map<std::string, YAML::Node>& key_values,
                  const char* STRAT_ROOT) : name(std::move(param_name)) {
     if (key_values.find(name) != key_values.end()) {
       if constexpr (std::is_same<util::type::Coord, T>::value) {
-        value = util::create_coord(key_values[name].template as<std::string>());
+        value = util::create_coord(key_values.at(name).template as<std::string>());
       } else if constexpr (std::is_same<std::unordered_set<int>, T>::value) {
-        value = util::convert_string_to_int_set(key_values[name].template as<std::string>());
-      } else if constexpr (std::is_same<std::unique_ptr<util::type::Time>, T>::value) {
-        value = std::make_unique<util::type::Time>(key_values[name].template as<std::string>());
+        value = util::convert_string_to_int_set(key_values.at(name).template as<std::string>());
+      } else if constexpr (std::is_same<util::type::Time, T>::value) {
+        value = util::type::Time(key_values.at(name).template as<std::string>());
       } else if constexpr (std::is_same<std::filesystem::path, T>::value) {
-        value = std::filesystem::path(STRAT_ROOT) / std::filesystem::path(key_values[name].template as<std::string>());
+        value = std::filesystem::path(STRAT_ROOT) / std::filesystem::path(key_values.at(name).template as<std::string>());
       } else {
-        value = key_values[name].template as<T>();
+        value = key_values.at(name).template as<T>();
       }
     } else {
       if constexpr(std::is_same<std::unique_ptr<util::type::Time>, T>::value) {

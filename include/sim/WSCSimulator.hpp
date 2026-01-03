@@ -15,11 +15,10 @@ Class to run the a full scale simulation on a WSC type route
 #include "model/Car.hpp"
 #include "SimUtils/Types.hpp"
 #include "SimUtils/Luts.hpp"
-#include "config/Config.hpp"
+#include "config/ConfigParser.hpp"
 
-class WSCSimulator : public Simulator<WSCSimulator, WSCRacePlan, WSCRoute> {
- private:
-  /* Information about the event */
+// Parameters injected to WSCSimulator
+struct WSCSimulatorParams : SimulatorParams {
   const double control_stop_charge_time;      // Control stop time in seconds
   const double sim_start_soc;                 // Starting soc for the simulation in kWh
   const util::type::Coord sim_start_coord;    // Starting coordinates of the car
@@ -31,9 +30,54 @@ class WSCSimulator : public Simulator<WSCSimulator, WSCRacePlan, WSCRoute> {
   const util::type::Time race_end_time;       // End time of the entire race in 24 hour local time
   const double max_soc;                       // Maximum soc of the car in kWh
 
+  WSCSimulatorParams(ForecastMatrix wind_speed_lut, ForecastMatrix wind_dir_lut,
+                     ForecastMatrix dni_lut, ForecastMatrix dhi_lut,
+                     double control_stop_charge_time, double sim_start_soc,
+                     util::type::Coord sim_start_coord, util::type::Time sim_start_time,
+                     util::type::Time day_one_start_time, util::type::Time day_one_end_time,
+                     util::type::Time day_start_time, util::type::Time day_end_time,
+                     util::type::Time race_end_time, double max_soc) :
+                     SimulatorParams(wind_speed_lut, wind_dir_lut, dni_lut, dhi_lut),
+                     control_stop_charge_time(control_stop_charge_time),
+                     sim_start_soc(sim_start_soc), sim_start_coord(sim_start_coord),
+                     sim_start_time(std::move(sim_start_time)),
+                     day_one_start_time(std::move(day_one_start_time)),
+                     day_one_end_time(std::move(day_one_end_time)),
+                     day_start_time(std::move(day_start_time)),
+                     day_end_time(std::move(day_end_time)),
+                     race_end_time(std::move(race_end_time)), max_soc(max_soc) {}
+};
+
+inline WSCSimulatorParams get_wsc_simulator_params(ConfigParser* parser) {
+  RUNTIME_EXCEPTION(parser != nullptr, "Config parser is null when loading WSC simulation parameters");
+
+  WSCSimulatorParams params{
+    ForecastMatrix(parser->get_wind_speed_path()),
+    ForecastMatrix(parser->get_wind_direction_path()),
+    ForecastMatrix(parser->get_dni_path()),
+    ForecastMatrix(parser->get_dhi_path()),
+    util::constants::mins2secs(parser->get_control_stop_charge_time()),
+    parser->get_current_soc(),
+    parser->get_gps_coordinates(),
+    parser->get_current_date_time(),
+    parser->get_day_one_start_time(),
+    parser->get_day_one_end_time(),
+    parser->get_day_start_time(),
+    parser->get_day_end_time(),
+    parser->get_race_end_time(),
+    parser->get_max_soc()
+  };
+
+  return params;
+}
+
+class WSCSimulator : public Simulator<WSCSimulator, WSCRacePlan, WSCRoute> {
+ private:
+  WSCSimulatorParams params;
+
  public:
   /* Load all LUTs upon construction */
-  explicit WSCSimulator(Car model);
+  explicit WSCSimulator(WSCSimulatorParams params, Car model);
 
   /** @brief Run a full simulation with a car object and a route
   *

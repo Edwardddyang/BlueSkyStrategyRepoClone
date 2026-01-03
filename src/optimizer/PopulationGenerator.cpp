@@ -10,7 +10,7 @@
 
 #include "opt/PopulationGenerator.hpp"
 #include "utils/Defines.hpp"
-#include "config/Config.hpp"
+#include "config/ConfigParser.hpp"
 #include "utils/Units.hpp"
 #include "utils/Logger.hpp"
 

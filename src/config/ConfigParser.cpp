@@ -7,27 +7,28 @@
 #include <unordered_map>
 #include <memory>
 
-#include "config/Config.hpp"
+#include "config/ConfigParser.hpp"
+#include "SimUtils/Defines.hpp"
 #include "spdlog/spdlog.h"
 #include "yaml-cpp/yaml.h"
 
-Config& Config::get_instance() {
-  static Config instance;
-  return instance;
+ConfigParser::ConfigParser() {
+  // Load the STRAT_ROOT variable
+  char *strat_root = std::getenv("STRAT_ROOT");
+  RUNTIME_EXCEPTION(strat_root != nullptr, "STRAT_ROOT environment variable not set");
+
+  STRAT_ROOT = strat_root;
 }
 
 #define PARAM(name, type, default_value)\
   name = std::move(ConfigParam<type>(#name, default_value, key_values, STRAT_ROOT));
 
-void Config::load(std::filesystem::path file_path, char* strat_root) {
-  RUNTIME_EXCEPTION(strat_root != nullptr, "No STRAT_ROOT variable detected.");
+void ConfigParser::load_config(std::filesystem::path path) {
+  config_file_path = (std::filesystem::path(STRAT_ROOT)) / path;
 
-  /* Parse config file */
-  config_file_path = (std::filesystem::path(strat_root) / file_path);
-  STRAT_ROOT = strat_root;
   try {
     YAML::Node config = YAML::LoadFile(config_file_path.string());
-    get_config_leaf_nodes(config);
+    get_config_leaf_nodes(config);  // Fill kv pairs
   } catch (const YAML::ParserException) {
     RUNTIME_EXCEPTION(false, "Config file {} could not be parsed. Check yaml for correct syntax. Exiting",
                       config_file_path.string());
@@ -40,11 +41,9 @@ void Config::load(std::filesystem::path file_path, char* strat_root) {
 
   /* Initialize all parameters */
   CONFIG_PARAMETERS
-
-  initialized = true;
 }
 
-void Config::get_config_leaf_nodes(YAML::Node node, int current_depth) {
+void ConfigParser::get_config_leaf_nodes(YAML::Node node, int current_depth) {
   RUNTIME_EXCEPTION(current_depth <= MAX_RECURSION_DEPTH,
     "Maximum recursion depth reached when parsing configuration file."
     "If this is expected, increase the MAX_RECUSION_DEPTH variable.");

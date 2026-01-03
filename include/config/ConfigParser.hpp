@@ -18,7 +18,7 @@
 #include <sstream>
 
 
-/* Define all config parameters
+/* Define all config parameters via. X-Macro
    PARAM(
       <parameter name as it appears exactly in the .yaml configuration file>,
    		<data type>,
@@ -67,8 +67,9 @@
     PARAM(dhi_path,                      std::filesystem::path,   std::filesystem::path("data/luts/fsgp/dynamic/dhi.csv"))                                   \
     PARAM(ghi_path,                      std::filesystem::path,   std::filesystem::path("data/luts/fsgp/dynamic/shortwave_radiation.csv"))                   \
     PARAM(wind_direction_path,           std::filesystem::path,   std::filesystem::path("data/luts/fsgp/dynamic/wind_direction_10m.csv"))                    \
-    PARAM(wind_speed_path,                std::filesystem::path,   std::filesystem::path("data/luts/fsgp/dynamic/wind_speed_10m.csv"))                        \
+    PARAM(wind_speed_path,               std::filesystem::path,   std::filesystem::path("data/luts/fsgp/dynamic/wind_speed_10m.csv"))                        \
     PARAM(precomputed_distances_path,    std::filesystem::path,   std::filesystem::path("data/luts/fsgp/static/precomputed_distances.csv"))                  \
+    PARAM(results_dir,                   std::filesystem::path,   std::filesystem::path("Results"))                  \
     PARAM(use_ghi,                       bool,                    false)                                                                                   \
     PARAM(calculate_distances,           bool,                    false)                                                                                   \
     PARAM(overnight_charging_location,   util::type::Coord,       util::type::Coord(37.000823, -86.367676, 0.157135))                                      \
@@ -78,8 +79,8 @@
     PARAM(utc_adjustment,                double,                  6.0)                                                                                     \
     PARAM(model,                         std::string,             "Gen 12")                                                                                \
     PARAM(optimizer,                     std::string,             "Acceleration")                                                                          \
-    PARAM(min_speed,                     double,                  10)                                                                                      \
-    PARAM(max_speed,                     double,                  80)                                                                                      \
+    PARAM(min_speed,                     int,                  10)                                                                                      \
+    PARAM(max_speed,                     int,                  80)                                                                                      \
     PARAM(save_csv,                      bool,                    true)                                                                                    \
     PARAM(simulator,                     std::string,             "FSGP")                                                                                  \
     PARAM(threads,                       double,                  0.5)                                                                                     \
@@ -108,23 +109,20 @@
     PARAM(dump_dir,                      std::filesystem::path,   std::filesystem::path("exports"))                                                        \
     PARAM(crossover_strategy,            std::string,             "LoopCross")                                                                             \
     PARAM(max_braking_force,             double,                  5000)                                                                                    \
-    PARAM(day_one_start_time, std::unique_ptr<util::type::Time>,  std::make_unique<util::type::Time>("2024-08-16T10:00:00+00:00"))                         \
-    PARAM(day_one_end_time, std::unique_ptr<util::type::Time>, std::make_unique<util::type::Time>("2024-08-16T18:00:00+00:00"))                            \
-    PARAM(day_start_time, std::unique_ptr<util::type::Time>, std::make_unique<util::type::Time>("2024-08-17T09:00:00+00:00"))                              \
-    PARAM(day_end_time, std::unique_ptr<util::type::Time>, std::make_unique<util::type::Time>("2024-08-17T17:00:00+00:00"))                                \
-    PARAM(race_end_time, std::unique_ptr<util::type::Time>, std::make_unique<util::type::Time>("2024-08-26T17:00:00+00:00"))                                           \
-    PARAM(impounding_release_time, std::unique_ptr<util::type::Time>, std::make_unique<util::type::Time>("2024-08-26T07:00:00+00:00"))                     \
-    PARAM(impounding_start_time, std::unique_ptr<util::type::Time>, std::make_unique<util::type::Time>("2024-08-26T07:20:00+00:00"))                       \
-    PARAM(current_date_time, std::unique_ptr<util::type::Time>, std::make_unique<util::type::Time>("2024-08-26T07:20:00+00:00"))
+    PARAM(day_one_start_time,            util::type::Time,        util::type::Time("2024-08-16T10:00:00+00:00"))                                           \
+    PARAM(day_one_end_time,              util::type::Time,        util::type::Time("2024-08-16T18:00:00+00:00"))                                           \
+    PARAM(day_start_time,                util::type::Time,        util::type::Time("2024-08-17T09:00:00+00:00"))                                           \
+    PARAM(day_end_time,                  util::type::Time,        util::type::Time("2024-08-17T17:00:00+00:00"))                                           \
+    PARAM(race_end_time,                 util::type::Time,        util::type::Time("2024-08-26T17:00:00+00:00"))                                           \
+    PARAM(impounding_release_time,       util::type::Time,        util::type::Time("2024-08-26T07:00:00+00:00"))                                           \
+    PARAM(impounding_start_time,         util::type::Time,        util::type::Time("2024-08-26T07:20:00+00:00"))                                           \
+    PARAM(current_date_time,             util::type::Time,        util::type::Time("2024-08-26T07:20:00+00:00"))                                           \
+    PARAM(checkpoint_hold_time,           int,                     30)        
 
-/**
- * Class that holds all information from a .yaml file storing configuration parameters for
- * a race simulation. Instantiation and call flow is:
- *
- * Config::get_instance().load(<config file path>, <STRAT_ROOT>);
- * Config::get_instance().get_<some parameter>();
+/** Parse the config .yaml file
+* the ::load_config(file) method should be called immediately after construction
 */
-class Config {
+class ConfigParser {
  private:
   /* Map with all parsed key-value pairs from the yaml config file */
   std::unordered_map<std::string, YAML::Node> key_values;
@@ -134,8 +132,6 @@ class Config {
 
   /* Store the path to gen12_strategy/RaceSim */
   char* STRAT_ROOT;
-
-  bool initialized = false;
 
   const int MAX_RECURSION_DEPTH = 10;
 
@@ -147,20 +143,14 @@ class Config {
 
   #undef PARAM
 
-  Config() = default;
-
   /* Extract all values from the config */
   void get_config_leaf_nodes(YAML::Node node, int current_depth = 0);
 
  public:
-  /* Public singleton constructor */
-  static Config& get_instance();
+  ConfigParser();
 
-  /** Set the config file. Can only be called once in an executable's life cycle
-  * @param file_path path to the config file relative to executable
-  * @param strat_root_path full path to gen12_strategy/RaceSim
-  */
-  void load(std::filesystem::path file_path, char* strat_root_path);
+  /** Parse the config file and initialize all parameters */
+  void load_config(std::filesystem::path file_path);
 
   /* Getters */
   #define PARAM(name, type, default_value) \

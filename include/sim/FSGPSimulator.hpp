@@ -15,15 +15,10 @@ Class to run the a full scale simulation on a FSGP type route (track race)
 #include "SimUtils/Types.hpp"
 #include "SimUtils/Luts.hpp"
 #include "sim/Simulator.hpp"
-#include "config/Config.hpp"
+#include "config/ConfigParser.hpp"
 
-/** @brief Simulator to simulate a RacePlan on the FSGP route. Simulation parameters
- * and states are private to the run_sim() function such that all threads share
- * a single FSGPSimulator object
- */
-class FSGPSimulator : public Simulator<FSGPSimulator, FSGPRacePlan, FSGPRoute> {
- private:
-  /* Event information */
+// Parameters injected to FSGPSimulator
+struct FSGPSimulatorParams : SimulatorParams {
   const util::type::Coord charging_coord;          // Charging coordinates of the car
   const util::type::Time impounding_start_time;    // Impounding start time in 24 hour local time
   const util::type::Time impounding_release_time;  // Impounding release time in 24 hour local time
@@ -37,9 +32,66 @@ class FSGPSimulator : public Simulator<FSGPSimulator, FSGPRacePlan, FSGPRoute> {
   const util::type::Time race_end_time;            // End time of the entire race in 24 hour local time
   const double max_soc;                            // Maximum soc of the car in kWh
 
+  FSGPSimulatorParams(ForecastMatrix wind_speed_lut, ForecastMatrix wind_dir_lut,
+                      ForecastMatrix dni_lut, ForecastMatrix dhi_lut,
+                      util::type::Coord charging_coord,
+                      util::type::Time impounding_start_time,
+                      util::type::Time impounding_release_time,
+                      double sim_start_soc, util::type::Coord sim_start_coord,
+                      util::type::Time sim_start_time,
+                      util::type::Time day_one_start_time,
+                      util::type::Time day_one_end_time,
+                      util::type::Time day_start_time, util::type::Time day_end_time,
+                      util::type::Time race_end_time, double max_soc) :
+                      SimulatorParams(wind_speed_lut, wind_dir_lut, dni_lut, dhi_lut),
+                      charging_coord(charging_coord),
+                      impounding_start_time(std::move(impounding_start_time)),
+                      impounding_release_time(std::move(impounding_release_time)),
+                      sim_start_soc(sim_start_soc), sim_start_coord(sim_start_coord),
+                      sim_start_time(std::move(sim_start_time)),
+                      day_one_start_time(std::move(day_one_start_time)),
+                      day_one_end_time(std::move(day_one_end_time)),
+                      day_start_time(std::move(day_start_time)),
+                      day_end_time(std::move(day_end_time)),
+                      race_end_time(std::move(race_end_time)), max_soc(max_soc) {}
+};
+
+inline FSGPSimulatorParams get_fsgp_simulator_params(ConfigParser* parser) {
+  RUNTIME_EXCEPTION(parser != nullptr, "Config parser is null when loading FSGP simulation parameters");
+
+  FSGPSimulatorParams params{
+    ForecastMatrix(parser->get_wind_speed_path()),
+    ForecastMatrix(parser->get_wind_direction_path()),
+    ForecastMatrix(parser->get_dni_path()),
+    ForecastMatrix(parser->get_dhi_path()),
+    parser->get_overnight_charging_location(),
+    parser->get_impounding_start_time(),
+    parser->get_impounding_release_time(),
+    parser->get_current_soc(),
+    parser->get_gps_coordinates(),
+    parser->get_current_date_time(),
+    parser->get_day_one_start_time(),
+    parser->get_day_one_end_time(),
+    parser->get_day_start_time(),
+    parser->get_day_end_time(),
+    parser->get_race_end_time(),
+    parser->get_max_soc()
+  };
+
+  return params;
+}
+
+/** @brief Simulator to simulate a RacePlan on the FSGP route. Simulation parameters
+ * and states are private to the run_sim() function such that all threads share
+ * a single FSGPSimulator object
+ */
+class FSGPSimulator : public Simulator<FSGPSimulator, FSGPRacePlan, FSGPRoute> {
+ private:
+  FSGPSimulatorParams params;
+
  public:
   /* Load all LUTs upon construction */
-  explicit FSGPSimulator(Car model);
+  explicit FSGPSimulator(FSGPSimulatorParams params, Car model);
 
   /** @brief Run a full simulation with a car object and a route
   *

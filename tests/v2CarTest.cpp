@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string>
 
-#include "config/Config.hpp"
+#include "config/ConfigParser.hpp"
 #include "model/Car.hpp"
 #include "model/V2Car.hpp"
 #include "utils/Defines.hpp"

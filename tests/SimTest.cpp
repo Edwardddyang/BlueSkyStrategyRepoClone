@@ -1,4 +1,4 @@
-#include "config/Config.hpp"
+#include "config/ConfigParser.hpp"
 #include "model/CarFactory.hpp"
 #include "model/V1Car.hpp"
 #include "sim/WSCSimulator.hpp"

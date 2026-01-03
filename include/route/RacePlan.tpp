@@ -1,14 +1,9 @@
 #pragma once
 
 template <typename DerivedRacePlan>
-void BaseRacePlan<DerivedRacePlan>::export_json() const {
+void BaseRacePlan<DerivedRacePlan>::export_json(std::filesystem::path dump_path) const {
   DerivedRacePlan& derived = *static_cast<const DerivedRacePlan*>(this);
   using json = nlohmann::json;
-
-  // Create dump directory
-  const std::filesystem::path dump_dir = Config::get_instance().get_dump_dir();
-  std::filesystem::create_directories(dump_dir);
-  const std::filesystem::path path = dump_dir / dump_file_name;
 
   json j = json::array();
 
@@ -18,8 +13,8 @@ void BaseRacePlan<DerivedRacePlan>::export_json() const {
   // Add segments
   derived.export_segments_json_impl(j);
 
-  std::ofstream out(path);
-  RUNTIME_EXCEPTION(out.is_open(), "Could not open {} for writing", path.string());
+  std::ofstream out(dump_path);
+  RUNTIME_EXCEPTION(out.is_open(), "Could not open {} for writing", dump_path.string());
   out << std::setw(4) << j << std::endl;
 }
 

@@ -33,10 +33,8 @@ class Optimizer {
   }
 
  public:
-  Optimizer(SimulatorType sim, RouteType route) : simulator(std::move(sim)),
-            route(std::move(route)), thread_limiter(std::max(1u, static_cast<unsigned int>(
-              std::thread::hardware_concurrency() * Config::get_instance().get_threads()
-            ))) {}
+  Optimizer(SimulatorType sim, RouteType route, unsigned int max_num_threads) : simulator(std::move(sim)),
+            route(std::move(route)), thread_limiter(max_num_threads) {}
 
   /* Apply the optimization algorithm, output a speed profile over
       the segments of the race

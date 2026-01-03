@@ -6,24 +6,24 @@
 
 #include "route/RacePlan.hpp"
 #include "sim/WSCSimulator.hpp"
-#include "config/Config.hpp"
+#include "config/ConfigParser.hpp"
 
 void WSCSimulator::run_sim_impl(const WSCRoute& route, WSCRacePlan* race_plan,
                                 Luts::DataSet* results_lut) const {
   RUNTIME_EXCEPTION(results_lut != nullptr, "Results lut is null");
   RUNTIME_EXCEPTION(race_plan != nullptr, "Race plan is null");
   RUNTIME_EXCEPTION(race_plan->validate_members(route), "Race Plan is improperly created");
-  RUNTIME_EXCEPTION(!wind_speed_lut.is_empty(), "Wind speed lut must be loaded");
-  RUNTIME_EXCEPTION(!wind_dir_lut.is_empty(), "Wind direction lut must be loaded");
-  RUNTIME_EXCEPTION(!dni_lut.is_empty(), "DNI lut must be loaded");
-  RUNTIME_EXCEPTION(!dhi_lut.is_empty(), "DHI Lut must be loaded");
+  RUNTIME_EXCEPTION(!params.wind_speed_lut.is_empty(), "Wind speed lut must be loaded");
+  RUNTIME_EXCEPTION(!params.wind_dir_lut.is_empty(), "Wind direction lut must be loaded");
+  RUNTIME_EXCEPTION(!params.dni_lut.is_empty(), "DNI lut must be loaded");
+  RUNTIME_EXCEPTION(!params.dhi_lut.is_empty(), "DHI Lut must be loaded");
 
-  race_plan->set_start_time(this->sim_start_time);
-  util::type::ForecastCoord sim_start_forecast_coord(sim_start_coord);
-  std::pair<size_t, size_t> dni_cache = dni_lut.initialize_caches(sim_start_forecast_coord, this->sim_start_time);
-  std::pair<size_t, size_t> dhi_cache = dhi_lut.initialize_caches(sim_start_forecast_coord, this->sim_start_time);
-  std::pair<size_t, size_t> wind_speed_cache = wind_speed_lut.initialize_caches(sim_start_forecast_coord, this->sim_start_time);
-  std::pair<size_t, size_t> wind_dir_cache = wind_dir_lut.initialize_caches(sim_start_forecast_coord, this->sim_start_time);
+  race_plan->set_start_time(params.sim_start_time);
+  util::type::ForecastCoord sim_start_forecast_coord(params.sim_start_coord);
+  std::pair<size_t, size_t> dni_cache = params.dni_lut.initialize_caches(sim_start_forecast_coord, params.sim_start_time);
+  std::pair<size_t, size_t> dhi_cache = params.dhi_lut.initialize_caches(sim_start_forecast_coord, params.sim_start_time);
+  std::pair<size_t, size_t> wind_speed_cache = params.wind_speed_lut.initialize_caches(sim_start_forecast_coord, params.sim_start_time);
+  std::pair<size_t, size_t> wind_dir_cache = params.wind_dir_lut.initialize_caches(sim_start_forecast_coord, params.sim_start_time);
   util::type::Irradiance irr;
   util::type::Wind wind;
   util::type::SolarAngle sun;
@@ -31,9 +31,9 @@ void WSCSimulator::run_sim_impl(const WSCRoute& route, WSCRacePlan* race_plan,
   // Initialize simulation state variables
   double accumulated_distance = 0.0;              // In meters
   double driving_time = 0.0;                      // In seconds
-  double battery_energy = this->sim_start_soc;
-  util::type::Coord starting_coord = this->sim_start_coord;
-  util::type::Time curr_time = this->sim_start_time;
+  double battery_energy = params.sim_start_soc;
+  util::type::Coord starting_coord = params.sim_start_coord;
+  util::type::Time curr_time = params.sim_start_time;
   double curr_speed;
   LogMetrics metrics;
 
@@ -54,19 +54,19 @@ void WSCSimulator::run_sim_impl(const WSCRoute& route, WSCRacePlan* race_plan,
       starting_route_index = i;
     }
   }
-  spdlog::debug("Starting SOC: {}", max_soc);
+  spdlog::debug("Starting SOC: {}", params.max_soc);
 
-  const bool is_first_day = curr_time >= day_one_start_time && curr_time < day_one_end_time;
+  const bool is_first_day = curr_time >= params.day_one_start_time && curr_time < params.day_one_end_time;
   // End of day time
   util::type::Time current_day_end;
   if (is_first_day) {
-    current_day_end = util::type::Time::combine_date_and_time(curr_time, day_one_end_time);
+    current_day_end = util::type::Time::combine_date_and_time(curr_time, params.day_one_end_time);
   } else {
-    current_day_end = util::type::Time::combine_date_and_time(curr_time, day_end_time);
+    current_day_end = util::type::Time::combine_date_and_time(curr_time, params.day_end_time);
   }
 
   // Start of next day
-  util::type::Time next_day_start = util::type::Time::combine_date_and_time(curr_time, day_start_time);
+  util::type::Time next_day_start = util::type::Time::combine_date_and_time(curr_time, params.day_start_time);
   next_day_start += SECONDS_IN_DAY;
 
   size_t segment_counter = 0;
@@ -77,8 +77,8 @@ void WSCSimulator::run_sim_impl(const WSCRoute& route, WSCRacePlan* race_plan,
 
   /** Update the irradiance variable - passed in by reference */
   auto update_irradiance = [&](const util::type::ForecastCoord& coord, const util::type::Time& curr_time, util::type::Irradiance& irr) {
-    irr.dni = dni_lut.get_value_and_update_cache(coord, curr_time, dni_cache.first, dni_cache.second);
-    irr.dhi = dhi_lut.get_value_and_update_cache(coord, curr_time, dhi_cache.first, dhi_cache.second);
+    irr.dni = params.dni_lut.get_value_and_update_cache(coord, curr_time, dni_cache.first, dni_cache.second);
+    irr.dhi = params.dhi_lut.get_value_and_update_cache(coord, curr_time, dhi_cache.first, dhi_cache.second);
   };
 
   for (size_t idx=starting_route_index; idx < num_points-1; idx++) {
@@ -97,10 +97,10 @@ void WSCSimulator::run_sim_impl(const WSCRoute& route, WSCRacePlan* race_plan,
 
     /* Update forecast lut index caches and get forecast data at coordinate 1 */
     util::type::ForecastCoord coord_one_forecast(current_coord.lat, current_coord.lon);
-    wind.speed = wind_speed_lut.get_value_and_update_cache(coord_one_forecast, curr_time,
+    wind.speed = params.wind_speed_lut.get_value_and_update_cache(coord_one_forecast, curr_time,
                                         wind_speed_cache.first, wind_speed_cache.second);
 
-    wind.bearing = wind_dir_lut.get_value_and_update_cache(coord_one_forecast, curr_time,
+    wind.bearing = params.wind_dir_lut.get_value_and_update_cache(coord_one_forecast, curr_time,
                                         wind_dir_cache.first, wind_dir_cache.second);
     update_irradiance(coord_one_forecast, curr_time, irr);
 
@@ -113,7 +113,7 @@ void WSCSimulator::run_sim_impl(const WSCRoute& route, WSCRacePlan* race_plan,
       // We first charge stage 1
       const double time_until_eod = current_day_end - curr_time;
       double time_charging = 0.0;
-      while (curr_time < current_day_end && time_charging < control_stop_charge_time) {
+      while (curr_time < current_day_end && time_charging < params.control_stop_charge_time) {
         sun = util::geo::get_az_el(current_coord, curr_time);
         double step_size = get_charging_step_size(curr_time, current_day_end);
         delta_energy += car.compute_static_energy(current_coord, irr, sun, curr_time, step_size);
@@ -124,7 +124,7 @@ void WSCSimulator::run_sim_impl(const WSCRoute& route, WSCRacePlan* race_plan,
         time_charging = time_charging + step_size;
       }
 
-      overflowed_control_stop_time = control_stop_charge_time - time_charging;
+      overflowed_control_stop_time = params.control_stop_charge_time - time_charging;
     }
 
     /* Overnight stop */
@@ -144,8 +144,8 @@ void WSCSimulator::run_sim_impl(const WSCRoute& route, WSCRacePlan* race_plan,
       }
 
       // Adjust new day ends and next day start
-      current_day_end = util::type::Time::combine_date_and_time(curr_time, day_end_time);
-      next_day_start = util::type::Time::combine_date_and_time(curr_time, day_start_time);
+      current_day_end = util::type::Time::combine_date_and_time(curr_time, params.day_end_time);
+      next_day_start = util::type::Time::combine_date_and_time(curr_time, params.day_start_time);
       next_day_start += SECONDS_IN_DAY;
     }
 
@@ -175,8 +175,8 @@ void WSCSimulator::run_sim_impl(const WSCRoute& route, WSCRacePlan* race_plan,
     driving_time += update.delta_time;
 
     /* Make sure the battery doesn't exceed the maximum bound */
-    if (battery_energy + delta_energy > max_soc) {
-      battery_energy = max_soc;
+    if (battery_energy + delta_energy > params.max_soc) {
+      battery_energy = params.max_soc;
     } else {
       battery_energy += delta_energy;
     }
@@ -188,7 +188,7 @@ void WSCSimulator::run_sim_impl(const WSCRoute& route, WSCRacePlan* race_plan,
                           0.0 /* No acceleration */);
 
     /* Invalid simulation if battery goes below 0 or if the end of the race has been reached */
-    if (battery_energy < 0.0 || curr_time > race_end_time) {
+    if (battery_energy < 0.0 || curr_time > params.race_end_time) {
       race_plan->set_viability(false);
       metrics.register_dataset(results_lut);
       return;
@@ -201,15 +201,6 @@ void WSCSimulator::run_sim_impl(const WSCRoute& route, WSCRacePlan* race_plan,
   metrics.register_dataset(results_lut);
 }
 
-WSCSimulator::WSCSimulator(Car model) :
-  control_stop_charge_time(util::constants::mins2secs(Config::get_instance().get_control_stop_charge_time())),
-  sim_start_time(Config::get_instance().get_current_date_time()),
-  sim_start_soc(Config::get_instance().get_current_soc()),
-  day_one_start_time(Config::get_instance().get_day_one_start_time()),
-  day_one_end_time(Config::get_instance().get_day_one_end_time()),
-  day_start_time(Config::get_instance().get_day_start_time()),
-  day_end_time(Config::get_instance().get_day_end_time()),
-  race_end_time(Config::get_instance().get_race_end_time()),
-  sim_start_coord(Config::get_instance().get_gps_coordinates()),
-  max_soc(Config::get_instance().get_max_soc()),
-  Simulator<WSCSimulator, WSCRacePlan, WSCRoute>(model) {}
+WSCSimulator::WSCSimulator(WSCSimulatorParams params, Car model) :
+  Simulator<WSCSimulator, WSCRacePlan, WSCRoute>(model),
+  params(std::move(params)) {}

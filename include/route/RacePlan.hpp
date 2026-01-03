@@ -129,7 +129,7 @@ class BaseRacePlan {
            viable(false) {}
 
   /** @brief Export RacePlan to a json file */
-  void export_json() const;
+  void export_json(std::filesystem::path dump_file) const;
 
   /** @brief Transform race plan into a readable format */
   std::string get_plan_string() const;

@@ -12,42 +12,42 @@ void FSGPSimulator::run_sim_impl(const FSGPRoute& route, FSGPRacePlan* race_plan
   RUNTIME_EXCEPTION(results_lut != nullptr, "Results lut is null");
   RUNTIME_EXCEPTION(race_plan != nullptr, "Race plan is null");
   RUNTIME_EXCEPTION(race_plan->validate_members(route), "Race Plan is improperly created");
-  RUNTIME_EXCEPTION(!wind_speed_lut.is_empty(), "Wind speed lut must be loaded");
-  RUNTIME_EXCEPTION(!wind_dir_lut.is_empty(), "Wind direction lut must be loaded");
-  RUNTIME_EXCEPTION(!dni_lut.is_empty(), "DNI lut must be loaded");
-  RUNTIME_EXCEPTION(!dhi_lut.is_empty(), "DHI Lut must be loaded");
+  RUNTIME_EXCEPTION(!params.wind_speed_lut.is_empty(), "Wind speed lut must be loaded");
+  RUNTIME_EXCEPTION(!params.wind_dir_lut.is_empty(), "Wind direction lut must be loaded");
+  RUNTIME_EXCEPTION(!params.dni_lut.is_empty(), "DNI lut must be loaded");
+  RUNTIME_EXCEPTION(!params.dhi_lut.is_empty(), "DHI Lut must be loaded");
 
   const PointsLut& route_distances = route.get_precomputed_distances();
   const std::vector<double> cornering_speed_limits = route.get_cornering_speed_bounds();
   RUNTIME_EXCEPTION(!route_distances.is_empty(), "FSGP Simulator must use pre-computed distances,"
                                                  "but no data was loaded");
 
-  util::type::ForecastCoord sim_start_forecast_coord(sim_start_coord);
-  std::pair<size_t, size_t> dni_cache = dni_lut.initialize_caches(sim_start_forecast_coord, this->sim_start_time);
-  std::pair<size_t, size_t> dhi_cache = dhi_lut.initialize_caches(sim_start_forecast_coord, this->sim_start_time);
-  std::pair<size_t, size_t> wind_speed_cache = wind_speed_lut.initialize_caches(sim_start_forecast_coord, this->sim_start_time);
-  std::pair<size_t, size_t> wind_dir_cache = wind_dir_lut.initialize_caches(sim_start_forecast_coord, this->sim_start_time);
+  util::type::ForecastCoord sim_start_forecast_coord(params.sim_start_coord);
+  std::pair<size_t, size_t> dni_cache = params.dni_lut.initialize_caches(sim_start_forecast_coord, params.sim_start_time);
+  std::pair<size_t, size_t> dhi_cache = params.dhi_lut.initialize_caches(sim_start_forecast_coord, params.sim_start_time);
+  std::pair<size_t, size_t> wind_speed_cache = params.wind_speed_lut.initialize_caches(sim_start_forecast_coord, params.sim_start_time);
+  std::pair<size_t, size_t> wind_dir_cache = params.wind_dir_lut.initialize_caches(sim_start_forecast_coord, params.sim_start_time);
 
   util::type::Irradiance irr;
   util::type::Wind wind;
   util::type::SolarAngle sun;
 
-  race_plan->set_start_time(this->sim_start_time);
+  race_plan->set_start_time(params.sim_start_time);
 
-  const util::type::ForecastCoord charging_coord_forecast(charging_coord.lat, charging_coord.lon);
+  const util::type::ForecastCoord charging_coord_forecast(params.charging_coord.lat, params.charging_coord.lon);
 
   // Initialize simulation state variables
   double accumulated_distance = 0.0;              // In meters
   double driving_time = 0.0;                      // In seconds
-  double battery_energy = this->sim_start_soc;
-  util::type::Time curr_time = this->sim_start_time;
-  util::type::Coord starting_coord = this->sim_start_coord;
+  double battery_energy = params.sim_start_soc;
+  util::type::Time curr_time = params.sim_start_time;
+  util::type::Coord starting_coord = params.sim_start_coord;
   LogMetrics metrics;
 
   /** Update the irradiance variable - passed in by reference */
   auto update_irradiance = [&](const util::type::ForecastCoord& coord, const util::type::Time& curr_time, util::type::Irradiance& irr) {
-    irr.dni = dni_lut.get_value_and_update_cache(coord, curr_time, dni_cache.first, dni_cache.second);
-    irr.dhi = dhi_lut.get_value_and_update_cache(coord, curr_time, dhi_cache.first, dhi_cache.second);
+    irr.dni = params.dni_lut.get_value_and_update_cache(coord, curr_time, dni_cache.first, dni_cache.second);
+    irr.dhi = params.dhi_lut.get_value_and_update_cache(coord, curr_time, dhi_cache.first, dhi_cache.second);
   };
 
   /* Get route and race plan data */
@@ -66,22 +66,22 @@ void FSGPSimulator::run_sim_impl(const FSGPRoute& route, FSGPRacePlan* race_plan
       starting_route_index = i;
     }
   }
-  spdlog::debug("Starting SOC: {}", max_soc);
+  spdlog::debug("Starting SOC: {}", params.max_soc);
 
-  const bool is_first_day = curr_time >= day_one_start_time && curr_time < day_one_end_time;
+  const bool is_first_day = curr_time >= params.day_one_start_time && curr_time < params.day_one_end_time;
   // End of day time and impounding start time
   util::type::Time current_day_end;
   if (is_first_day) {
-    current_day_end = util::type::Time::combine_date_and_time(curr_time, day_one_end_time);
+    current_day_end = util::type::Time::combine_date_and_time(curr_time, params.day_one_end_time);
   } else {
-    current_day_end = util::type::Time::combine_date_and_time(curr_time, day_end_time);
+    current_day_end = util::type::Time::combine_date_and_time(curr_time, params.day_end_time);
   }
-  util::type::Time impound_start = util::type::Time::combine_date_and_time(curr_time, impounding_start_time);
+  util::type::Time impound_start = util::type::Time::combine_date_and_time(curr_time, params.impounding_start_time);
 
   // Start of next day and impouding release time
-  util::type::Time next_day_start = util::type::Time::combine_date_and_time(curr_time, day_start_time);
+  util::type::Time next_day_start = util::type::Time::combine_date_and_time(curr_time, params.day_start_time);
   next_day_start += SECONDS_IN_DAY;
-  util::type::Time impound_release = util::type::Time::combine_date_and_time(next_day_start, impounding_release_time);
+  util::type::Time impound_release = util::type::Time::combine_date_and_time(next_day_start, params.impounding_release_time);
 
   CarUpdate car_update;
   const size_t num_loops = race_plan->get_num_loops();
@@ -149,11 +149,11 @@ void FSGPSimulator::run_sim_impl(const FSGPRoute& route, FSGPRacePlan* race_plan
         auto charge_in_time_interval = [&](util::type::Time& start_time, const util::type::Time& end_time) {
           while (start_time < end_time) {
             /* Step in 30-second intervals */
-            sun = util::geo::get_az_el(charging_coord, curr_time);
+            sun = util::geo::get_az_el(params.charging_coord, curr_time);
 
             double step_size = get_charging_step_size(start_time, end_time);
             if (sun.El > 0) {
-              delta_energy += car.compute_static_energy(charging_coord, irr, sun, start_time, step_size);
+              delta_energy += car.compute_static_energy(params.charging_coord, irr, sun, start_time, step_size);
               start_time += step_size;
               update_irradiance(charging_coord_forecast, start_time, irr);
             } else {
@@ -174,18 +174,18 @@ void FSGPSimulator::run_sim_impl(const FSGPRoute& route, FSGPRacePlan* race_plan
           charge_in_time_interval(curr_time, next_day_start);
 
           // Update the EoD and next day start timestamps
-          current_day_end = util::type::Time::combine_date_and_time(curr_time, day_end_time);
+          current_day_end = util::type::Time::combine_date_and_time(curr_time, params.day_end_time);
 
-          next_day_start = util::type::Time::combine_date_and_time(curr_time, day_start_time);
+          next_day_start = util::type::Time::combine_date_and_time(curr_time, params.day_start_time);
           next_day_start += SECONDS_IN_DAY;
         }
 
         /* Update forecast lut index caches and get forecast data at the src coordinate */
         util::type::ForecastCoord coord_one_forecast(current_coord.lat, current_coord.lon);
-        wind.speed = wind_speed_lut.get_value_and_update_cache(coord_one_forecast, curr_time,
+        wind.speed = params.wind_speed_lut.get_value_and_update_cache(coord_one_forecast, curr_time,
                                             wind_speed_cache.first, wind_speed_cache.second);
 
-        wind.bearing = wind_dir_lut.get_value_and_update_cache(coord_one_forecast, curr_time,
+        wind.bearing = params.wind_dir_lut.get_value_and_update_cache(coord_one_forecast, curr_time,
                                             wind_dir_cache.first, wind_dir_cache.second);
 
         update_irradiance(coord_one_forecast, curr_time, irr);
@@ -225,8 +225,8 @@ void FSGPSimulator::run_sim_impl(const FSGPRoute& route, FSGPRacePlan* race_plan
         driving_time += car_update.delta_time;
 
         /* Make sure the battery doesn't exceed the maximum bound */
-        if (battery_energy + delta_energy > max_soc) {
-          battery_energy = max_soc;
+        if (battery_energy + delta_energy > params.max_soc) {
+          battery_energy = params.max_soc;
         } else {
           battery_energy += delta_energy;
         }
@@ -238,7 +238,7 @@ void FSGPSimulator::run_sim_impl(const FSGPRoute& route, FSGPRacePlan* race_plan
                               acceleration);
 
         /* Invalid simulation if battery goes below 0 or if the end of the race has been reached */
-        if (battery_energy < 0.0 || curr_time > race_end_time) {
+        if (battery_energy < 0.0 || curr_time > params.race_end_time) {
           race_plan->set_viability(false);
           race_plan->set_inviability_reason("Out of battery charge");
           metrics.register_dataset(results_lut);
@@ -255,17 +255,6 @@ void FSGPSimulator::run_sim_impl(const FSGPRoute& route, FSGPRacePlan* race_plan
   metrics.register_dataset(results_lut);
 }
 
-FSGPSimulator::FSGPSimulator(Car model) :
-  charging_coord(Config::get_instance().get_overnight_charging_location()),
-  impounding_start_time(Config::get_instance().get_impounding_start_time()),
-  impounding_release_time(Config::get_instance().get_impounding_release_time()),
-  sim_start_time(Config::get_instance().get_current_date_time()),
-  sim_start_soc(Config::get_instance().get_current_soc()),
-  day_one_start_time(Config::get_instance().get_day_one_start_time()),
-  day_one_end_time(Config::get_instance().get_day_one_end_time()),
-  day_start_time(Config::get_instance().get_day_start_time()),
-  day_end_time(Config::get_instance().get_day_end_time()),
-  race_end_time(Config::get_instance().get_race_end_time()),
-  sim_start_coord(Config::get_instance().get_gps_coordinates()),
-  max_soc(Config::get_instance().get_max_soc()),
-  Simulator<FSGPSimulator, FSGPRacePlan, FSGPRoute>(model) {}
+FSGPSimulator::FSGPSimulator(FSGPSimulatorParams params, Car model) :
+  Simulator<FSGPSimulator, FSGPRacePlan, FSGPRoute>(model),
+  params(std::move(params)) {}

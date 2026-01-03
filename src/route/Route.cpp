@@ -16,7 +16,7 @@
 
 #include "SimUtils/Defines.hpp"
 #include "route/Route.hpp"
-#include "config/Config.hpp"
+#include "config/ConfigParser.hpp"
 #include "SimUtils/Utilities.hpp"
 #include "SimUtils/Logger.hpp"
 #include "SimUtils/Geography.hpp"
@@ -83,9 +83,8 @@ void append_char_n_times(char ch, uint64_t n, std::stringstream& output) {
   }
 }
 
-WSCRoute::WSCRoute(std::filesystem::path route_path) {
-  this->max_route_speed = util::constants::kph2mps(
-                            Config::get_instance().get_max_route_speed());
+WSCRoute::WSCRoute(WSCRouteParameters params, std::filesystem::path route_path) :
+  params(std::move(params)) {
   // Read route csv file
   std::fstream base_route(route_path);
   RUNTIME_EXCEPTION(base_route.is_open(), "Base route file not found {}",
@@ -136,9 +135,6 @@ WSCRoute::WSCRoute(std::filesystem::path route_path) {
   base_route.close();
 
   spdlog::info("Loaded base route {} with {} coordinates", route_path.string(), std::to_string(num_points));
-
-  // Load control stops
-  this->control_stops = Config::get_instance().get_control_stops();
 }
 
 /** @brief Segment a route (array of coordinates) into uniform segments
@@ -190,12 +186,11 @@ std::vector<std::pair<size_t, size_t>> WSCRoute::segment_route_uniform(double le
   return segments;
 }
 
-FSGPRoute::FSGPRoute(std::filesystem::path route_path,
+FSGPRoute::FSGPRoute(FSGPRouteParameters params,
+                     std::filesystem::path route_path,
                      std::filesystem::path precomputed_distances_path,
-                     std::filesystem::path corner_bounds_path) {
-  this->max_route_speed = util::constants::kph2mps(
-                            Config::get_instance().get_max_route_speed());
-
+                     std::filesystem::path corner_bounds_path) :
+                     params(std::move(params)) {
   // Read route csv file
   std::fstream base_route(route_path);
   RUNTIME_EXCEPTION(base_route.is_open(), "Base route file not found {}",
@@ -249,7 +244,7 @@ FSGPRoute::FSGPRoute(std::filesystem::path route_path,
 
   // Load corner bounds path
   if (!corner_bounds_path.empty()) {
-    this->init_cornering_bounds(corner_bounds_path, this->max_route_speed);
+    this->init_cornering_bounds(corner_bounds_path, params.max_route_speed);
   }
 
   // Load precomputed distances

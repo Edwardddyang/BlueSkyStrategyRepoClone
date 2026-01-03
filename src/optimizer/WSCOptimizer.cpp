@@ -10,33 +10,27 @@
 #include "spdlog/spdlog.h"
 #include "opt/WSCOptimizer.hpp"
 #include "route/Route.hpp"
-#include "config/Config.hpp"
+#include "config/ConfigParser.hpp"
 #include "SimUtils/Defines.hpp"
 
 WSCRacePlan WSCOptimizer::optimize_impl() {
   /* Loop from speeds 1 -> max. speed to get the maximum viable speed */
-  const int max_speed = static_cast<int>(Config::get_instance().get_max_speed());
-  const int min_speed = static_cast<int>(Config::get_instance().get_min_speed());
-  RUNTIME_EXCEPTION(max_speed >= min_speed, "Maximum speed must be >= Minimum speed");
+  RUNTIME_EXCEPTION(params.max_speed >= params.min_speed, "Maximum speed must be >= Minimum speed");
 
   // Create results folder
-  bool save_csv = Config::get_instance().get_save_csv();
-  std::filesystem::path results_folder;
-  if (save_csv) {
-    const std::string strat_root = Config::get_instance().get_strat_root();
-    results_folder = std::filesystem::path(strat_root) / "Results";
-    std::filesystem::create_directory(results_folder);
+  if (params.save_csv) {
+    std::filesystem::create_directory(params.results_dir);
   }
 
   // Create threads
-  const int total_num_threads = max_speed - min_speed + 1; 
+  const int total_num_threads = params.max_speed - params.min_speed + 1; 
   std::vector<std::thread> threads(total_num_threads);
 
   result_luts.clear();
   race_plans.clear();
 
   // Create all result luts and race plans
-  for (int i=min_speed; i <= max_speed; i++) {
+  for (int i=params.min_speed; i <= params.max_speed; i++) {
     result_luts.emplace_back();
     const BaseSegment segment(
       0, route.get_num_points() - 1, static_cast<double>(i), static_cast<double>(i),
@@ -59,15 +53,15 @@ WSCRacePlan WSCOptimizer::optimize_impl() {
   WSCRacePlan max_viable_plan;
   for (int i=0; i < total_num_threads; i++) {
     /* Log the simulation */
-    if (save_csv) {
-      result_luts[i].export_dataset((results_folder / (std::to_string(i + min_speed) + ".csv")).string());
+    if (params.save_csv) {
+      result_luts[i].export_dataset((params.results_dir / (std::to_string(i + params.min_speed) + ".csv")).string());
     }
 
     if (race_plans[i].is_viable()) {
-      spdlog::info(std::to_string(i + min_speed) + " kph is viable.");
+      spdlog::info(std::to_string(i + params.min_speed) + " kph is viable.");
       max_viable_plan = race_plans[i];
     } else {
-      spdlog::info(std::to_string(i + min_speed) + " kph is not viable.");
+      spdlog::info(std::to_string(i + params.min_speed) + " kph is not viable.");
     }
   }
 
@@ -75,5 +69,5 @@ WSCRacePlan WSCOptimizer::optimize_impl() {
   return max_viable_plan;
 }
 
-WSCOptimizer::WSCOptimizer(WSCSimulator simulator, WSCRoute route) :
-                           Optimizer(simulator, route) {}
+WSCOptimizer::WSCOptimizer(WSCOptimizerParams params, WSCSimulator simulator, WSCRoute route) :
+                           Optimizer(simulator, route, params.max_num_threads), params(std::move(params)) {}

@@ -7,32 +7,16 @@
 #include "SimUtils/CustomException.hpp"
 
 #include "model/Car.hpp"
-#include "config/Config.hpp"
+#include "config/ConfigParser.hpp"
 
 
 /* Load all LUTs and car parameters */
-Car::Car() :
-  mass(Config::get_instance().get_car_mass()),
-  cda(Config::get_instance().get_cda()),
-  motor_efficiency(Config::get_instance().get_motor_efficiency()),
-  regen_efficiency(Config::get_instance().get_regen_efficiency()),
-  battery_efficiency(Config::get_instance().get_battery_efficiency()),
-  passive_electric_loss(Config::get_instance().get_passive_electric_loss()),
-  air_density(Config::get_instance().get_air_density()),
-  array_area(Config::get_instance().get_array_area()),
-  max_soc(Config::get_instance().get_max_soc()),
-  tire_pressure(Config::get_instance().get_tire_pressure()),
-  array_efficiency(Config::get_instance().get_array_efficiency()),
-  max_braking_force(Config::get_instance().get_max_braking_force()),
-  max_motor_power(Config::get_instance().get_max_motor_power()),
-  yint_rolling_resistance((Config::get_instance().get_roll_res_yint_path())),
-  slope_rolling_resistance(Config::get_instance().get_roll_res_slope_path()),
-  power_factors(Config::get_instance().get_power_factor_path()) {}
+Car::Car(CarParameters params) : params(std::move(params)) {}
 
 EnergyUpdate Car::compute_aero_loss(double speed, double car_bearing,
                                     util::type::Wind wind, double delta_time) const {
   const double speed_relative_to_wind = util::geo::get_speed_relative_to_wind(speed, car_bearing, wind);  // m/s
-  const double force = 0.5 * air_density * cda * pow(speed_relative_to_wind, 2);  // N
+  const double force = 0.5 * params.air_density * params.cda * pow(speed_relative_to_wind, 2);  // N
   const double power = force * speed;  // Watt = Newton * m/s
   const double energy = util::constants::watts2kwh(delta_time, power);  // kwh
 
@@ -40,11 +24,11 @@ EnergyUpdate Car::compute_aero_loss(double speed, double car_bearing,
 }
 
 EnergyUpdate Car::compute_rolling_loss(double speed, double delta_time, double cos_theta) const {
-  const double y_int_rr = yint_rolling_resistance.get_value(tire_pressure, util::constants::mps2kph(speed));
-  const double slope_rr = slope_rolling_resistance.get_value(tire_pressure, util::constants::mps2kph(speed));
+  const double y_int_rr = params.yint_rolling_resistance.get_value(params.tire_pressure, util::constants::mps2kph(speed));
+  const double slope_rr = params.slope_rolling_resistance.get_value(params.tire_pressure, util::constants::mps2kph(speed));
 
   const double rolling_coefficient = (y_int_rr + slope_rr * speed);  // Unitless, slope_rr is units of s / m
-  const double normal_force = mass * util::constants::GRAVITY_ACCELERATION * cos_theta;  // N
+  const double normal_force = params.mass * util::constants::GRAVITY_ACCELERATION * cos_theta;  // N
   const double force = rolling_coefficient * normal_force;  // N
   const double power = force * speed;  // Watt = Newton * m/s
   const double energy = util::constants::watts2kwh(delta_time, power);  // kwh
@@ -53,7 +37,7 @@ EnergyUpdate Car::compute_rolling_loss(double speed, double delta_time, double c
 }
 
 EnergyUpdate Car::compute_gravitational_loss(double speed, double delta_time, double sin_theta) const {
-  const double force = mass * util::constants::GRAVITY_ACCELERATION * sin_theta;  // N
+  const double force = params.mass * util::constants::GRAVITY_ACCELERATION * sin_theta;  // N
   const double power = force * speed;  // Watt = Newton * m/s
   const double energy = util::constants::watts2kwh(delta_time, power);  // kwh
 
@@ -61,7 +45,7 @@ EnergyUpdate Car::compute_gravitational_loss(double speed, double delta_time, do
 }
 
 double Car::compute_electric_loss(double delta_time) const {
-  const double energy = delta_time * passive_electric_loss;  // Joules = s * W
+  const double energy = delta_time * params.passive_electric_loss;  // Joules = s * W
   return util::constants::joules2kwh(energy);
 }
 
@@ -69,8 +53,8 @@ EnergyUpdate Car::compute_array_gain(double delta_time, util::type::Irradiance i
                                      double az, double el) const {
   const size_t az_idx = static_cast<size_t>(round(az));
   const size_t el_idx = static_cast<size_t>(round(el));
-  const double power_factor = power_factors.get_value(el_idx, az_idx);  // Unitless
-  const double power = (power_factor * irr.dni) + (irr.dhi * array_efficiency * array_area);  // Watts
+  const double power_factor = params.power_factors.get_value(el_idx, az_idx);  // Unitless
+  const double power = (power_factor * irr.dni) + (irr.dhi * params.array_efficiency * params.array_area);  // Watts
   const double energy = util::constants::watts2kwh(delta_time, power);  // kwh
   return EnergyUpdate(power, energy);
 }
@@ -106,8 +90,8 @@ MotorEnergyLoss Car::calculate_motor_loss(double init_speed, double acceleration
     gravity_loss = compute_gravitational_loss(init_speed, 0.0, g.sin_theta);
 
     const double resistive_force = aero_loss.force + rolling_loss.force + gravity_loss.force;
-    const double braking_force = mass * std::abs(acceleration) - resistive_force;
-    if (braking_force > max_braking_force) {
+    const double braking_force = params.mass * std::abs(acceleration) - resistive_force;
+    if (braking_force > params.max_braking_force) {
       throw util::error::InvalidCalculation("Braking force is too large");
     }
 
@@ -142,7 +126,7 @@ MotorEnergyLoss Car::calculate_motor_loss(double init_speed, double acceleration
         aero_loss = compute_aero_loss(speed, g.bearing, wind, timestep);
         rolling_loss = compute_rolling_loss(speed, timestep, g.cos_theta);
         gravity_loss = compute_gravitational_loss(speed, timestep, g.sin_theta);
-        const double acceleration_power = mass * acceleration * speed;
+        const double acceleration_power = params.mass * acceleration * speed;
 
         aero_power_data[i] = aero_loss.power;
         rolling_power_data[i] = rolling_loss.power;
@@ -150,7 +134,7 @@ MotorEnergyLoss Car::calculate_motor_loss(double init_speed, double acceleration
         gravity_power_data[i] = gravity_loss.power;
         const double instataneous_motor_power = aero_loss.power + rolling_loss.power +
                                                 acceleration_power + gravity_loss.power;
-        if (instataneous_motor_power > max_motor_power) {
+        if (instataneous_motor_power > params.max_motor_power) {
           throw util::error::InvalidCalculation("Maximum motor power exceeded during acceleration segment");
         }
       }
@@ -164,7 +148,7 @@ MotorEnergyLoss Car::calculate_motor_loss(double init_speed, double acceleration
     const double gravitational_energy_loss = util::constants::joules2kwh(integrator(timestep_data, gravity_power_data));
     double motor_energy = (aero_energy_loss + rolling_energy_loss +
                           acceleration_energy_loss + gravitational_energy_loss)
-                          / motor_efficiency;
+                          / params.motor_efficiency;
 
     // Assume no regen
     if (motor_energy < 0.0) {
@@ -197,7 +181,7 @@ CarUpdate Car::compute_constant_travel_update(util::type::Coord coord_one,
   double motor_power = aero_loss.power + rolling_loss.power + gravity_loss.power;
   double motor_energy = aero_loss.energy + rolling_loss.energy + gravity_loss.energy;
 
-  if (motor_power > max_motor_power) {
+  if (motor_power > params.max_motor_power) {
     throw util::error::InvalidCalculation("Maximum motor power exceeded during constant speed segment");
   }
 
@@ -206,11 +190,11 @@ CarUpdate Car::compute_constant_travel_update(util::type::Coord coord_one,
     motor_power = 0.0;
     motor_energy = 0.0;
   } else {
-    motor_energy = motor_energy / motor_efficiency;
+    motor_energy = motor_energy / params.motor_efficiency;
   }
 
-  const double battery_energy_in = array_gain.energy * battery_efficiency;
-  const double battery_energy_out = (motor_energy + electric_loss) / battery_efficiency;
+  const double battery_energy_in = array_gain.energy * params.battery_efficiency;
+  const double battery_energy_out = (motor_energy + electric_loss) / params.battery_efficiency;
   const double delta_battery = battery_energy_in - battery_energy_out;
 
   return CarUpdate(
@@ -237,8 +221,8 @@ CarUpdate Car::compute_acceleration_travel_update(util::type::Coord coord_one,
 
   const MotorEnergyLoss m = calculate_motor_loss(init_speed, acceleration, delta_time, g, wind);
 
-  const double battery_energy_in = array_gain.energy * battery_efficiency;
-  const double battery_energy_out = (m.motor_energy + electric_loss)  / battery_efficiency;
+  const double battery_energy_in = array_gain.energy * params.battery_efficiency;
+  const double battery_energy_out = (m.motor_energy + electric_loss)  / params.battery_efficiency;
   const double delta_battery = battery_energy_in - battery_energy_out;
 
   const double average_motor_power = util::constants::kwh2joules(m.motor_energy) / delta_time;
@@ -278,7 +262,7 @@ CarUpdate Car::compute_dual_travel_update(util::type::Coord coord_one,
   // These are not dependent on whether the car accelerates or travels at constant speed
   const double electric_loss = compute_electric_loss(delta_time);
   const EnergyUpdate array_gain = compute_array_gain(delta_time, irr, g.az_el.Az, g.az_el.El);
-  const double battery_energy_in = array_gain.energy * battery_efficiency;
+  const double battery_energy_in = array_gain.energy * params.battery_efficiency;
 
   // Calculate acceleration component
   const MotorEnergyLoss m = calculate_motor_loss(init_speed, acceleration, delta_time, g, wind);
@@ -302,7 +286,7 @@ CarUpdate Car::compute_dual_travel_update(util::type::Coord coord_one,
   rolling_energy_loss += rolling_loss.energy;
   gravity_energy_loss += gravity_loss.energy;
 
-  if (motor_power > max_motor_power) {
+  if (motor_power > params.max_motor_power) {
     throw util::error::InvalidCalculation("Maximum motor power exceeded during constant speed segment");
   }
 
@@ -312,7 +296,7 @@ CarUpdate Car::compute_dual_travel_update(util::type::Coord coord_one,
 
   // Calculate net delta
   const double total_motor_energy = motor_energy_out_acceleration + motor_energy_out_constant;
-  const double battery_energy_out = (total_motor_energy + electric_loss) / battery_efficiency;
+  const double battery_energy_out = (total_motor_energy + electric_loss) / params.battery_efficiency;
   const double delta_battery = battery_energy_in - battery_energy_out;
 
   const double average_motor_power = util::constants::kwh2joules(total_motor_energy) / delta_time;
@@ -339,8 +323,8 @@ double Car::compute_static_energy(util::type::Coord coord,
   const double electric_loss = compute_electric_loss(charge_time);
   const EnergyUpdate array_gain = compute_array_gain(charge_time, irr, az_el.Az, az_el.El);
 
-  const double battery_energy_in = array_gain.energy * battery_efficiency;
-  const double battery_energy_out = electric_loss / battery_efficiency;
+  const double battery_energy_in = array_gain.energy * params.battery_efficiency;
+  const double battery_energy_out = electric_loss / params.battery_efficiency;
 
   const double delta_battery = battery_energy_in - battery_energy_out;
 

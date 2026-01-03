@@ -9,43 +9,43 @@
 #include <utility>
 
 #include "sim/ASCSimulator.hpp"
-#include "config/Config.hpp"
+#include "config/ConfigParser.hpp"
 
 void ASCSimulator::run_sim_impl(const ASCRoute& route, ASCRacePlan* race_plan,
                                 Luts::DataSet* results_lut) {
   RUNTIME_EXCEPTION(results_lut != nullptr, "Results lut is null");
   RUNTIME_EXCEPTION(race_plan != nullptr, "Race plan is null");
   RUNTIME_EXCEPTION(race_plan->validate_members(route), "Race Plan is improperly created");
-  RUNTIME_EXCEPTION(!wind_speed_lut.is_empty(), "Wind speed lut must be loaded");
-  RUNTIME_EXCEPTION(!wind_dir_lut.is_empty(), "Wind direction lut must be loaded");
-  RUNTIME_EXCEPTION(!dni_lut.is_empty(), "DNI lut must be loaded");
-  RUNTIME_EXCEPTION(!dhi_lut.is_empty(), "DHI Lut must be loaded");
+  RUNTIME_EXCEPTION(!params.wind_speed_lut.is_empty(), "Wind speed lut must be loaded");
+  RUNTIME_EXCEPTION(!params.wind_dir_lut.is_empty(), "Wind direction lut must be loaded");
+  RUNTIME_EXCEPTION(!params.dni_lut.is_empty(), "DNI lut must be loaded");
+  RUNTIME_EXCEPTION(!params.dhi_lut.is_empty(), "DHI Lut must be loaded");
 
-  util::type::ForecastCoord sim_start_forecast_coord(sim_start_coord);
-  std::pair<size_t, size_t> dni_cache = dni_lut.initialize_caches(sim_start_forecast_coord, this->sim_start_time);
-  std::pair<size_t, size_t> dhi_cache = dhi_lut.initialize_caches(sim_start_forecast_coord, this->sim_start_time);
-  std::pair<size_t, size_t> wind_speed_cache = wind_speed_lut.initialize_caches(sim_start_forecast_coord, this->sim_start_time);
-  std::pair<size_t, size_t> wind_dir_cache = wind_dir_lut.initialize_caches(sim_start_forecast_coord, this->sim_start_time);
+  util::type::ForecastCoord sim_start_forecast_coord(params.sim_start_coord);
+  std::pair<size_t, size_t> dni_cache = params.dni_lut.initialize_caches(sim_start_forecast_coord, params.sim_start_time);
+  std::pair<size_t, size_t> dhi_cache = params.dhi_lut.initialize_caches(sim_start_forecast_coord, params.sim_start_time);
+  std::pair<size_t, size_t> wind_speed_cache = params.wind_speed_lut.initialize_caches(sim_start_forecast_coord, params.sim_start_time);
+  std::pair<size_t, size_t> wind_dir_cache = params.wind_dir_lut.initialize_caches(sim_start_forecast_coord, params.sim_start_time);
 
   util::type::Irradiance irr;
   util::type::Wind wind;
   util::type::SolarAngle sun;
 
-  race_plan->set_start_time(this->sim_start_time);
+  race_plan->set_start_time(params.sim_start_time);
   // Reset results lut logs
   // results_lut.reset_logs();
 
   // Initialize simulation state variables
   double accumulated_distance = 0.0;
   double driving_time = 0.0;
-  double battery_energy = this->sim_start_soc;
-  util::type::Time curr_time = this->sim_start_time;
-  util::type::Coord starting_coord = this->sim_start_coord;
+  double battery_energy = params.sim_start_soc;
+  util::type::Time curr_time = params.sim_start_time;
+  util::type::Coord starting_coord = params.sim_start_coord;
 
   /** Update the irradiance variable - passed in by reference */
   auto update_irradiance = [&](const util::type::ForecastCoord& coord, const util::type::Time& curr_time, util::type::Irradiance& irr) {
-    irr.dni = dni_lut.get_value_and_update_cache(coord, curr_time, dni_cache.first, dni_cache.second);
-    irr.dhi = dhi_lut.get_value_and_update_cache(coord, curr_time, dhi_cache.first, dhi_cache.second);
+    irr.dni = params.dni_lut.get_value_and_update_cache(coord, curr_time, dni_cache.first, dni_cache.second);
+    irr.dhi = params.dhi_lut.get_value_and_update_cache(coord, curr_time, dhi_cache.first, dhi_cache.second);
   };
 
   // 1. Iterate through base legs
@@ -90,11 +90,11 @@ void ASCSimulator::run_sim_impl(const ASCRoute& route, ASCRacePlan* race_plan,
   //     ghi_lut.update_index_cache(&ghi_cache, coord, curr_time.get_utc_time_point());
   //     irr.ghi = ghi_lut.get_value(ghi_cache);
   //   } else {
-  //     dni_lut.update_index_cache(&dni_cache, coord, curr_time.get_utc_time_point());
-  //     irr.dni = dni_lut.get_value(dni_cache);
+  //     params.dni_lut.update_index_cache(&dni_cache, coord, curr_time.get_utc_time_point());
+  //     irr.dni = params.dni_lut.get_value(dni_cache);
 
-  //     dhi_lut.update_index_cache(&dhi_cache, coord, curr_time.get_utc_time_point());
-  //     irr.dhi = dhi_lut.get_value(dhi_cache);
+  //     params.dhi_lut.update_index_cache(&dhi_cache, coord, curr_time.get_utc_time_point());
+  //     irr.dhi = params.dhi_lut.get_value(dhi_cache);
   //   }
   // };
 
@@ -118,11 +118,11 @@ void ASCSimulator::run_sim_impl(const ASCRoute& route, ASCRacePlan* race_plan,
   //   /* Update forecast lut index caches and get forecast data at coordinate 1 */
   //   ForecastCoord coord_one_forecast(current_coord.lat, current_coord.lon);
 
-  //   wind_speed_lut.update_index_cache(&wind_speed_cache, coord_one_forecast, curr_time.get_utc_time_point());
-  //   double wind_speed = wind_speed_lut.get_value(wind_speed_cache);
+  //   params.wind_speed_lut.update_index_cache(&wind_speed_cache, coord_one_forecast, curr_time.get_utc_time_point());
+  //   double wind_speed = params.wind_speed_lut.get_value(wind_speed_cache);
 
-  //   wind_dir_lut.update_index_cache(&wind_dir_cache, coord_one_forecast, curr_time.get_utc_time_point());
-  //   double wind_dir = wind_dir_lut.get_value(wind_dir_cache);
+  //   params.wind_dir_lut.update_index_cache(&wind_dir_cache, coord_one_forecast, curr_time.get_utc_time_point());
+  //   double wind_dir = params.wind_dir_lut.get_value(wind_dir_cache);
 
   //   update_irradiance(coord_one_forecast, curr_time, irr);
   //   Wind wind = Wind(wind_dir, wind_speed);
@@ -226,13 +226,6 @@ void ASCSimulator::run_sim_impl(const ASCRoute& route, ASCRacePlan* race_plan,
   // race_plan->set_time_taken(curr_time.get_local_time_point() - race_start_time.get_local_time_point());
 }
 
-ASCSimulator::ASCSimulator(Car model) :
-  sim_start_time(Config::get_instance().get_current_date_time()),
-  sim_start_soc(Config::get_instance().get_current_soc()),
-  day_start_time(Config::get_instance().get_day_start_time()),
-  day_end_time(Config::get_instance().get_day_end_time()),
-  race_end_time(Config::get_instance().get_race_end_time()),
-  sim_start_coord(Config::get_instance().get_gps_coordinates()),
-  max_soc(Config::get_instance().get_max_soc()),
-  checkpoint_hold_time(Config::get_instance().get_control_stop_charge_time()), // add var to config?
-  Simulator<ASCSimulator, ASCRacePlan, ASCRoute>(model) {}
+ASCSimulator::ASCSimulator(ASCSimulatorParams params, Car model) :
+  Simulator<ASCSimulator, ASCRacePlan, ASCRoute>(model),
+  params(std::move(params)) {}

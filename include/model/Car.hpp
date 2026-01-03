@@ -6,7 +6,7 @@
 
 #include "SimUtils/Types.hpp"
 #include "SimUtils/Luts.hpp"
-#include "config/Config.hpp"
+#include "config/ConfigParser.hpp"
 #pragma warning(push)
 #pragma warning(disable : 4267) // Disable size_t to long warning
 #include <libIntegrate/Integrate.hpp>
@@ -89,11 +89,8 @@ struct MotorEnergyLoss {
                   acceleration_loss(acceleration_loss), motor_energy(motor_energy) {}
 };
 
-// All class members should be initialized when constructed
-// to ensure thread safety
-class Car {
- private:
-  /* Car parameters */
+/** Injected car parameters */
+struct CarParameters {
   const double mass;                      // kg
   const double cda;                       // Unitless
   const double motor_efficiency;          // Unitless
@@ -111,6 +108,31 @@ class Car {
   const EffLut slope_rolling_resistance;  // s / m
   const BasicLut power_factors;           // m^2
 
+  CarParameters(double mass, double cda, double motor_efficiency,
+                double regen_efficiency, double battery_efficiency,
+                double passive_electric_loss, double air_density,
+                double array_area, double max_soc, double tire_pressure,
+                double array_efficiency, double max_braking_force,
+                double max_motor_power, EffLut yint_rolling_resistance,
+                EffLut slope_rolling_resistance, BasicLut power_factors) :
+  mass(mass), cda(cda), motor_efficiency(motor_efficiency),
+  regen_efficiency(regen_efficiency), battery_efficiency(battery_efficiency),
+  passive_electric_loss(passive_electric_loss), air_density(air_density),
+  array_area(array_area), max_soc(max_soc), tire_pressure(tire_pressure),
+  array_efficiency(array_efficiency), max_braking_force(max_braking_force),
+  max_motor_power(max_motor_power),
+  yint_rolling_resistance(std::move(yint_rolling_resistance)),
+  slope_rolling_resistance(std::move(slope_rolling_resistance)),
+  power_factors(std::move(power_factors)) {}
+};
+
+// All class members should be initialized when constructed
+// to ensure thread safety
+class Car {
+ private:
+  /* Car parameters */
+  const CarParameters params;
+
   // Integrator for calculating acceleration energy losses
   _1D::SimpsonRule<double> integrator;
 
@@ -118,7 +140,7 @@ class Car {
   const int num_data_points_per_second = 10;
 
  public:
-  Car();
+  Car(CarParameters params);
  
   /** @brief Compute the aerodynamic loss over a time period
    *

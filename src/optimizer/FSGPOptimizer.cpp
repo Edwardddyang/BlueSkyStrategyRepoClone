@@ -15,7 +15,7 @@
 #include "spdlog/spdlog.h"
 #include "opt/FSGPOptimizer.hpp"
 #include "route/Route.hpp"
-#include "config/Config.hpp"
+#include "config/ConfigParser.hpp"
 #include "SimUtils/Defines.hpp"
 #include "SimUtils/Constants.hpp"
 #include "opt/PopulationGenerator.hpp"

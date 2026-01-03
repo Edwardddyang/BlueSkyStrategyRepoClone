@@ -1,6 +1,8 @@
-# This CMake file creates two targets: 
+# This CMake file creates the following targets: 
 # 1. The RaceSim dynamic library .dll and associated unit tests
-# 2. The opt.exe executable
+# 2. A sample executable wsc.exe that optimizes for WSC
+# 3. A sample executable fsgp.exe that optimizes for FSGP
+# 4. A sample executable asc.exe that optimizes for ASC
 
 cmake_minimum_required(VERSION 3.12)
 cmake_policy(SET CMP0091 NEW)
@@ -21,7 +23,7 @@ set(MODEL_SOURCES
     src/model/Car.cpp
 )
 set(CONFIG_SOURCES
-    src/config/Config.cpp
+    src/config/ConfigParser.cpp
 )
 set(OPTIMIZER_SOURCES
     src/optimizer/WSCOptimizer.cpp
@@ -64,8 +66,8 @@ set_target_properties(RaceSim PROPERTIES
   POSITION_INDEPENDENT_CODE ON)
 # ---------------------------------------------------------
 
-# ------------------- opt.exe executable ------------------
-# add_executable(opt ${CMAKE_SOURCE_DIR}/src/main.cpp)
+# ------------------- WSC Optimizer ---------------------------
+# add_executable(wsc ${CMAKE_SOURCE_DIR}/src/WSC.cpp)
 # target_link_libraries(opt PRIVATE RaceSim) 
 # target_compile_features(opt PRIVATE cxx_std_20)
 

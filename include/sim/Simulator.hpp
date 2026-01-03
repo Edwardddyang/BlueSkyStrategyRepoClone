@@ -14,7 +14,7 @@ Class to run the a full scale simulation on a designated route
 #include "model/Car.hpp"
 #include "SimUtils/Types.hpp"
 #include "SimUtils/Luts.hpp"
-#include "config/Config.hpp"
+#include "config/ConfigParser.hpp"
 
 using ForecastMatrix = Luts::ForecastLut<double, util::type::Time>;
 inline constexpr uint32_t SECONDS_IN_DAY = 86400;
@@ -115,6 +115,34 @@ struct LogMetrics {
   }
 };
 
+/** Injected simulation parameters */
+struct SimulatorParams {
+  const ForecastMatrix wind_speed_lut;
+  const ForecastMatrix wind_dir_lut;
+  const ForecastMatrix dni_lut;
+  const ForecastMatrix dhi_lut;
+
+  SimulatorParams(ForecastMatrix wind_speed,
+                  ForecastMatrix wind_dir,
+                  ForecastMatrix dni,
+                  ForecastMatrix dhi) :
+    wind_speed_lut(std::move(wind_speed)),
+    wind_dir_lut(std::move(wind_dir)),
+    dni_lut(std::move(dni)), dhi_lut(std::move(dhi)) {}
+};
+
+/** Fill simulation parameters from configuration file */
+inline SimulatorParams get_simulator_params(ConfigParser* parser) {
+  RUNTIME_EXCEPTION(parser != nullptr, "Config parser is null when loading simulation parameters");
+  SimulatorParams parameters{
+    ForecastMatrix(parser->get_wind_speed_path()),
+    ForecastMatrix(parser->get_wind_direction_path()),
+    ForecastMatrix(parser->get_dni_path()),
+    ForecastMatrix(parser->get_dhi_path())
+  };
+  return parameters;
+}
+
 // Simulator interface
 // All (derived) class members should be initialized exactly ONCE when the object is constructed.
 // Afterwards, they should only be read. This is to ensure that the Simulator object can be
@@ -125,12 +153,6 @@ class Simulator {
  protected:
 	/* Step size in seconds when charging */
 	const int CHARGING_STEP_SIZE = 30;
-
-	/* Weather forecasting LUTs */
-	const ForecastMatrix wind_speed_lut;
-	const ForecastMatrix wind_dir_lut;
-	const ForecastMatrix dni_lut;
-	const ForecastMatrix dhi_lut;
 
 	/* Route to simulate on and the model to use */
 	const Car car;
@@ -148,12 +170,7 @@ class Simulator {
 
  public:
 	/* Load all LUTs upon construction */
-	explicit Simulator(Car model) :
-          car(std::move(model)),
-          wind_speed_lut(Config::get_instance().get_wind_speed_path()),
-          wind_dir_lut(Config::get_instance().get_wind_direction_path()),
-          dni_lut(Config::get_instance().get_dni_path()),
-          dhi_lut(Config::get_instance().get_dhi_path()) {}
+	explicit Simulator(Car model) : car(std::move(model)) {}
 
 	/** @brief Run a full simulation with a car object and a route
 	*

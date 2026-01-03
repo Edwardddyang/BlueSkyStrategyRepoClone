@@ -15,7 +15,7 @@
 #include <utility>
 #include <iostream>
 
-#include "Config/config.hpp"
+#include "config/ConfigParser.hpp"
 #include "SimUtils/Luts.hpp"
 #include "SimUtils/Types.hpp"
 #include "nlohmann/json.hpp"
@@ -43,14 +43,32 @@ std::string truncate_number(double number, int n);
 //////////////////////// Race Route Definition ////////////////////////
 ///////////////////////////////////////////////////////////////////////
 
+struct WSCRouteParameters {
+  const double max_route_speed;                // Maximum speed of the route in m/s
+  const std::unordered_set<int> control_stops; // Indices of route_points where control stops
+                                               // are located
+
+  WSCRouteParameters(double max_route_speed,
+                     std::unordered_set<int> control_stops) :
+                     max_route_speed(max_route_speed),
+                     control_stops(std::move(control_stops)) {}
+};
+
+inline WSCRouteParameters get_wsc_route_params(ConfigParser* parser) {
+  RUNTIME_EXCEPTION(parser != nullptr, "Parser is null when loading WSC Route parameters");
+  return WSCRouteParameters{
+    util::constants::kph2mps(parser->get_max_route_speed()),
+    parser->get_control_stops()     
+  };
+}
+
 /** Representation of the WSC Route */
 class WSCRoute {
  private:
   /* Points of the route */
   CoordVec route_points;
 
-  /* Indices of route_points where control stops are located */
-  std::unordered_set<int> control_stops;
+  const WSCRouteParameters params;
 
   /* Number of points along the route */
   size_t num_points;
@@ -58,19 +76,17 @@ class WSCRoute {
   /* Total length of the route in m */
   double route_length;
 
-  /* Maximum speed of the route (m/s) - comes from regulations */
-  double max_route_speed;
  public:
   /** @brief Load coordinates from a CSV file with layout |latitude|longitude|altitude */
-  WSCRoute(std::filesystem::path route_path);
+  WSCRoute(WSCRouteParameters params, std::filesystem::path route_path);
   WSCRoute() = default;
 
   /* Getters */
-  inline std::unordered_set<int> get_control_stops() const {return control_stops;}
+  inline std::unordered_set<int> get_control_stops() const {return params.control_stops;}
   inline const CoordVec& get_route_points() const {return route_points;}
   inline size_t get_num_points() const {return route_points.size();}
   inline double get_route_length() const {return route_length;}
-  inline double get_max_route_speed() const {return max_route_speed;}
+  inline double get_max_route_speed() const {return params.max_route_speed;}
   inline bool is_empty() const {return route_points.size() == 0;}
 
   /** @brief Segment the route into uniform lengths
@@ -79,6 +95,20 @@ class WSCRoute {
   */
   std::vector<std::pair<size_t, size_t>> segment_route_uniform(double length) const;
 };
+
+struct FSGPRouteParameters {
+  const double max_route_speed;                // Maximum speed of the route in m/s
+
+  FSGPRouteParameters(double max_route_speed) :
+                     max_route_speed(max_route_speed) {}
+};
+
+inline FSGPRouteParameters get_fsgp_route_params(ConfigParser* parser) {
+  RUNTIME_EXCEPTION(parser != nullptr, "Parser is null when loading FSGP Route parameters");
+  return FSGPRouteParameters{
+    util::constants::kph2mps(parser->get_max_route_speed())   
+  };
+}
 
 /** Representation of the FSGP Route */
 class FSGPRoute {
@@ -98,8 +128,7 @@ class FSGPRoute {
   /* Longest straight path */
   double longest_straight;
 
-  /* Maximum speed of the route (mps) - comes from regulations */
-  double max_route_speed;
+  const FSGPRouteParameters params;
 
   // Cornering locations. Each pair represents the start and end indices
   // of the corner in the route_points
@@ -123,7 +152,8 @@ class FSGPRoute {
   * If this path doesn't exist, then calculate all distances, and create the file
   * @param corner_bounds_path: Absolute path to the cornering bounds
   */
-  FSGPRoute(std::filesystem::path route_path,
+  FSGPRoute(FSGPRouteParameters params,
+            std::filesystem::path route_path,
             std::filesystem::path precomputed_distances_path,
             std::filesystem::path corner_bounds_path = std::filesystem::path());
 

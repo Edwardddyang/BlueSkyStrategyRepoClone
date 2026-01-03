@@ -26,7 +26,7 @@ cmake --build build --config Release
 Ensure that your conan profile detects a cpp compiler that supports standard 20 or above. You may have to modify the above steps to work with your chosen toolchain e.g. if using MSVC, you will need to add `-G Ninja` to the cmake configuration command
 
 ## Quick Start
-The build command above also generates an executable called `opt.exe` from `src/main.cpp`. This performs a simple constant speed optimization for WSC. Refer to this script when using the library.
+The build command above also generates an executable called `opt.exe` from `src/WSC.cpp`. This performs a simple constant speed optimization for WSC. Refer to this script when using the library.
 
 ### Config File
 
@@ -79,7 +79,7 @@ When naming variables representing a scientific unit, please include the units i
 # TODOs
 - FSGPSimulator doesn't start at the beginning of the loop after an overnight stop
 - Unit Tests
-- Incorporate ResultsLuts
 - Fix FSGP Optimizer
 - main.cpp
 - Don't log result lut for production
+- Don't force objects to take parameters from Config file
