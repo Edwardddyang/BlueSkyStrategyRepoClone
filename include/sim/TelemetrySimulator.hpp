@@ -40,7 +40,6 @@ class TelemetrySimulator {
   explicit TelemetrySimulator(Car model);
 
   /** @brief Run the car through all points on the route */
- // run_sim implementation?
  void run_sim(const TelemRoute& route,
               Luts::DataSet* results_lut);
 };

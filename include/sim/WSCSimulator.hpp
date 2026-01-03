@@ -43,4 +43,8 @@ class WSCSimulator : public Simulator<WSCSimulator, WSCRacePlan, WSCRoute> {
   */
   void run_sim_impl(const WSCRoute& route, WSCRacePlan* race_plan,
                     Luts::DataSet* result_lut) const;
+
+  void update_metrics_impl(LogMetrics* metrics, const CarUpdate& update, util::type::Irradiance irr, double battery,
+                           double delta_enetry, double distance, util::type::Coord coord, double curr_speed,
+                           const util::type::Time& curr_time, double acceleration) const;
 };

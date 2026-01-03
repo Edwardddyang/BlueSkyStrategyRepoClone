@@ -37,6 +37,7 @@ void TelemetrySimulator::run_sim(const TelemRoute& route,
   util::type::Irradiance irr;
   util::type::Wind wind;
   util::type::SolarAngle sun;
+  LogMetrics metrics;
                   
   // Initialize index caches for forecast lut lookups
   util::type::ForecastCoord sim_start_forecast_coord(starting_coord);
@@ -85,9 +86,11 @@ void TelemetrySimulator::run_sim(const TelemRoute& route,
     }
 
     /* Update the logs */
-    // results_lut->update_logs(update, irr, battery_energy, delta_energy, accumulated_distance,
-                            // end, end_speed, curr_time, acceleration);
+    metrics.update_metrics(car_update, irr, battery_energy, delta_energy,
+                            accumulated_distance, end, end_speed, curr_time,
+                            acceleration);
   }
+  metrics.register_dataset(results_lut);
 }
 
 TelemetrySimulator::TelemetrySimulator(Car model) :

@@ -27,8 +27,6 @@ void WSCSimulator::run_sim_impl(const WSCRoute& route, WSCRacePlan* race_plan,
   util::type::Irradiance irr;
   util::type::Wind wind;
   util::type::SolarAngle sun;
-  // Reset results lut logs
-  // results_lut->reset_logs();
 
   // Initialize simulation state variables
   double accumulated_distance = 0.0;              // In meters
@@ -37,6 +35,7 @@ void WSCSimulator::run_sim_impl(const WSCRoute& route, WSCRacePlan* race_plan,
   util::type::Coord starting_coord = this->sim_start_coord;
   util::type::Time curr_time = this->sim_start_time;
   double curr_speed;
+  LogMetrics metrics;
 
   /* Get route and race plan data */
   const size_t num_points = route.get_num_points();
@@ -184,12 +183,14 @@ void WSCSimulator::run_sim_impl(const WSCRoute& route, WSCRacePlan* race_plan,
     spdlog::debug("Battery Energy: {}", battery_energy);
 
     /* Update the logs */
-    // results_lut->update_logs(update, irr, battery_energy, delta_energy, accumulated_distance,
-    //                          next_coord, curr_speed, curr_time, acceleration);
+    metrics.update_metrics(update, irr, battery_energy, delta_energy,
+                          accumulated_distance, next_coord, curr_speed, curr_time,
+                          0.0 /* No acceleration */);
 
     /* Invalid simulation if battery goes below 0 or if the end of the race has been reached */
     if (battery_energy < 0.0 || curr_time > race_end_time) {
       race_plan->set_viability(false);
+      metrics.register_dataset(results_lut);
       return;
     }
   }
@@ -197,6 +198,7 @@ void WSCSimulator::run_sim_impl(const WSCRoute& route, WSCRacePlan* race_plan,
   race_plan->set_driving_time(driving_time);
   race_plan->set_average_speed(accumulated_distance / driving_time);
   race_plan->set_end_time(curr_time);
+  metrics.register_dataset(results_lut);
 }
 
 WSCSimulator::WSCSimulator(Car model) :

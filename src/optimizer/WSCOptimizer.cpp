@@ -59,9 +59,9 @@ WSCRacePlan WSCOptimizer::optimize_impl() {
   WSCRacePlan max_viable_plan;
   for (int i=0; i < total_num_threads; i++) {
     /* Log the simulation */
-    // if (save_csv) {
-    //   result_luts[i]->write_logs((results_folder / (std::to_string(i + min_speed) + ".csv")).string());
-    // }
+    if (save_csv) {
+      result_luts[i].export_dataset((results_folder / (std::to_string(i + min_speed) + ".csv")).string());
+    }
 
     if (race_plans[i].is_viable()) {
       spdlog::info(std::to_string(i + min_speed) + " kph is viable.");

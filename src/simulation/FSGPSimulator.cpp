@@ -34,8 +34,6 @@ void FSGPSimulator::run_sim_impl(const FSGPRoute& route, FSGPRacePlan* race_plan
 
   race_plan->set_start_time(this->sim_start_time);
 
-  // Reset results lut logs
-  // results_lut->reset_logs();
   const util::type::ForecastCoord charging_coord_forecast(charging_coord.lat, charging_coord.lon);
 
   // Initialize simulation state variables
@@ -44,6 +42,7 @@ void FSGPSimulator::run_sim_impl(const FSGPRoute& route, FSGPRacePlan* race_plan
   double battery_energy = this->sim_start_soc;
   util::type::Time curr_time = this->sim_start_time;
   util::type::Coord starting_coord = this->sim_start_coord;
+  LogMetrics metrics;
 
   /** Update the irradiance variable - passed in by reference */
   auto update_irradiance = [&](const util::type::ForecastCoord& coord, const util::type::Time& curr_time, util::type::Irradiance& irr) {
@@ -93,8 +92,9 @@ void FSGPSimulator::run_sim_impl(const FSGPRoute& route, FSGPRacePlan* race_plan
     const size_t num_segments = loop_segments.size();
     if (loop_idx == 0) {
       // Write starting condition of the car to the result csv
-      // results_lut->update_logs(car_update, Irradiance(0,0,0), battery_energy, 0.0, 0.0,
-      //                          route_points[0], 0.0, curr_time, 0.0);
+      metrics.update_metrics(car_update, util::type::Irradiance(0,0,0),
+                             battery_energy, 0.0, 0.0, route_points[0],
+                             0.0, curr_time, 0.0);
     }
 
     for (size_t segment_idx = 0; segment_idx < num_segments; segment_idx++) {
@@ -214,6 +214,7 @@ void FSGPSimulator::run_sim_impl(const FSGPRoute& route, FSGPRacePlan* race_plan
           // exception is never thrown
           race_plan->set_viability(false);
           race_plan->set_inviability_reason(std::string(e.what()));
+          metrics.register_dataset(results_lut);
           return;
         }
 
@@ -232,18 +233,15 @@ void FSGPSimulator::run_sim_impl(const FSGPRoute& route, FSGPRacePlan* race_plan
         spdlog::debug("Battery Energy: {}", battery_energy);
 
         /* Update the logs */
-        // if (!is_accelerating) {
-        //   results_lut->update_logs(car_update, irr, battery_energy, delta_energy, accumulated_distance,
-        //                           next_coord, curr_speed, curr_time, acceleration);
-        // } else {
-        //   results_lut->update_logs(car_update, irr, battery_energy, delta_energy, accumulated_distance,
-        //                           route_points[current_segment.end_idx], curr_speed, curr_time, acceleration);
-        // }
+        metrics.update_metrics(car_update, irr, battery_energy, delta_energy,
+                              accumulated_distance, next_coord, curr_speed, curr_time,
+                              acceleration);
 
         /* Invalid simulation if battery goes below 0 or if the end of the race has been reached */
         if (battery_energy < 0.0 || curr_time > race_end_time) {
           race_plan->set_viability(false);
           race_plan->set_inviability_reason("Out of battery charge");
+          metrics.register_dataset(results_lut);
           return;
         }
       }
@@ -254,6 +252,7 @@ void FSGPSimulator::run_sim_impl(const FSGPRoute& route, FSGPRacePlan* race_plan
   race_plan->set_accumulated_distance(accumulated_distance);
   race_plan->set_average_speed(accumulated_distance / driving_time);
   race_plan->set_viability(true);
+  metrics.register_dataset(results_lut);
 }
 
 FSGPSimulator::FSGPSimulator(Car model) :

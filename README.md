@@ -1,82 +1,57 @@
-# Race Simulation 
-This repository provides optimizers and simulators for the Formula Sun Grand Prix (FSGP), American Solar Challenge (ASC), and World Solar Challenge (WSC)
+# Race Strategy
+This repository provides a library comprised of solar car energy model, simulators and optimizers for the Formula Sun Grand Prix (FSGP), American Solar Challenge (ASC), World Solar Challenge (WSC).
 
-# To Use
+## Toolchain
+This section provides steps for installing the compiler and build toolchain
 
-## Create the Simulation Code
-Modify the main.cpp file in order to run a simulation. This would involve creating a car model, a route, a simulation object, and running an optimizer. The following ```main.cpp``` demonstrates the method by which to do this:
+### Linux
+`sudo apt-get install build-essential cmake git python3`
+
+### Windows
+The recommended toolchain for Windows is MSVC
+1. Download Visual Studio from https://visualstudio.microsoft.com/downloads/ and download the "C++ for desktop development" package after launching the installer
+2. Download LLVM for Windows https://github.com/llvm/llvm-project/releases version 20.1.2
+3. Download Python 3.13 or above from the Microsoft Store
+4. Use the x64 Native Tools Command Prompt for VS 2022 terminal
+
+## Build
+C++20 or above is required to build the project. The generated artifact is a dynamic library. Dependencies are managed using conan, which requires a valid python installation.
+```
+pip install conan==2.19
+conan profile detect --force
+conan install . --output-folder=build --build=missing -s compiler.cppstd=20
+cmake -S . -B build -DCMAKE_TOOLCHAIN_FILE=build/build/Release/generators/conan_toolchain.cmake -DCMAKE_BUILD_TYPE=Release  -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DRUN_TEST=ON
+cmake --build build --config Release
+```
+Ensure that your conan profile detects a cpp compiler that supports standard 20 or above. You may have to modify the above steps to work with your chosen toolchain e.g. if using MSVC, you will need to add `-G Ninja` to the cmake configuration command
+
+## Quick Start
+The build command above also generates an executable called `opt.exe` from `src/main.cpp`. This performs a simple constant speed optimization for WSC. Refer to this script when using the library.
+
+### Config File
+
+Configuration parameters e.g. route files, car characterizations, simulation settings are passed into the simulation environment using a single .yaml file. An example can be found in `data/config/wsc_config.yaml`.
+
+### STRAT_ROOT
+Almost all exported objects rely on the existence of an environment variable called `STRAT_ROOT` that holds the absolute path to the root directory of all lookup tables. As such, file paths in the configuration file will be pre-pended with `STRAT_ROOT`. This allows lookup tables to be stored in the repository itself.
 
 ```
-int main(int argc, char* argv[]) {
-  spdlog::set_level(spdlog::level::debug);
-  RUNTIME_EXCEPTION(argc == 2, "Exactly one argument is required for the config file path");
-
-  char* strat_root = std::getenv("STRAT_ROOT");
-  RUNTIME_EXCEPTION(strat_root != nullptr, "No STRAT_ROOT environment variable detected."
-                                           "Set it to the full path to gen12_strategy/RaceSim.");
-
-  std::filesystem::path config_file_path(argv[1]);
-  Config::initialize(config_file_path, strat_root);
-
-  /* Create a model of the car */
-  std::shared_ptr<Car> car = CarFactory::get_car(Config::get_instance().get_model());
-
-  /* Create route */
-  std::shared_ptr<Route> route = std::make_shared<Route>(Config::get_instance().get_base_route_path());
-
-  /* Create simulator */
-  std::shared_ptr<Simulator> sim = SimulatorFactory::get_simulator(Config::get_instance().get_simulator(), car);
-
-  /* Create optimizer */
-  std::shared_ptr<Optimizer> opt = OptimizerFactory::get_optimizer(Config::get_instance().get_optimizer(),
-                                                                   route, sim);
-
-  /* Run optimizer */
-  RacePlan viable_race_plan = opt->optimize();
-
-  /* Print the optimal speed profile */
-
-  return 0;
-}
+export STRAT_ROOT=<Absolute path to strategy/>
+./opt.exe <Config file relative to STRAT_ROOT>
 ```
-This example file is already present in the repository.
-
-## Building
-
-### Getting a Windows Toolchain
-- Download Git (https://git-scm.com/downloads/win) which will also install the git bash terminal
-- Download CMake windows installer (https://cmake.org/download/)
-- Download GNU Make (https://gnuwin32.sourceforge.net/packages/make.htm). You should only need the link under the "Complete package, except sources" bullet point. Make sure the install goes to the C: directory and not to any of the 'Program Files' directories, make runs a script that seems to not like spaces in paths. After the install completes, add the `bin` folder to your PATH
-- Download a MinGW64 toolchain package (https://www.mingw-w64.org/downloads/). I recommend using Msys2 (https://www.msys2.org/)
-  - If you're using Msys2, open the installed MinGW64 terminal and run `pacman -S mingw-w64-x86_64-gcc`
-  - Add the absolute path of msys2/mingw64/bin to PATH
-- Open git bash and ensure that ```make --version``` ```gcc --version``` run without error. If you get a command not found error. Then you most likely did not set your environment variable paths correctly
-- Install Python 3.13.0 (https://www.python.org/downloads/release/python-3130/)
-- Run ```pip install cpplint==2.0.0```
-
-### Building the executables and libraries
-
-From gen12_Strategy/RaceSim/
-```
-1. mkdir build
-2. cd build
-3. cmake .. (May need to adjust depending on your compiler e.g. cmake .. -G "Unix Makefiles" for the windows toolchain above)
-4. make install
-5. export STRAT_ROOT=<FULL path to gen12_strategy/RaceSim>
-6. Add the FULL gen12_strategy/RaceSim/install/lib to PATH environment variable
-7. cd ../install/bin
-8. ./opt.exe <config file relative to gen12_strategy/RaceSim>
-```
-Note that you will have to set STRAT_ROOT (step 5) every time you open your shell. If you're on linux, you can add it to your .bashrc in order to persist it. If you're on windows, you can add it to ~/.bash_profile in git bash. To compile with debug symbols, add `-DCMAKE_BUILD_TYPE=Debug` to step 3 and run make as normal
-
-This has been tested on:
-- Windows machine with make (GNU 3.81) with gcc (8.3), CMake (3.30)
-- Ubuntu 20.04 with make (GNU 4.2) with gcc (9.4), CMake (3.16.3)
-
-Dependencies: yaml-cpp (0.8.0), spdlog (1.14.1), googletest (1.14.0)
 
 ## Contributing
-Before pushing, please ensure that ```make install``` runs with no testing or lint errors.
+- Code should comply with CPP Core Guidelines https://isocpp.github.io/CppCoreGuidelines/CppCoreGuidelines
+- All code must pass the following with 0 errors:
+```
+ctest --output-on-failure
+clang-format -i src/*.cpp include/*.hpp tests/*.cpp
+clang-tidy -p build src/*.cpp tests/*.cpp --system-headers=false
+```
+- All units must be metric base e.g. grams, celsius, meters. If units are non-standard, indicate them in variable name e.g. `double speed_kph = 6.5;`
+- Private class members should be appended with `_`
+
+Before getting a review, ensure that code passes unit tests, and formatted according to the above.
 
 ## Vscode Suggestions
 Add the following into your .vscode/settings.json
@@ -85,13 +60,6 @@ Add the following into your .vscode/settings.json
 "editor.tabSize": 2,
 "editor.detectIndentation": false
 ```
-
-## Config File
-
-The .yaml configuration file specifies parameters about your car and race route. A sample configuration is given in data/config/wsc_config.yaml. Note that all LUT paths are relative to gen12_strategy/RaceSim
-
-## Extending the Project
-You can add additional car models, and optimizers by subclassing from ```Car``` and ```Optimizer``` respectively. Implement the functions and make the relevant changes to the factories in their repsective header files. If you would like to add a new configuration parameter, follow the steps in ```Config.hpp``` in order to define a new macro for it. The parameter names in ```Config.hpp``` and the yaml file MUST match in order for it to work.
 
 # Scientific Units used 
 All units are listed below. Any others not mentioned are also in the base metric system. The configuration file specifies units and is ultimately converted to these units
@@ -112,5 +80,6 @@ When naming variables representing a scientific unit, please include the units i
 - FSGPSimulator doesn't start at the beginning of the loop after an overnight stop
 - Unit Tests
 - Incorporate ResultsLuts
-- Add Telemetry Simulator
 - Fix FSGP Optimizer
+- main.cpp
+- Don't log result lut for production

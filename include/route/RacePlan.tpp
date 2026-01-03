@@ -19,7 +19,7 @@ void BaseRacePlan<DerivedRacePlan>::export_json() const {
   derived.export_segments_json_impl(j);
 
   std::ofstream out(path);
-  RUNTIME_EXCEPTION(out, "Could not open {} for writing", path.string());
+  RUNTIME_EXCEPTION(out.is_open(), "Could not open {} for writing", path.string());
   out << std::setw(4) << j << std::endl;
 }
 
