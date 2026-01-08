@@ -62,8 +62,8 @@ std::string WSCRacePlan::get_plan_string_impl() const {
 
     // Truncate the distance
     append_char_n_times(' ', 10, output);
-    output << std::setw(5) << truncate_number(segments[seg_idx].distance, 5);
-    output << "|";
+    output << std::setw(10) << truncate_number(segments[seg_idx].distance, 10);
+    output << "|\n";
   }
   append_char_n_times('-', 77, output);
   output << "\n";
@@ -127,7 +127,7 @@ bool WSCRacePlan::validate_members_impl(const WSCRoute& route) const {
                         "acceleration distance attribute is {}", seg_idx, calculated_acceleration_distance, segment_distance);
     }
   }
-  return false;
+  return true;
 }
 
 FSGPRacePlan::FSGPRacePlan(PlanData segments, int num_repetitions) :

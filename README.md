@@ -5,7 +5,13 @@ This repository provides a library comprised of solar car energy model, simulato
 This section provides steps for installing the compiler and build toolchain
 
 ### Linux
-`sudo apt-get install build-essential cmake git python3`
+`sudo apt-get install build-essential cmake git python3 python3-pip`
+
+### MacOS
+```
+xcode-select --install
+brew install cmake git python
+```
 
 ### Windows
 The recommended toolchain for Windows is MSVC
@@ -75,11 +81,3 @@ force -> newton\
 area -> meters squared
 
 When naming variables representing a scientific unit, please include the units if it does not conform to the ones listed above and also is not in the base metric sytem e.g. ```double speed_kph = 70.2;```
-
-# TODOs
-- FSGPSimulator doesn't start at the beginning of the loop after an overnight stop
-- Unit Tests
-- Fix FSGP Optimizer
-- main.cpp
-- Don't log result lut for production
-- Don't force objects to take parameters from Config file

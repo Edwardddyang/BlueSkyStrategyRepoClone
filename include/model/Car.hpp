@@ -90,11 +90,11 @@ struct MotorEnergyLoss {
 };
 
 /** Injected car parameters */
-struct CarParameters {
+struct CarParams {
   const double mass;                      // kg
   const double cda;                       // Unitless
   const double motor_efficiency;          // Unitless
-  const double regen_efficiency;          // Unitless
+  const double regen_efficiency;          // Unitless (unused)
   const double battery_efficiency;        // Unitless
   const double passive_electric_loss;     // Watts
   const double air_density;               // kg / m^3
@@ -108,7 +108,7 @@ struct CarParameters {
   const EffLut slope_rolling_resistance;  // s / m
   const BasicLut power_factors;           // m^2
 
-  CarParameters(double mass, double cda, double motor_efficiency,
+  CarParams(double mass, double cda, double motor_efficiency,
                 double regen_efficiency, double battery_efficiency,
                 double passive_electric_loss, double air_density,
                 double array_area, double max_soc, double tire_pressure,
@@ -126,12 +126,24 @@ struct CarParameters {
   power_factors(std::move(power_factors)) {}
 };
 
+inline CarParams get_car_parameters(ConfigParser* parser) {
+  RUNTIME_EXCEPTION(parser != nullptr, "Parser is null when retrieving Car parameters");
+  return CarParams(
+    parser->get_car_mass(), parser->get_cda(), parser->get_motor_efficiency(), parser->get_regen_efficiency(),
+    parser->get_battery_efficiency(), parser->get_passive_electric_loss(), parser->get_air_density(),
+    parser->get_array_area(), parser->get_max_soc(), parser->get_tire_pressure(), parser->get_array_efficiency(),
+    parser->get_max_braking_force(), parser->get_max_motor_power(),
+    EffLut(parser->get_roll_res_yint_path()), EffLut(parser->get_roll_res_slope_path()),
+    BasicLut(parser->get_power_factor_path())
+  );
+}
+
 // All class members should be initialized when constructed
 // to ensure thread safety
 class Car {
  private:
   /* Car parameters */
-  const CarParameters params;
+  const CarParams params;
 
   // Integrator for calculating acceleration energy losses
   _1D::SimpsonRule<double> integrator;
@@ -140,7 +152,9 @@ class Car {
   const int num_data_points_per_second = 10;
 
  public:
-  Car(CarParameters params);
+  Car(CarParams params);
+
+  inline double get_max_soc() const {return params.max_soc;}
  
   /** @brief Compute the aerodynamic loss over a time period
    *

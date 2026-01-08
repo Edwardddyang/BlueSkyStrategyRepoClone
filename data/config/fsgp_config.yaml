@@ -1,26 +1,23 @@
-# For Gen 11.5
-/Version: "FSGP_2025"
+# For Gen 12.5
+/Version: "FSGP_2026"
 
-/Car: # Car characterizationss
-  max_soc: 10.0 # kwh
-  max_car_speed: 100 # kph
-  max_acceleration: 2.0 # m/s^2
-  max_deceleration: -2.0 # m/s^2
-  tire_pressure: 5.5 # bar
-  array_area: 3.98 # m^2
-  car_mass: 284 # in kg
-  air_density: 1.17 # in kg/m^3
-  passive_electric_loss: 20 # in w
-  cda: 0.12
-  max_motor_power: 5.0 # in kw
-  array_power_max: 950 # in W
-  array_efficiency: 0.252 
+/Car: # Car Parameters
+  car_mass: 284 # kg
+  cda: 0.12 # Unitless
   motor_efficiency: 0.9
   regen_efficiency: 0.8
   battery_efficiency: 0.95
-  tire_inertia: 0.00125 # in kg * m^2
-  tire_radius: 0.508 # in m
-  num_tires: 3
+  passive_electric_loss: 20 # W
+  air_density: 1.17 # kg/m^3
+  array_area: 3.98 # m^2
+  max_soc: 5.2 # kWh
+  tire_pressure: 5.5 # bar
+  array_efficiency: 0.252
+  max_braking_force: 278604 # N (1 G)
+  max_motor_power: 5000 # W
+  roll_res_slope_path: data/luts/fsgp/static/rr2.csv
+  roll_res_yint_path: data/luts/fsgp/static/rr1.csv
+  power_factor_path: data/luts/fsgp/static/powerfactor.csv
 
 \LutPaths:
   # All following luts are relative to gen12_strategy/RaceSim/

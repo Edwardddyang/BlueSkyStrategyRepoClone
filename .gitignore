@@ -17,5 +17,6 @@ Acceleration_Results/
 TelemetrySimResults/
 exports/
 export/
+*Results/
 
 *venv*/

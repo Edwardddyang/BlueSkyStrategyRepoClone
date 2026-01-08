@@ -46,8 +46,7 @@ class WSCOptimizer : public Optimizer<WSCOptimizer, WSCRoute, WSCRacePlan, WSCSi
 
  public:
   WSCOptimizer(WSCOptimizerParams params, WSCSimulator simulator, WSCRoute route);
-  WSCRacePlan optimize_impl();
-
+  WSCRacePlan optimize_impl();  // TODO(Make this private)
   // Get result luts
   inline const std::vector<Luts::DataSet>& get_result_luts() const { return result_luts; }
 };

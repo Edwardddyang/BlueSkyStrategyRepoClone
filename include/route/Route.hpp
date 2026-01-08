@@ -43,20 +43,20 @@ std::string truncate_number(double number, int n);
 //////////////////////// Race Route Definition ////////////////////////
 ///////////////////////////////////////////////////////////////////////
 
-struct WSCRouteParameters {
+struct WSCRouteParams {
   const double max_route_speed;                // Maximum speed of the route in m/s
   const std::unordered_set<int> control_stops; // Indices of route_points where control stops
                                                // are located
 
-  WSCRouteParameters(double max_route_speed,
+  WSCRouteParams(double max_route_speed,
                      std::unordered_set<int> control_stops) :
                      max_route_speed(max_route_speed),
                      control_stops(std::move(control_stops)) {}
 };
 
-inline WSCRouteParameters get_wsc_route_params(ConfigParser* parser) {
+inline WSCRouteParams get_wsc_route_params(ConfigParser* parser) {
   RUNTIME_EXCEPTION(parser != nullptr, "Parser is null when loading WSC Route parameters");
-  return WSCRouteParameters{
+  return WSCRouteParams{
     util::constants::kph2mps(parser->get_max_route_speed()),
     parser->get_control_stops()     
   };
@@ -68,7 +68,7 @@ class WSCRoute {
   /* Points of the route */
   CoordVec route_points;
 
-  const WSCRouteParameters params;
+  const WSCRouteParams params;
 
   /* Number of points along the route */
   size_t num_points;
@@ -78,7 +78,7 @@ class WSCRoute {
 
  public:
   /** @brief Load coordinates from a CSV file with layout |latitude|longitude|altitude */
-  WSCRoute(WSCRouteParameters params, std::filesystem::path route_path);
+  WSCRoute(WSCRouteParams params, std::filesystem::path route_path);
   WSCRoute() = default;
 
   /* Getters */

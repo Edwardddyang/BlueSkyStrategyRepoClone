@@ -11,7 +11,7 @@
 
 
 /* Load all LUTs and car parameters */
-Car::Car(CarParameters params) : params(std::move(params)) {}
+Car::Car(CarParams params) : params(std::move(params)) {}
 
 EnergyUpdate Car::compute_aero_loss(double speed, double car_bearing,
                                     util::type::Wind wind, double delta_time) const {

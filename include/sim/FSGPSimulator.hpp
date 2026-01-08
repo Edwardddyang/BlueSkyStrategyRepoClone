@@ -30,7 +30,6 @@ struct FSGPSimulatorParams : SimulatorParams {
   const util::type::Time day_start_time;           // Start time from day 2 onwards in 24 hour local time
   const util::type::Time day_end_time;             // End time from day 2 onwards in 24 hour local time
   const util::type::Time race_end_time;            // End time of the entire race in 24 hour local time
-  const double max_soc;                            // Maximum soc of the car in kWh
 
   FSGPSimulatorParams(ForecastMatrix wind_speed_lut, ForecastMatrix wind_dir_lut,
                       ForecastMatrix dni_lut, ForecastMatrix dhi_lut,
@@ -42,7 +41,7 @@ struct FSGPSimulatorParams : SimulatorParams {
                       util::type::Time day_one_start_time,
                       util::type::Time day_one_end_time,
                       util::type::Time day_start_time, util::type::Time day_end_time,
-                      util::type::Time race_end_time, double max_soc) :
+                      util::type::Time race_end_time) :
                       SimulatorParams(wind_speed_lut, wind_dir_lut, dni_lut, dhi_lut),
                       charging_coord(charging_coord),
                       impounding_start_time(std::move(impounding_start_time)),
@@ -53,7 +52,7 @@ struct FSGPSimulatorParams : SimulatorParams {
                       day_one_end_time(std::move(day_one_end_time)),
                       day_start_time(std::move(day_start_time)),
                       day_end_time(std::move(day_end_time)),
-                      race_end_time(std::move(race_end_time)), max_soc(max_soc) {}
+                      race_end_time(std::move(race_end_time)) {}
 };
 
 inline FSGPSimulatorParams get_fsgp_simulator_params(ConfigParser* parser) {
@@ -74,8 +73,7 @@ inline FSGPSimulatorParams get_fsgp_simulator_params(ConfigParser* parser) {
     parser->get_day_one_end_time(),
     parser->get_day_start_time(),
     parser->get_day_end_time(),
-    parser->get_race_end_time(),
-    parser->get_max_soc()
+    parser->get_race_end_time()
   };
 
   return params;

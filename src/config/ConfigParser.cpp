@@ -12,18 +12,17 @@
 #include "spdlog/spdlog.h"
 #include "yaml-cpp/yaml.h"
 
-ConfigParser::ConfigParser() {
+
+#define PARAM(name, type, default_value)\
+  name = std::move(ConfigParam<type>(#name, default_value, key_values, STRAT_ROOT));
+
+ConfigParser::ConfigParser(std::filesystem::path path) {
   // Load the STRAT_ROOT variable
   char *strat_root = std::getenv("STRAT_ROOT");
   RUNTIME_EXCEPTION(strat_root != nullptr, "STRAT_ROOT environment variable not set");
 
   STRAT_ROOT = strat_root;
-}
 
-#define PARAM(name, type, default_value)\
-  name = std::move(ConfigParam<type>(#name, default_value, key_values, STRAT_ROOT));
-
-void ConfigParser::load_config(std::filesystem::path path) {
   config_file_path = (std::filesystem::path(STRAT_ROOT)) / path;
 
   try {

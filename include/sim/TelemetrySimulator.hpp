@@ -19,13 +19,12 @@ Class to run a simulation on telemetry data
 
 struct TelemetrySimulatorParams : SimulatorParams {
   const double sim_start_soc;
-  const double max_soc;
 
   TelemetrySimulatorParams(ForecastMatrix wind_speed_lut, ForecastMatrix wind_dir_lut,
                            ForecastMatrix dni_lut, ForecastMatrix dhi_lut,
-                           double sim_start_soc, double max_soc) :
+                           double sim_start_soc) :
                            SimulatorParams(wind_speed_lut, wind_dir_lut, dni_lut, dhi_lut),
-                           sim_start_soc(sim_start_soc), max_soc(max_soc) {}
+                           sim_start_soc(sim_start_soc) {}
 };
 
 inline TelemetrySimulatorParams get_telem_simulator_params(ConfigParser* parser) {
@@ -36,8 +35,7 @@ inline TelemetrySimulatorParams get_telem_simulator_params(ConfigParser* parser)
     ForecastMatrix(parser->get_wind_direction_path()),
     ForecastMatrix(parser->get_dni_path()),
     ForecastMatrix(parser->get_dhi_path()),
-    parser->get_current_soc(),
-    parser->get_max_soc()
+    parser->get_current_soc()
   };
 
   return params;

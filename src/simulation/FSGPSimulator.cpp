@@ -66,7 +66,7 @@ void FSGPSimulator::run_sim_impl(const FSGPRoute& route, FSGPRacePlan* race_plan
       starting_route_index = i;
     }
   }
-  spdlog::debug("Starting SOC: {}", params.max_soc);
+  spdlog::debug("Starting SOC: {}", car.get_max_soc());
 
   const bool is_first_day = curr_time >= params.day_one_start_time && curr_time < params.day_one_end_time;
   // End of day time and impounding start time
@@ -225,8 +225,8 @@ void FSGPSimulator::run_sim_impl(const FSGPRoute& route, FSGPRacePlan* race_plan
         driving_time += car_update.delta_time;
 
         /* Make sure the battery doesn't exceed the maximum bound */
-        if (battery_energy + delta_energy > params.max_soc) {
-          battery_energy = params.max_soc;
+        if (battery_energy + delta_energy > car.get_max_soc()) {
+          battery_energy = car.get_max_soc();
         } else {
           battery_energy += delta_energy;
         }

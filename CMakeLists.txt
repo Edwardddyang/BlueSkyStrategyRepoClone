@@ -64,11 +64,12 @@ target_link_libraries(RaceSim PUBLIC  yaml-cpp::yaml-cpp
 set_target_properties(RaceSim PROPERTIES
   CXX_STANDARD 20
   POSITION_INDEPENDENT_CODE ON)
+set_target_properties(RaceSim PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS ON)  # I'm lazy lol
 # ---------------------------------------------------------
 
 # ------------------- WSC Optimizer ---------------------------
-# add_executable(wsc ${CMAKE_SOURCE_DIR}/src/WSC.cpp)
-# target_link_libraries(opt PRIVATE RaceSim) 
-# target_compile_features(opt PRIVATE cxx_std_20)
+add_executable(wsc ${CMAKE_SOURCE_DIR}/src/WSC.cpp)
+target_link_libraries(wsc PRIVATE RaceSim) 
+target_compile_features(wsc PRIVATE cxx_std_20)
 
 # ---------------------------------------------------------

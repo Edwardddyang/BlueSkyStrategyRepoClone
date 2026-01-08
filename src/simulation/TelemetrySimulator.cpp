@@ -79,8 +79,8 @@ void TelemetrySimulator::run_sim(const TelemRoute& route,
     driving_time += car_update.delta_time;
 
     /* Make sure the battery doesn't exceed the maximum bound */
-    if (battery_energy + delta_energy > params.max_soc) {
-      battery_energy = params.max_soc;
+    if (battery_energy + delta_energy > car.get_max_soc()) {
+      battery_energy = car.get_max_soc();
     } else {
       battery_energy += delta_energy;
     }

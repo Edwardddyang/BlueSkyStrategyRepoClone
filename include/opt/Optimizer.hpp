@@ -40,6 +40,6 @@ class Optimizer {
       the segments of the race
   */
   RacePlan optimize() {
-    return static_cast<const Derived*>(this)->optimize_impl();
+    return static_cast<Derived*>(this)->optimize_impl();
   }
 };

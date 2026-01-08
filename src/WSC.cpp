@@ -1,41 +1,40 @@
 /* Optimize for WSC */
 
-#include <stdio.h>
-#include <stdlib.h>
-
-#include <cstdlib>
 #include <filesystem>
-#include <memory>
-#include <string>
-#include <utility>
-#include <vector>
 
+#include "spdlog/spdlog.h"
 #include "config/ConfigParser.hpp"
 #include "model/Car.hpp"
 #include "route/Route.hpp"
 #include "route/RacePlan.hpp"
-#include "sim/FSGPSimulator.hpp"
-#include "spdlog/spdlog.h"
+#include "sim/WSCSimulator.hpp"
+#include "opt/WSCOptimizer.hpp"
 #include "SimUtils/Defines.hpp"
-#include "SimUtils/Luts.hpp"
 
 int main(int argc, char *argv[]) {
   spdlog::set_level(spdlog::level::debug);
-  RUNTIME_EXCEPTION(
-      argc == 2, "Exactly one argument is required for the config file path");
-
-  char *strat_root = std::getenv("STRAT_ROOT");
-  RUNTIME_EXCEPTION(strat_root != nullptr,
-                    "No STRAT_ROOT environment variable detected."
-                    "Set it to the full path to gen12_strategy/RaceSim.");
-
+  RUNTIME_EXCEPTION(argc == 2, "Exactly one argument is required for the config file path");
   std::filesystem::path config_file_path(argv[1]);
-  Config::get_instance().load(config_file_path, strat_root);
+  ConfigParser config(config_file_path);
 
-  // Create car, simulator, route objects
-  Car car;
-  WSCSimulator simulator;
-  WSCRoute route(Config::get_instance().get_base_route_path());
+  // Create objects from config
+  CarParams car_params = get_car_parameters(&config);
+  WSCSimulatorParams sim_params = get_wsc_simulator_params(&config);
+  WSCOptimizerParams opt_params = get_wsc_optimizer_params(&config);
+  WSCRouteParams route_params = get_wsc_route_params(&config);
+
+  Car car(car_params);
+  WSCSimulator sim(sim_params, car);
+  WSCRoute route(route_params, config.get_base_route_path());
+  WSCOptimizer opt(opt_params, sim, route);
+  WSCRacePlan optimal_race_plan = opt.optimize();
+
+  if (!optimal_race_plan.is_empty()) {
+    spdlog::info("Optimal race plan found");
+    optimal_race_plan.print_plan();
+  } else {
+    spdlog::info("No viable race plan");
+  }
 
   return 0;
 }

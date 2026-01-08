@@ -7,6 +7,7 @@
 #include "route/RacePlan.hpp"
 #include "sim/WSCSimulator.hpp"
 #include "config/ConfigParser.hpp"
+#include "SimUtils/CustomException.hpp"
 
 void WSCSimulator::run_sim_impl(const WSCRoute& route, WSCRacePlan* race_plan,
                                 Luts::DataSet* results_lut) const {
@@ -54,7 +55,7 @@ void WSCSimulator::run_sim_impl(const WSCRoute& route, WSCRacePlan* race_plan,
       starting_route_index = i;
     }
   }
-  spdlog::debug("Starting SOC: {}", params.max_soc);
+  spdlog::debug("Starting SOC: {}", car.get_max_soc());
 
   const bool is_first_day = curr_time >= params.day_one_start_time && curr_time < params.day_one_end_time;
   // End of day time
@@ -71,7 +72,7 @@ void WSCSimulator::run_sim_impl(const WSCRoute& route, WSCRacePlan* race_plan,
 
   size_t segment_counter = 0;
   BaseSegment current_segment = segments[segment_counter];
-  curr_speed = util::constants::kph2mps(current_segment.start_speed);
+  curr_speed = current_segment.start_speed;
   RUNTIME_EXCEPTION(current_segment.acceleration_value == 0.0,
                     "WSC Simulator does not currently simulate acceleration");
 
@@ -81,6 +82,7 @@ void WSCSimulator::run_sim_impl(const WSCRoute& route, WSCRacePlan* race_plan,
     irr.dhi = params.dhi_lut.get_value_and_update_cache(coord, curr_time, dhi_cache.first, dhi_cache.second);
   };
 
+  CarUpdate update;
   for (size_t idx=starting_route_index; idx < num_points-1; idx++) {
     const util::type::Coord& current_coord = route_points[idx];
     const util::type::Coord& next_coord = route_points[idx+1];
@@ -90,7 +92,7 @@ void WSCSimulator::run_sim_impl(const WSCRoute& route, WSCRacePlan* race_plan,
     if (idx > current_segment.end_idx) {
       segment_counter++;
       current_segment = segments[segment_counter];
-      curr_speed = util::constants::kph2mps(current_segment.start_speed);
+      curr_speed = current_segment.start_speed;
       RUNTIME_EXCEPTION(current_segment.acceleration_value == 0.0,
                         "WSC Simulator does not currently simulate acceleration");
     }
@@ -164,9 +166,16 @@ void WSCSimulator::run_sim_impl(const WSCRoute& route, WSCRacePlan* race_plan,
     }
 
     /* Compute state update of the car */
-    CarUpdate update = car.compute_constant_travel_update(
-                              current_coord, next_coord, curr_speed,
-                              curr_time, wind, irr);
+    try {
+      update = car.compute_constant_travel_update(current_coord, next_coord, curr_speed,
+                                                  curr_time, wind, irr);
+    } catch (util::error::InvalidCalculation) {
+      // Maximum motor power exceeded
+      race_plan->set_viability(false);
+      race_plan->set_inviability_reason("Maximum motor power exceeded");
+      metrics.register_dataset(results_lut);
+      return;
+    }
 
     /* Update the running state of the simulation */
     delta_energy += update.delta_energy;
@@ -175,8 +184,8 @@ void WSCSimulator::run_sim_impl(const WSCRoute& route, WSCRacePlan* race_plan,
     driving_time += update.delta_time;
 
     /* Make sure the battery doesn't exceed the maximum bound */
-    if (battery_energy + delta_energy > params.max_soc) {
-      battery_energy = params.max_soc;
+    if (battery_energy + delta_energy > car.get_max_soc()) {
+      battery_energy = car.get_max_soc();
     } else {
       battery_energy += delta_energy;
     }
@@ -190,6 +199,11 @@ void WSCSimulator::run_sim_impl(const WSCRoute& route, WSCRacePlan* race_plan,
     /* Invalid simulation if battery goes below 0 or if the end of the race has been reached */
     if (battery_energy < 0.0 || curr_time > params.race_end_time) {
       race_plan->set_viability(false);
+      if (battery_energy < 0.0) {
+        race_plan->set_inviability_reason("Out of battery");
+      } else {
+        race_plan->set_inviability_reason("Did not make it to the finish line in time");
+      }
       metrics.register_dataset(results_lut);
       return;
     }

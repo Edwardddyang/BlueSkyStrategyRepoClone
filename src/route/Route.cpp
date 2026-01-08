@@ -83,7 +83,7 @@ void append_char_n_times(char ch, uint64_t n, std::stringstream& output) {
   }
 }
 
-WSCRoute::WSCRoute(WSCRouteParameters params, std::filesystem::path route_path) :
+WSCRoute::WSCRoute(WSCRouteParams params, std::filesystem::path route_path) :
   params(std::move(params)) {
   // Read route csv file
   std::fstream base_route(route_path);
@@ -123,7 +123,7 @@ WSCRoute::WSCRoute(WSCRouteParameters params, std::filesystem::path route_path) 
     route_points.emplace_back(coord);
 
     if (!first_coord) {
-      this->route_length += util::geo::get_distance(last_coord, coord);
+      this->route_length += util::geo::get_distance(coord, last_coord);
     } else {
       first_coord = false;
     }
@@ -134,7 +134,8 @@ WSCRoute::WSCRoute(WSCRouteParameters params, std::filesystem::path route_path) 
   this->num_points = route_points.size();
   base_route.close();
 
-  spdlog::info("Loaded base route {} with {} coordinates", route_path.string(), std::to_string(num_points));
+  spdlog::info("Loaded base route {} with {} coordinates and length {} m",
+                route_path.string(), std::to_string(num_points), std::to_string(this->route_length));
 }
 
 /** @brief Segment a route (array of coordinates) into uniform segments

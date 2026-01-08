@@ -24,7 +24,8 @@ WSCRacePlan WSCOptimizer::optimize_impl() {
 
   // Create threads
   const int total_num_threads = params.max_speed - params.min_speed + 1; 
-  std::vector<std::thread> threads(total_num_threads);
+  std::vector<std::thread> threads;
+  threads.reserve(total_num_threads);
 
   result_luts.clear();
   race_plans.clear();
@@ -32,8 +33,9 @@ WSCRacePlan WSCOptimizer::optimize_impl() {
   // Create all result luts and race plans
   for (int i=params.min_speed; i <= params.max_speed; i++) {
     result_luts.emplace_back();
+    const double speed = util::constants::kph2mps(i);
     const BaseSegment segment(
-      0, route.get_num_points() - 1, static_cast<double>(i), static_cast<double>(i),
+      0, route.get_num_points() - 1, speed, speed,
       0.0, route.get_route_length()
     );
     std::vector<BaseSegment> segments = {segment};
@@ -61,11 +63,11 @@ WSCRacePlan WSCOptimizer::optimize_impl() {
       spdlog::info(std::to_string(i + params.min_speed) + " kph is viable.");
       max_viable_plan = race_plans[i];
     } else {
-      spdlog::info(std::to_string(i + params.min_speed) + " kph is not viable.");
+      spdlog::info(std::to_string(i + params.min_speed) + " kph is not viable. Reason: " +
+                  race_plans[i].get_inviability_reason());
     }
   }
 
-  max_viable_plan.print_plan();
   return max_viable_plan;
 }
 

@@ -147,10 +147,9 @@ class ConfigParser {
   void get_config_leaf_nodes(YAML::Node node, int current_depth = 0);
 
  public:
-  ConfigParser();
-
-  /** Parse the config file and initialize all parameters */
-  void load_config(std::filesystem::path file_path);
+  /* Parse the config file */
+  ConfigParser(std::filesystem::path file_path);
+  ConfigParser() = delete;
 
   /* Getters */
   #define PARAM(name, type, default_value) \
