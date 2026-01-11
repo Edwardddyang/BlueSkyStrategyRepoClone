@@ -1,0 +1,11 @@
+@PACKAGE_INIT@
+
+include(CMakeFindDependencyMacro)
+
+find_dependency(SimUtils REQUIRED)
+find_dependency(nlohmann_json REQUIRED)
+find_dependency(yaml-cpp REQUIRED)
+
+include("${CMAKE_CURRENT_LIST_DIR}/RaceSimTargets.cmake")
+
+check_set_and_check(SimUtils_INCLUDE_DIR "@PACKAGE_CMAKE_INSTALL_INCLUDEDIR@")

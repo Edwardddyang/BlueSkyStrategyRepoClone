@@ -1,114 +1,99 @@
 # For Gen 12.5
 /Version: "FSGP_2026"
 
-/Car: # Car Parameters
+# NOTE: ALL PATHS ARE RELATIVE TO $STRAT_ROOT
+
+/Car: # Car characterizationss for Aurora
   car_mass: 284 # kg
   cda: 0.12 # Unitless
-  motor_efficiency: 0.9
-  regen_efficiency: 0.8
-  battery_efficiency: 0.95
+  motor_efficiency: 0.9 # Unitless
+  regen_efficiency: 0.6 # Unitless
+  battery_efficiency: 0.95 # Unitless
   passive_electric_loss: 20 # W
-  air_density: 1.17 # kg/m^3
+  air_density: 1.18 # kg/m^3
   array_area: 3.98 # m^2
-  max_soc: 5.2 # kWh
   tire_pressure: 5.5 # bar
-  array_efficiency: 0.252
-  max_braking_force: 278604 # N (1 G)
+  array_efficiency: 0.252 # Unitless
+  max_braking_force: 2786.04 # N (corresponds with 1G)
   max_motor_power: 5000 # W
+  max_soc: 5.2 # kWh
   roll_res_slope_path: data/luts/fsgp/static/rr2.csv
   roll_res_yint_path: data/luts/fsgp/static/rr1.csv
   power_factor_path: data/luts/fsgp/static/powerfactor.csv
 
-\LutPaths:
-  # All following luts are relative to gen12_strategy/RaceSim/
-  base_route_path: data/luts/fsgp/static/fsgp_base_route.csv # 3 or 5 column csv --> latitude (degrees) | longitude (degrees) | altitude (km) | Time (YYYY-MM-DD HH:MM:SS) | Speed (m/s)
-  power_factor_path: data/luts/fsgp/static/powerfactor.csv
-  corners_path: data/luts/fsgp/static/fsgp_corners.csv # 3 Column csv -> Corner start index | Corner end index | Max speed (mps)
-  route_has_corners: true
-  roll_res_slope_path: data/luts/fsgp/static/rr2.csv
-  roll_res_yint_path: data/luts/fsgp/static/rr1.csv
+\Route:
+  max_route_speed: 104 # kph (Regulation section 12.13A)
+  base_route_path: data/luts/fsgp/static/fsgp_base_route.csv
+  precomputed_distances_path: data/luts/fsgp/static/precomputed_distances.csv
+  corners_path: data/luts/fsgp/static/fsgp_corners.csv
+
+
+\Simulator:
+  wind_speed_path: data/luts/fsgp/dynamic/wind_speed_10m.csv
+  wind_direction_path: data/luts/fsgp/dynamic/wind_direction_10m.csv
   dni_path: data/luts/fsgp/dynamic/dni.csv
   dhi_path: data/luts/fsgp/dynamic/dhi.csv
-  ghi_path: data/luts/fsgp/dynamic/shortwave_radiation.csv
-  use_ghi: true  # If true, use the GHI lut for calculating solar energy. Otherwise, use dni + dhi
-  wind_direction_path: data/luts/fsgp/dynamic/wind_direction_10m.csv
-  wind_speed_path: data/luts/fsgp/dynamic/wind_speed_10m.csv
-  precomputed_distances_path: data/luts/fsgp/static/precomputed_distances.csv # Precomputed distances between each pair of
-                                                                              # coordinates in base_route_path.
-                                                                              # If calculate_distances is true, it will
-                                                                              # write the result to this path
-  calculate_distances: False # Whether to pre-compute distances. If you're passing in a new base route never seen before,
-                             # set this to true
-
-\Route: # Route conditions
-  init_control_stops: False # Use control stops or not
-  day_one_start_time: 2025-06-02 10:00:00 # Start time of the first day in YYYY-MM-DD HH:MM:SS local 24 hour format
-  day_one_end_time: 2025-06-02 18:00:00 # End time of the first day in YYYY-MM-DD HH:MM:SS local 24 hour format
-  day_start_time: 9:00:00 # Start time from second day onwards in HH:MM:SS local 24 hour format
-  day_end_time: 17:00:00 # End time from second day onwards in HH:MM:SS local 24 hour format
-  race_end_time: 2025-06-08 17:00:00 # YYYY-MM-DD HH:MM:SS local 24 hour time
-  impounding_release_time: 07:00:00 # HH:MM:SS of the morning battery release time
-  impounding_start_time: 20:00:00 # HH:MM:SS of the nightly battery impounding time
   overnight_charging_location: 37.000823,-86.367676,0.157135 # Coordinates of the charging location
-  max_route_speed: 104 # kph - comes from FSGP regulations
-
-\Telemetry: # Current state of the car
-  current_soc: 9.2 # in kWh, should be <= max_soc
+  impounding_start_time: 2025-06-02T20:00:00-06:00 # Only HH:MM:SS component is used
+  impounding_release_time: 2025-06-02T07:00:00-06:00 # Only HH:MM:SS component is used
+  current_soc: 5.2 # kWh
   gps_coordinates: 37.0011542,-86.3683294,0.157135 # Lat(degrees),Lon(degrees),Alt(metres)
-  current_date_time: 2025-06-02 10:00:00 # YYYY-MM-DD HH:MM:SS local 24 hour time
-  utc_adjustment: +6.0 # Hour conversion from local time to UTC. This will be applied to all times. 
-                       # This parameter MUST be present
+  current_date_time: 2025-06-02T10:00:00-06:00
+  day_one_start_time: 2025-06-02T10:00:00-06:00
+  day_one_end_time: 2025-06-02T18:00:00-06:00
+  day_start_time: 2025-06-02T09:00:00-06:00 # Only HH:MM:SS component is used
+  day_end_time: 2025-06-02T17:00:00-06:00 # Only HH:MM:SS component is used
+  race_end_time: 2025-06-08T17:00:00-06:00 # Only HH:MM:SS component is used
 
-\Optimizer:
-  model: Gen 12 # Force model of the car to use
-  optimizer: Acceleration # type of optimization
-  threads: 0.6 # Fractional number of machine threads to use
-  ####### The below parameters are for segmenting the route into initial race plans #######
-  acceleration_power_budget: 0.8 # Percentage of maximum motor power that can be allocated towards acceleration
-  corner_speed_min: 0.4 # Unitless fraction in range [0,1]
-  corner_speed_max: 0.95 # Unitless fraction in range (corner_speed_min,1]
-  aggressive_straight_threshold: 250.0 # m. Straights longer than this can be taken agressively
-  num_repetitions: 5 # Number of times to repeat the plan for a single loop
-  min_acceleration: 0.1 # Minimum acceleration that can be considered in m/s^2
-  average_speed: 15.0 # Average speed to try and maintain throughout the route. The profile creator
-                      # uses this value as the mean of a gaussian distribution to sample for
-  fix_loops: true # Fix the number of loops to create. If true, then uses max_num_loops
-  max_num_loops: 15 # Maximum number of loops that can be completed
+# \Optimizer:
+#   optimizer: Acceleration # type of optimization
+#   threads: 0.6 # Fractional number of machine threads to use
+#   ####### The below parameters are for segmenting the route into initial race plans #######
+#   acceleration_power_budget: 0.8 # Percentage of maximum motor power that can be allocated towards acceleration
+#   corner_speed_min: 0.4 # Unitless fraction in range [0,1]
+#   corner_speed_max: 0.95 # Unitless fraction in range (corner_speed_min,1]
+#   aggressive_straight_threshold: 250.0 # m. Straights longer than this can be taken agressively
+#   num_repetitions: 5 # Number of times to repeat the plan for a single loop
+#   min_acceleration: 0.1 # Minimum acceleration that can be considered in m/s^2
+#   average_speed: 15.0 # Average speed to try and maintain throughout the route. The profile creator
+#                       # uses this value as the mean of a gaussian distribution to sample for
+#   fix_loops: true # Fix the number of loops to create. If true, then uses max_num_loops
+#   max_num_loops: 15 # Maximum number of loops that can be completed
 
-  log_optimization: false # Log optimization process e.g. race plan creation, mutation, crossover. Should really only be used
-                         # for population_size = 1
-  print_population: true  # Print the average speed of the population each generation
-  fix_seeds: false # Fix seeds for route segmentation. If true, use the seeds below
-  loop_seed: 1523054859
-  speed_seed: 3730245349
-  aggressive_seed: 3069039589
-  acceleration_seed: 3069039589
-  idx_seed: 393797199
-  skip_seed: 3636178243
-  ####### Genetic Algorithm Parameters #######
-  num_generations: 5  # Number of iterations
-  population_size: 10 # Number of race plans to maintain the in population
-  survival_percentage: 0  # % of the population to pass onto the next iteration unaltered
-  crossover_percentage: 0 # Top % of the population to use to crossover to create new children
-  mutation_percentage: 100 # % of the population to mutate outside of the ones that are being crossed over
-  # Note that survival_percentage + parents_percentage + mutation_percentage must be 100
+#   log_optimization: false # Log optimization process e.g. race plan creation, mutation, crossover. Should really only be used
+#                          # for population_size = 1
+#   print_population: true  # Print the average speed of the population each generation
+#   fix_seeds: false # Fix seeds for route segmentation. If true, use the seeds below
+#   loop_seed: 1523054859
+#   speed_seed: 3730245349
+#   aggressive_seed: 3069039589
+#   acceleration_seed: 3069039589
+#   idx_seed: 393797199
+#   skip_seed: 3636178243
+#   ####### Genetic Algorithm Parameters #######
+#   num_generations: 5  # Number of iterations
+#   population_size: 10 # Number of race plans to maintain the in population
+#   survival_percentage: 0  # % of the population to pass onto the next iteration unaltered
+#   crossover_percentage: 0 # Top % of the population to use to crossover to create new children
+#   mutation_percentage: 100 # % of the population to mutate outside of the ones that are being crossed over
+#   # Note that survival_percentage + parents_percentage + mutation_percentage must be 100
 
-  # Mutation Strategies:
-  # "ConstantForDeceleration" -> Replace a deceleration segment with constant speed
-  # "AccelerationNoise" -> Add 1m/s, -1m/s to an acceleration/deceleration segment
-  # "ConstantNoise" -> Add 1m/s or -1m/s to a constant speed segment
-  # "Mix" -> Apply a random mutation from the above on each loop
-  mutation_strategy: Mix
-  dump_dir: exports # Directory for csvs and json files
+#   # Mutation Strategies:
+#   # "ConstantForDeceleration" -> Replace a deceleration segment with constant speed
+#   # "AccelerationNoise" -> Add 1m/s, -1m/s to an acceleration/deceleration segment
+#   # "ConstantNoise" -> Add 1m/s or -1m/s to a constant speed segment
+#   # "Mix" -> Apply a random mutation from the above on each loop
+#   mutation_strategy: Mix
+#   dump_dir: exports # Directory for csvs and json files
 
-  # Crossover Strategy:
-  # "LoopCross" -> Crossover some loops
-  crossover_strategy: LoopCross
+#   # Crossover Strategy:
+#   # "LoopCross" -> Crossover some loops
+#   crossover_strategy: LoopCross
 
-  threads: 0.5
+#   threads: 0.5
 
-\Simulation:
-  simulator: FSGP # Type of simulator - if "TELEMETRY", no optimizer is used
-  save_csv: true # Save simulation results to CSVs
+# \Simulation:
+#   simulator: FSGP # Type of simulator - if "TELEMETRY", no optimizer is used
+#   save_csv: true # Save simulation results to CSVs
   
 

@@ -1,5 +1,8 @@
 #pragma once
 
+#include <iostream>
+#include <nlohmann/json.hpp>
+
 template <typename DerivedRacePlan>
 void BaseRacePlan<DerivedRacePlan>::export_json(std::filesystem::path dump_path) const {
   DerivedRacePlan& derived = *static_cast<const DerivedRacePlan*>(this);

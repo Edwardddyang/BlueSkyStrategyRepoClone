@@ -1,19 +1,17 @@
-/* 
+/*
 Base class for optimization algorithms
 */
 
 #pragma once
 
-#include <memory>
-#include <vector>
-#include <concepts>
+#include <semaphore>
 
-#include "model/Car.hpp"
-#include "route/Route.hpp"
+#include "SimUtils/Luts.hpp"
 #include "route/RacePlan.hpp"
-#include "sim/Simulator.hpp"
+#include "route/Route.hpp"
 
-template<typename Derived, RouteType RouteType, RacePlanType RacePlan, typename SimulatorType>
+template <typename Derived, RouteType RouteType, RacePlanType RacePlan,
+          typename SimulatorType>
 class Optimizer {
  protected:
   // Semaphore with 1024 maximum count
@@ -33,13 +31,13 @@ class Optimizer {
   }
 
  public:
-  Optimizer(SimulatorType sim, RouteType route, unsigned int max_num_threads) : simulator(std::move(sim)),
-            route(std::move(route)), thread_limiter(max_num_threads) {}
+  Optimizer(SimulatorType sim, RouteType route, unsigned int max_num_threads)
+      : thread_limiter(max_num_threads),
+        simulator(std::move(sim)),
+        route(std::move(route)) {}
 
   /* Apply the optimization algorithm, output a speed profile over
       the segments of the race
   */
-  RacePlan optimize() {
-    return static_cast<Derived*>(this)->optimize_impl();
-  }
+  RacePlan optimize() { return static_cast<Derived*>(this)->optimize_impl(); }
 };

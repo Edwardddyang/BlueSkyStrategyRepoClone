@@ -1,20 +1,20 @@
-/* 
+/*
 Class to run the a full scale simulation on a designated route
 */
 
 #pragma once
 
-#include <stdbool.h>
-#include <string>
-#include <memory>
+#include <cstdint>
+#include <utility>
 #include <vector>
 
-#include "route/Route.hpp"
-#include "route/RacePlan.hpp"
-#include "model/Car.hpp"
-#include "SimUtils/Types.hpp"
+#include "SimUtils/Defines.hpp"
 #include "SimUtils/Luts.hpp"
+#include "SimUtils/Types.hpp"
 #include "config/ConfigParser.hpp"
+#include "model/Car.hpp"
+#include "route/RacePlan.hpp"
+#include "route/Route.hpp"
 
 using ForecastMatrix = Luts::ForecastLut<double, util::type::Time>;
 inline constexpr uint32_t SECONDS_IN_DAY = 86400;
@@ -50,9 +50,11 @@ struct LogMetrics {
   std::vector<double> delta_battery;
 
   /** @brief Update simulation metrics */
-  void update_metrics(const CarUpdate& update, util::type::Irradiance irr, double battery_energy,
-                      double delta_energy, double distance, util::type::Coord coord, double curr_speed,
-                      const util::type::Time& curr_time, double accel) {
+  void update_metrics(const CarUpdate& update, util::type::Irradiance irr,
+                      double battery_energy, double delta_energy,
+                      double distance, util::type::Coord coord,
+                      double curr_speed, const util::type::Time& curr_time,
+                      double accel) {
     battery.push_back(battery_energy);
     accumulated_distance.push_back(distance);
     timestamp.push_back(curr_time);
@@ -117,49 +119,49 @@ struct LogMetrics {
 
 /** Injected simulation parameters */
 struct SimulatorParams {
-  const ForecastMatrix wind_speed_lut;
-  const ForecastMatrix wind_dir_lut;
-  const ForecastMatrix dni_lut;
-  const ForecastMatrix dhi_lut;
+  ForecastMatrix wind_speed_lut;
+  ForecastMatrix wind_dir_lut;
+  ForecastMatrix dni_lut;
+  ForecastMatrix dhi_lut;
 
-  SimulatorParams(ForecastMatrix wind_speed,
-                  ForecastMatrix wind_dir,
-                  ForecastMatrix dni,
-                  ForecastMatrix dhi) :
-    wind_speed_lut(std::move(wind_speed)),
-    wind_dir_lut(std::move(wind_dir)),
-    dni_lut(std::move(dni)), dhi_lut(std::move(dhi)) {}
+  SimulatorParams(ForecastMatrix wind_speed, ForecastMatrix wind_dir,
+                  ForecastMatrix dni, ForecastMatrix dhi)
+      : wind_speed_lut(std::move(wind_speed)),
+        wind_dir_lut(std::move(wind_dir)),
+        dni_lut(std::move(dni)),
+        dhi_lut(std::move(dhi)) {}
 };
 
 /** Fill simulation parameters from configuration file */
 inline SimulatorParams get_simulator_params(ConfigParser* parser) {
-  RUNTIME_EXCEPTION(parser != nullptr, "Config parser is null when loading simulation parameters");
-  SimulatorParams parameters{
-    ForecastMatrix(parser->get_wind_speed_path()),
-    ForecastMatrix(parser->get_wind_direction_path()),
-    ForecastMatrix(parser->get_dni_path()),
-    ForecastMatrix(parser->get_dhi_path())
-  };
+  RUNTIME_EXCEPTION(parser != nullptr,
+                    "Config parser is null when loading simulation parameters");
+  SimulatorParams parameters{ForecastMatrix(parser->get_wind_speed_path()),
+                             ForecastMatrix(parser->get_wind_direction_path()),
+                             ForecastMatrix(parser->get_dni_path()),
+                             ForecastMatrix(parser->get_dhi_path())};
   return parameters;
 }
 
 // Simulator interface
-// All (derived) class members should be initialized exactly ONCE when the object is constructed.
-// Afterwards, they should only be read. This is to ensure that the Simulator object can be
-// shared between threads. Do not track the internal state of the simulation e.g. soc, speed
-// using class members. I'll find you.
+// All (derived) class members should be initialized exactly ONCE when the
+// object is constructed. Afterwards, they should only be read. This is to
+// ensure that the Simulator object can be shared between threads. Do not track
+// the internal state of the simulation e.g. soc, speed using class members.
+// I'll find you.
 template <typename Derived, RacePlanType RacePlan, RouteType Route>
 class Simulator {
  protected:
-	/* Step size in seconds when charging */
-	const int CHARGING_STEP_SIZE = 30;
+  /* Step size in seconds when charging */
+  static constexpr int CHARGING_STEP_SIZE = 30;
 
-	/* Route to simulate on and the model to use */
-	const Car car;
+  /* Route to simulate on and the model to use */
+  Car car;
 
   /** @brief Get step size while the car is charging */
-  inline double get_charging_step_size(const util::type::Time& curr_time,
-                                       const util::type::Time& charge_end) const {
+  [[nodiscard]] double get_charging_step_size(
+      const util::type::Time& curr_time,
+      const util::type::Time& charge_end) const {
     const double remaining_time = charge_end - curr_time;
     if (remaining_time > CHARGING_STEP_SIZE) {
       return static_cast<double>(CHARGING_STEP_SIZE);
@@ -169,18 +171,18 @@ class Simulator {
   }
 
  public:
-	/* Load all LUTs upon construction */
-	explicit Simulator(Car model) : car(std::move(model)) {}
+  /* Load all LUTs upon construction */
+  explicit Simulator(Car model) : car(std::move(model)) {}
 
-	/** @brief Run a full simulation with a car object and a route
-	*
-	* @param route: The Route to simulate on
-	* @param race_plan: The race plan to use
-	* @param result_lut: ResultsLut object for storing results
-	*/
-	void run_sim(const Route& route,
-               RacePlan* race_plan,
-	             Luts::DataSet* result_lut) const {
-    static_cast<const Derived*>(this)->run_sim_impl(route, race_plan, result_lut);
+  /** @brief Run a full simulation with a car object and a route
+   *
+   * @param route: The Route to simulate on
+   * @param race_plan: The race plan to use
+   * @param result_lut: ResultsLut object for storing results
+   */
+  void run_sim(const Route& route, RacePlan* race_plan,
+               Luts::DataSet* result_lut) const {
+    static_cast<const Derived*>(this)->run_sim_impl(route, race_plan,
+                                                    result_lut);
   }
 };

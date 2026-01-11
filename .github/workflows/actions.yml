@@ -1,0 +1,44 @@
+name: Build, Test, Run Clang
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build_and_test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/cache@v3
+        with:
+          path: ~/.conan2
+          key: ${{ runner.os }}-conan-${{ hashFiles('conanfile.*') }}
+      - name: Conan
+        run: |
+          pip3 install conan==2.19
+          conan profile detect --force
+          conan install . --build=missing -s compiler.cppstd=20
+
+      - name: Configure & Build
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-format-20 clang-tidy-20
+          cmake -S . -G "Unix Makefiles" -B build -DCMAKE_TOOLCHAIN_FILE=build/Release/generators/conan_toolchain.cmake -DCMAKE_BUILD_TYPE=Release  -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DRUN_TEST=ON
+          cmake --build build --config Release
+
+      # ENABLE WHEN UNIT TESTS ARE MADE
+      # - name: Run unit tests
+      #   run: |
+      #     cd build
+      #     ctest --output-on-failure
+
+      - name: Run clang
+        run: |
+          cmake --build build --target format-gh
+          cmake --build build --target tidy-gh
+
+      - name: install
+        run: |
+          conan create . -s compiler.cppstd=20

@@ -32,7 +32,7 @@ cmake --build build --config Release
 Ensure that your conan profile detects a cpp compiler that supports standard 20 or above. You may have to modify the above steps to work with your chosen toolchain e.g. if using MSVC, you will need to add `-G Ninja` to the cmake configuration command
 
 ## Quick Start
-The build command above also generates an executable called `opt.exe` from `src/WSC.cpp`. This performs a simple constant speed optimization for WSC. Refer to this script when using the library.
+The build command above also generates an executable called `wsc.exe` from `src/WSC.cpp`. This performs a simple constant speed optimization for WSC. Refer to this script when using the library.
 
 ### Config File
 
@@ -41,18 +41,13 @@ Configuration parameters e.g. route files, car characterizations, simulation set
 ### STRAT_ROOT
 Almost all exported objects rely on the existence of an environment variable called `STRAT_ROOT` that holds the absolute path to the root directory of all lookup tables. As such, file paths in the configuration file will be pre-pended with `STRAT_ROOT`. This allows lookup tables to be stored in the repository itself.
 
-```
-export STRAT_ROOT=<Absolute path to strategy/>
-./opt.exe <Config file relative to STRAT_ROOT>
-```
-
 ## Contributing
 - Code should comply with CPP Core Guidelines https://isocpp.github.io/CppCoreGuidelines/CppCoreGuidelines
 - All code must pass the following with 0 errors:
 ```
 ctest --output-on-failure
-clang-format -i src/*.cpp include/*.hpp tests/*.cpp
-clang-tidy -p build src/*.cpp tests/*.cpp --system-headers=false
+cmake --build build --target format
+cmake --build build --target tidy
 ```
 - All units must be metric base e.g. grams, celsius, meters. If units are non-standard, indicate them in variable name e.g. `double speed_kph = 6.5;`
 - Private class members should be appended with `_`
@@ -81,3 +76,11 @@ force -> newton\
 area -> meters squared
 
 When naming variables representing a scientific unit, please include the units if it does not conform to the ones listed above and also is not in the base metric sytem e.g. ```double speed_kph = 70.2;```
+
+# TODO
+- Fix FSGP Optimization
+- Finish ASC Simulator and do ASC Optimization
+- Unit Tests
+- Make CRTP derived methods private
+- Don't print dataset for all solutions - makes things extremely slow
+- Exception handling is pretty bad (next lead's problem)

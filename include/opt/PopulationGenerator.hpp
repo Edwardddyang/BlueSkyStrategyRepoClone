@@ -1,42 +1,47 @@
-/** This file provides functions for crossover, mutation and initial population creation */
+/** This file provides functions for crossover, mutation and initial population
+ * creation */
 
 #pragma once
 
 #include <memory>
-#include <utility>
-#include <stack>
-#include <vector>
 #include <random>
+#include <stack>
+#include <utility>
+#include <vector>
 
-#include "route/Route.hpp"
-#include "route/RacePlan.hpp"
-#include "SimUtils/Types.hpp"
 #include "SimUtils/Logger.hpp"
 #include "SimUtils/Luts.hpp"
+#include "SimUtils/Types.hpp"
+#include "route/RacePlan.hpp"
+#include "route/Route.hpp"
 
-// Class for creating FSGPRacePlan objects in the initial population. FSGPRacePlan creation as done according to the process
-// described in. This class also provides functions for creating race plans on existing loops used for mutation
-// in the genetic optimizer
+// Class for creating FSGPRacePlan objects in the initial population.
+// FSGPRacePlan creation as done according to the process described in. This
+// class also provides functions for creating race plans on existing loops used
+// for mutation in the genetic optimizer
 // https://www.notion.so/blueskysolar/Race-Strategy-and-Testing-Process-1da8d1f46c3680a79056edf3c9fecd1b?pvs=4
 class RacePlanCreator {
  public:
   ////////////////////////////////////////////////////////////////////////////////////////////////
-  // The following structs are used in create_plan() to hold intermediate data as the race plan //
-  // is being created                                                                           //
+  // The following structs are used in create_plan() to hold intermediate data
+  // as the race plan // is being created //
   ////////////////////////////////////////////////////////////////////////////////////////////////
 
   ///////////////////////////////////////////////////////////////////////////////////
-  ////////////////////// NOTE ABOUT TERMINOLOGY USED ///////////////////////////////
+  ////////////////////// NOTE ABOUT TERMINOLOGY USED
+  //////////////////////////////////
   ///////////////////////////////////////////////////////////////////////////////////
   // "route index": Denotes an index in the route_points_array
-  // "corner index": Denotes an index in the cornering_segment_bounds array of the Route object
-  // "real corner": A corner where the maximum cornering speed is less than the route's speed limit
-  // "segment index": An index inside loop_segments, loop_segment_speeds ...
-  // "wrap-around corner": The first corner of the route which the car wraps to after taking the entire route
+  // "corner index": Denotes an index in the cornering_segment_bounds array of
+  // the Route object "real corner": A corner where the maximum cornering speed
+  // is less than the route's speed limit "segment index": An index inside
+  // loop_segments, loop_segment_speeds ... "wrap-around corner": The first
+  // corner of the route which the car wraps to after taking the entire route
 
-  // Keeps track of the history of different data elements added to the race plan
-  // e.g. number of segments added for each corner, speed of each corner etc.
-  // This is required when rolling back to a previous corner after segment generation failed
+  // Keeps track of the history of different data elements added to the race
+  // plan e.g. number of segments added for each corner, speed of each corner
+  // etc. This is required when rolling back to a previous corner after segment
+  // generation failed
   struct PlanHistory {
     // The chosen speed for each real corner
     std::stack<double> real_corner_speeds;
@@ -60,32 +65,30 @@ class RacePlanCreator {
     }
   };
 
-  // Holds the FSGPRacePlan attributes that will be passed into the return object
+  // Holds the FSGPRacePlan attributes that will be passed into the return
+  // object
   struct PlanAttributes {
-    // Data holders for each loop before processing when constructing a loop block. For each loop
-    // block, we create one loop and modify the beginning or ending segments in order to glue the
-    // loops of the block together. These vectors hold the uniquely created loop for each block
+    // Data holders for each loop before processing when constructing a loop
+    // block. For each loop block, we create one loop and modify the beginning
+    // or ending segments in order to glue the loops of the block together.
+    // These vectors hold the uniquely created loop for each block
     FSGPRacePlan::PlanData raw_segments;
 
     // FSGPRacePlan attributes
     FSGPRacePlan::PlanData all_segments;
 
-    void add_loop(const FSGPRacePlan::LoopData& loop_data, size_t start_idx, size_t end_idx);
+    void add_loop(const FSGPRacePlan::LoopData& loop_data, size_t start_idx,
+                  size_t end_idx);
 
-    PlanAttributes(
-      FSGPRacePlan::PlanData raw_loop_segments = {},
-      FSGPRacePlan::PlanData all_segments = {}) :
-        raw_segments(raw_loop_segments),
-        all_segments(all_segments) {}
+    PlanAttributes(FSGPRacePlan::PlanData raw_loop_segments = {},
+                   FSGPRacePlan::PlanData all_segments = {})
+        : raw_segments(raw_loop_segments), all_segments(all_segments) {}
   };
 
   /** Initialize all parameters */
-  RacePlanCreator(std::shared_ptr<FSGPRoute> route,
-                  unsigned speed_seed = 1,
-                  unsigned loop_seed = 1,
-                  unsigned aggressive_seed = 1,
-                  unsigned idx_seed = 1,
-                  unsigned acceleration_seed = 1,
+  RacePlanCreator(std::shared_ptr<FSGPRoute> route, unsigned speed_seed = 1,
+                  unsigned loop_seed = 1, unsigned aggressive_seed = 1,
+                  unsigned idx_seed = 1, unsigned acceleration_seed = 1,
                   unsigned skip_seed = 1);
 
   /** @brief Create a single race plan */
@@ -98,12 +101,13 @@ class RacePlanCreator {
    * @param route Race route
    * @param logger Logger for the race plan creation
    * @param num_loops_in_block Number of loops in the block
-   * @param is_last_block Whether the block to be created is the last block of the entire plan
-   * @param is_first_block Whether the block to be created is the first block of the entire plan
-  */
+   * @param is_last_block Whether the block to be created is the last block of
+   * the entire plan
+   * @param is_first_block Whether the block to be created is the first block of
+   * the entire plan
+   */
   void create_loop_block(FSGPRacePlan::LoopData* loop_data,
-                         int num_loops_in_block = 1,
-                         bool is_last_block = false,
+                         int num_loops_in_block = 1, bool is_last_block = false,
                          bool is_first_block = false,
                          PlanAttributes* att = nullptr,
                          FileLogger* logger = nullptr);
@@ -118,8 +122,9 @@ class RacePlanCreator {
     std::mt19937 acceleration_rng;
     std::mt19937 skip_rng;
 
-    Gen(unsigned int speed_seed = 1, unsigned int loop_seed = 1, unsigned int aggressive_seed = 1,
-        unsigned int idx_seed = 1, unsigned int acceleration_seed = 1, unsigned int skip_seed = 1) {
+    Gen(unsigned int speed_seed = 1, unsigned int loop_seed = 1,
+        unsigned int aggressive_seed = 1, unsigned int idx_seed = 1,
+        unsigned int acceleration_seed = 1, unsigned int skip_seed = 1) {
       speed_rng.seed(speed_seed);
       loop_rng.seed(loop_seed);
       aggressive_rng.seed(aggressive_seed);
@@ -129,20 +134,20 @@ class RacePlanCreator {
     }
   };
 
-  /** @brief Helper to create_plan used to create segments for a single corner */
-  bool create_segments(size_t corner_idx,
-                       FSGPRacePlan::LoopData* loop_data,
-                       bool is_first_segment,
-                       Gen* rng,
-                       PlanHistory* history,
+  /** @brief Helper to create_plan used to create segments for a single corner
+   */
+  bool create_segments(size_t corner_idx, FSGPRacePlan::LoopData* loop_data,
+                       bool is_first_segment, Gen* rng, PlanHistory* history,
                        FileLogger& logger);  // NOLINT
 
-  /** @brief Helper to create_plan used for rolling back a corner after failed segment generation 
+  /** @brief Helper to create_plan used for rolling back a corner after failed
+   * segment generation
    * @return Index of last real corner to which we are rolling back
-  */
+   */
   size_t rollback_to_last_real_corner(size_t corner_idx, PlanHistory* history,
                                       FSGPRacePlan::LoopData* loop_data,
-                                      PlanAttributes* att, FileLogger& logger);  // NOLINT
+                                      PlanAttributes* att,
+                                      FileLogger& logger);  // NOLINT
 
  private:
   // Route for which to create a Race Plan
@@ -159,7 +164,8 @@ class RacePlanCreator {
   // Maximum number of loops to create
   int max_num_loops;
 
-  // If true, then max_num_loops will be created for any plan. Otherwise, a number will be sampled
+  // If true, then max_num_loops will be created for any plan. Otherwise, a
+  // number will be sampled
   bool fix_loops;
 
   // Mass of the car in kg
@@ -204,8 +210,9 @@ class RacePlanCreator {
   // Maximum ratio of the maximum cornering speed to choose from
   double corner_speed_max_ratio;
 
-  // Threshold value in meters for taking a straight aggressively. If a straight is longer than this
-  // this distance, then the car will accelerate, hold a constant speed before decelerating
+  // Threshold value in meters for taking a straight aggressively. If a straight
+  // is longer than this this distance, then the car will accelerate, hold a
+  // constant speed before decelerating
   double aggressive_straight_threshold;
 
   // Number of loops to repeat in a single loop block
@@ -217,7 +224,8 @@ class RacePlanCreator {
   // Amount of motor power in W that can be allocated towards acceleraiton
   double acceleration_power_allowance;
 
-  // Number of iterations to try when sampling speeds, distances, indices, accelerations etc.
+  // Number of iterations to try when sampling speeds, distances, indices,
+  // accelerations etc.
   double max_iters;
 
   // Whether to log the segmentation process to a file. Used for debugging
