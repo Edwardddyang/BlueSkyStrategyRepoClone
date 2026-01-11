@@ -11,13 +11,20 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/cache@v3
+      - uses: conan-io/setup-conan@v1
+      - name: Setup SSH Key
+        uses: webfactory/ssh-agent@v0.9.0
         with:
-          path: ~/.conan2
-          key: ${{ runner.os }}-conan-${{ hashFiles('conanfile.*') }}
+          ssh-private-key: ${{ secrets.CPP_UTILS_ACCESS }}
+      - name: Build CPP_UTILS
+        run: |
+          git clone git@github.com:blueskysolarracing/cpp-utils.git
+          cd cpp-utils
+          conan profile detect --force
+          conan create . -s compiler.cppstd=20
+
       - name: Conan
         run: |
-          pip3 install conan==2.19
           conan profile detect --force
           conan install . --build=missing -s compiler.cppstd=20
 
