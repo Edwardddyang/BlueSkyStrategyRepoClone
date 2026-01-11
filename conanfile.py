@@ -13,7 +13,7 @@ class StrategyRecipe(ConanFile):
     default_options = {"shared": False, "fPIC": True}
 
     # Sources are located in the same place as this recipe, copy them to the recipe (isolated build environment)
-    exports_sources = "CMakeLists.txt", "src/*", "include/*", "StrategyConfig.cmake.in"
+    exports_sources = "CMakeLists.txt", "src/*", "include/*", "StrategyConfig.cmake.in", "thirdparty/*"
 
     def requirements(self):
         self.requires("spdlog/1.15.3")
