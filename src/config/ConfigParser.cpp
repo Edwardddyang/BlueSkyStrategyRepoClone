@@ -2,8 +2,8 @@
 
 #include <yaml-cpp/yaml.h>  // IWYU pragma: keep
 
-#include <exception>
 #include <cstdlib>
+#include <exception>
 #include <filesystem>
 #include <string>
 #include <unordered_map>

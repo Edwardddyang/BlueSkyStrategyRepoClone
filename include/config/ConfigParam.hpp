@@ -47,9 +47,9 @@ class ConfigParam {
       return *value;
     }
   }
-  ConfigParam<T>(std::string param_name, T default_value,
-                 const std::unordered_map<std::string, YAML::Node>& key_values,
-                 const char* STRAT_ROOT)
+  ConfigParam(std::string param_name, T default_value,
+              const std::unordered_map<std::string, YAML::Node>& key_values,
+              const char* STRAT_ROOT)
       : name(std::move(param_name)) {
     if (key_values.contains(name)) {
       if constexpr (std::is_same_v<util::type::Coord, T>) {
@@ -82,6 +82,6 @@ class ConfigParam {
   ConfigParam& operator=(ConfigParam&&) noexcept = default;
   ConfigParam(const ConfigParam& other) = default;
   ConfigParam& operator=(const ConfigParam&) = default;
-  ConfigParam<T>() = default;
-  ~ConfigParam<T>() = default;
+  ConfigParam() = default;
+  ~ConfigParam() = default;
 };
