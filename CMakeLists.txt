@@ -116,7 +116,6 @@ find_program(CLANG_TIDY_20 run-clang-tidy)
 add_custom_target(tidy-gh
   COMMAND ${CLANG_TIDY_20}
           -p ${CMAKE_BINARY_DIR}
-          -header-filter="^(src|include|tests)/.*"
           -j 2
           ${FORMAT_FILES}
 )
