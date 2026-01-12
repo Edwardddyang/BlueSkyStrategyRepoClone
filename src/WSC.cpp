@@ -1,5 +1,6 @@
 /* Optimize for WSC */
 
+#include <iostream>
 #include <exception>
 #include <filesystem>
 
@@ -40,6 +41,7 @@ int main(int argc, char *argv[]) {
       spdlog::info("No viable race plan");
     }
   } catch (const std::exception &) {
+    std::cout << e.what() << std::endl;
     return 1;
   }
   return 0;
