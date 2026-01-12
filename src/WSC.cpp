@@ -2,6 +2,7 @@
 
 #include <exception>
 #include <filesystem>
+#include <iostream>
 
 #include "SimUtils/Defines.hpp"
 #include "config/ConfigParser.hpp"
@@ -39,7 +40,8 @@ int main(int argc, char *argv[]) {
     } else {
       spdlog::info("No viable race plan");
     }
-  } catch (const std::exception &) {
+  } catch (const std::exception &e) {
+    std::cout << e.what() << std::endl;
     return 1;
   }
   return 0;
