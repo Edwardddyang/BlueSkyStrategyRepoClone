@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
-#include <cstdlib>
 
+#include <cstdlib>
 #include <filesystem>
 #include <string>
 #include <utility>
@@ -9,10 +9,12 @@
 #include "route/Route.hpp"
 
 TEST(WSCRouteTest, UniformSegmentTestNewRoute) {  // NOLINT
-  const struct WSCRouteParams params(20.0, {1,2,3,4});
-  const std::filesystem::path path = std::string(LUTS_PATH) + "test/uniform_segment_testing.csv";
+  const struct WSCRouteParams params(20.0, {1, 2, 3, 4});
+  const std::filesystem::path path =
+      std::string(LUTS_PATH) + "test/uniform_segment_testing.csv";
   const WSCRoute route(params, path);
-  std::vector<std::pair<size_t, size_t>> segments = route.segment_route_uniform(route.get_route_length());
+  std::vector<std::pair<size_t, size_t>> segments =
+      route.segment_route_uniform(route.get_route_length());
 
   const size_t num_points = route.get_num_points();
   const int true_num_points = 10;
