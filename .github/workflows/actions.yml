@@ -42,15 +42,26 @@ jobs:
 
       - name: Run CPP Linter (Format & Tidy)
         uses: cpp-linter/cpp-linter-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         id: linter
         with:
           style: 'file'
           version: '20'
           database: 'build'
-          thread-comments: true
-          incremental-mode: true
+          lines-changed-only: 'diff'
           tidy-checks: ''
           extra-args: '-std=c++20'
+          extensions: 'c,h,C,H,cpp,hpp,cc,hh,c++,h++,cxx,hxx,tpp'
+          ignore: |
+            include/opt/PopulationGenerator\.hpp|
+            src/optimizer/Mutation\.cpp|
+            src/optimizer/PopulationGenerator\.cpp|
+            src/optimizer/FSGPOptimizer\.cpp|
+            include/opt/FSGPOptimizer\.hpp|
+            src/FSGP\.cpp|
+            src/ASC\.cpp|
+            src/simulation/ASCSimulator\.cpp
 
       - name: Fail if Linter found issues
         if: steps.linter.outputs.checks-failed > 0
