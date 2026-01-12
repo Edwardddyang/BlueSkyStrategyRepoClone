@@ -2,8 +2,6 @@
 This repository provides a library comprised of solar car energy model, simulators and optimizers for the Formula Sun Grand Prix (FSGP), American Solar Challenge (ASC), World Solar Challenge (WSC).
 
 ## Toolchain
-This section provides steps for installing the compiler and build toolchain
-
 ### Linux
 `sudo apt-get install build-essential cmake git python3 python3-pip`
 
@@ -30,6 +28,20 @@ cmake -S . -B build -DCMAKE_TOOLCHAIN_FILE=build/build/Release/generators/conan_
 cmake --build build --config Release
 ```
 Ensure that your conan profile detects a cpp compiler that supports standard 20 or above. You may have to modify the above steps to work with your chosen toolchain e.g. if using MSVC, you will need to add `-G Ninja` to the cmake configuration command
+
+## Installation and Integration
+### Using Conan
+Use the following command to install the built package to your local conan cache.
+```
+conan create . -s compiler.cppstd=20
+```
+Afterwards, you can link it to your project by including the following in your `conanfile.py`
+```
+def requirements(self):
+    self.requires("strategy/1.0")
+```
+### Standard CMake
+Alternatively, you can include this repository as a subdirectory to your project
 
 ## Quick Start
 The build command above also generates an executable called `wsc.exe` from `src/WSC.cpp`. This performs a simple constant speed optimization for WSC. Refer to this script when using the library.

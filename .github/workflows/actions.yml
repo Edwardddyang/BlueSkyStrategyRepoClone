@@ -36,11 +36,10 @@ jobs:
           cmake -S . -G "Unix Makefiles" -B build -DCMAKE_TOOLCHAIN_FILE=build/Release/generators/conan_toolchain.cmake -DCMAKE_BUILD_TYPE=Release  -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DRUN_TEST=ON
           cmake --build build --config Release
 
-      # ENABLE WHEN UNIT TESTS ARE MADE
-      # - name: Run unit tests
-      #   run: |
-      #     cd build
-      #     ctest --output-on-failure
+      - name: Run unit tests
+        run: |
+          cd build
+          ctest --output-on-failure
 
       - name: Run clang
         run: |

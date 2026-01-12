@@ -76,9 +76,10 @@ if (RUN_TEST AND PROJECT_IS_TOP_LEVEL)
   # For Windows as recommended by https://google.github.io/googletest/quickstart-cmake.html
   set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 
-  # add_executable(GeographyTest ${CMAKE_CURRENT_SOURCE_DIR}/tests/GeographyTest.cpp)
-  # target_link_libraries(GeographyTest PRIVATE SimUtils GTest::gtest_main)
-  # gtest_discover_tests(GeographyTest)
+  add_executable(RouteTest ${CMAKE_CURRENT_SOURCE_DIR}/tests/RouteTest.cpp)
+  target_link_libraries(RouteTest PRIVATE Strategy GTest::gtest_main)
+  gtest_discover_tests(RouteTest)
+  target_compile_definitions(RouteTest PRIVATE LUTS_PATH="${CMAKE_CURRENT_SOURCE_DIR}/data/luts/")
 endif()
 
 # Clang-format
@@ -86,6 +87,7 @@ find_program(CLANG_FORMAT clang-format)
 file(GLOB_RECURSE FORMAT_FILES CONFIGURE_DEPENDS
   "${CMAKE_SOURCE_DIR}/src/*.[cht]pp"
   "${CMAKE_SOURCE_DIR}/include/*.[ch]pp"
+  "${CMAKE_SOURCE_DIR}/tests/*.[ch]pp"
 )
 list(REMOVE_ITEM FORMAT_FILES
   "${CMAKE_SOURCE_DIR}/include/opt/PopulationGenerator.hpp"
