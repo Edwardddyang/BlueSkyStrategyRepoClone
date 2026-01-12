@@ -112,7 +112,7 @@ add_custom_target(format-gh
 )
 
 # Clang-tidy for github actions
-find_program(CLANG_TIDY_20 clang-tidy-20)
+find_program(CLANG_TIDY_20 run-clang-tidy.py)
 add_custom_target(tidy-gh
   COMMAND ${CLANG_TIDY_20}
           -p ${CMAKE_BINARY_DIR}
