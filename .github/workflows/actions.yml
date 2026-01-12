@@ -1,0 +1,77 @@
+name: Build, Test, Run Clang
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build_and_test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: conan-io/setup-conan@v1
+      - name: Setup SSH Key
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.CPP_UTILS_ACCESS }}
+      - name: Build CPP_UTILS
+        run: |
+          git clone --branch v1.0 git@github.com:blueskysolarracing/cpp-utils.git
+          cd cpp-utils
+          conan profile detect --force
+          conan install . --build=missing -s compiler.cppstd=20
+          conan create . -s compiler.cppstd=20
+
+      - name: Conan
+        run: |
+          conan profile detect --force
+          conan install . --build=missing -s compiler.cppstd=20
+
+      - name: Generate Compilation Database
+        run: |
+          cmake -S . -B build \
+            -DCMAKE_TOOLCHAIN_FILE=build/Release/generators/conan_toolchain.cmake \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
+            -DRUN_TEST=ON
+
+      - name: Build
+        run: cmake --build build --config Release
+
+      - name: Run CPP Linter (Format & Tidy)
+        uses: cpp-linter/cpp-linter-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        id: linter
+        with:
+          style: 'file'
+          version: '20'
+          database: 'build'
+          lines-changed-only: 'diff'
+          tidy-checks: ''
+          extra-args: '-std=c++20'
+          extensions: 'c,h,C,H,cpp,hpp,cc,hh,c++,h++,cxx,hxx,tpp'
+          ignore: |
+            include/opt/PopulationGenerator\.hpp|
+            src/optimizer/Mutation\.cpp|
+            src/optimizer/PopulationGenerator\.cpp|
+            src/optimizer/FSGPOptimizer\.cpp|
+            include/opt/FSGPOptimizer\.hpp|
+            src/FSGP\.cpp|
+            src/ASC\.cpp|
+            src/simulation/ASCSimulator\.cpp
+
+      - name: Fail if Linter found issues
+        if: steps.linter.outputs.checks-failed > 0
+        run: exit 1
+
+      - name: Run unit tests
+        run: |
+          cd build
+          ctest --output-on-failure
+
+      - name: install
+        run: |
+          conan create . -s compiler.cppstd=20

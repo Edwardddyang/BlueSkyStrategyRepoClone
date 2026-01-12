@@ -1,16 +1,11 @@
 # vscode
 .vscode
 .history/*
+.idea/
+CMakeUserPresets.json
 
 # Cmake
 build
-
-# ArraySim
-*.stl
-*.scdocx
-slprj/
-.slxc
-assimp/
 
 # RaceSim
 Results
@@ -22,5 +17,6 @@ Acceleration_Results/
 TelemetrySimResults/
 exports/
 export/
+*Results/
 
 *venv*/
