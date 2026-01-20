@@ -20,6 +20,7 @@ The recommended toolchain for Windows is MSVC
 
 ## Build
 C++20 or above is required to build the project. The generated artifact is a dynamic library. Dependencies are managed using conan, which requires a valid python installation.
+Clone and build the repository at https://github.com/blueskysolarracing/cpp-utils up to and including the the `conan create...` command. This builds the required `sim-utils/1.0` library that this project depends upon.
 ```
 pip install conan==2.19
 conan profile detect --force
