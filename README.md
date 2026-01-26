@@ -19,8 +19,7 @@ The recommended toolchain for Windows is MSVC
 4. Use the x64 Native Tools Command Prompt for VS 2022 terminal
 
 ## Build
-C++20 or above is required to build the project. The generated artifact is a dynamic library. Dependencies are managed using conan, which requires a valid python installation.
-Clone and build the repository at https://github.com/blueskysolarracing/cpp-utils up to and including the the `conan create...` command. This builds the required `sim-utils/1.0` library that this project depends upon.
+C++20 or above is required to build the project. The generated artifact is a dynamic library. Dependencies are managed using conan, which requires a valid python installation. To begin, build the static library at https://github.com/blueskysolarracing/cpp-utils by following steps in the `README.md` up to and including the the `conan create...` command. This builds the required `sim-utils/1.0` library that this project depends upon. Afterwards, follow the steps below. If you already installed conan from the aforementioned project, you can skip the first two commands
 ```
 pip install conan==2.19
 conan profile detect --force
