@@ -27,7 +27,15 @@ conan install . --output-folder=build --build=missing -s compiler.cppstd=20
 cmake -S . -B build -DCMAKE_TOOLCHAIN_FILE=build/build/Release/generators/conan_toolchain.cmake -DCMAKE_BUILD_TYPE=Release  -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DRUN_TEST=ON
 cmake --build build --config Release
 ```
-Ensure that your conan profile detects a cpp compiler that supports standard 20 or above. You may have to modify the above steps to work with your chosen toolchain e.g. if using MSVC, you will need to add `-G Ninja` to the cmake configuration command
+Ensure that your conan profile detects a cpp compiler that supports standard 20 or above
+
+## Build FAQ
+If you are using the MSVC toolchain above, you will need to add the following to your conan profile:
+```
+[conf]
+tools.cmake.cmaketoolchain:generator=Ninja
+```
+Otherwise, you may run into `generator ninja does not support platform specification but platform x64 was specified` errors. You will also need to run the cmake configuration command with `-g Ninja`
 
 ## Installation and Integration
 ### Using Conan
